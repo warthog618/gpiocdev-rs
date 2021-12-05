@@ -1,0 +1,21 @@
+[package]
+authors = ["Kent Gibson <warthog618@gmail.com>"]
+categories = ["hardware-support", "api-bindings", "os::linux-apis", "embedded"]
+description = "A library to access GPIO lines on Linux using the GPIO character device"
+edition = "2021"
+keywords = ["linux", "gpio", "library", "embedded"]
+license = "MIT"
+name = "gpiod"
+version = "0.1.0"
+
+[dependencies]
+bitmaps = {version = "3.1.0"}
+chrono = "0.4"
+gpiod-uapi = {version = "0.1.0", path = "../uapi", features = ["uapi_v1", "uapi_v2"], optional = true}
+nohash-hasher = "0.2.0"
+thiserror = "1.0"
+
+[features]
+default = ["uapi_v2"]
+uapi_v1 = ["gpiod-uapi/uapi_v1"]
+uapi_v2 = ["gpiod-uapi/uapi_v2"]
