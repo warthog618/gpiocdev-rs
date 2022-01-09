@@ -64,7 +64,7 @@ pub fn chips() -> Result<Vec<PathBuf>> {
 /// A GPIO character device.
 pub struct Chip {
     /// The resolved path of the GPIO character device.
-    pub path: PathBuf,
+    path: PathBuf,
     pub(crate) f: fs::File,
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     abiv: AbiVersion,
@@ -99,6 +99,11 @@ impl Chip {
     pub fn name(&self) -> Name {
         // The unwrap can only fail for directories, and the path is known to refer to a file.
         Name::from(self.path.file_name().unwrap())
+    }
+
+    /// Return the path of the chip.
+    pub fn path(&self) -> &Path {
+        self.path.as_ref()
     }
 
     /// Find the offset of the named line.

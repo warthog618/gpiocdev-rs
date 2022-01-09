@@ -41,7 +41,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
     let ci = chip
         .chip_info()
-        .with_context(|| format!("Failed to read chip {:?} info.", chip.path))?;
+        .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
     println!(
         "{} - {} lines",
         string_or_default(&ci.name.to_string_lossy(), "??"),
@@ -51,7 +51,8 @@ fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
         let li = chip.line_info(offset).with_context(|| {
             format!(
                 "Failed to read line {} info from chip {:?}.",
-                offset, chip.path
+                offset,
+                chip.path()
             )
         })?;
         print_line_info(li);
@@ -62,7 +63,7 @@ fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
 fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
     let ci = chip
         .chip_info()
-        .with_context(|| format!("Failed to read info from chip {:?}.", chip.path))?;
+        .with_context(|| format!("Failed to read info from chip {:?}.", chip.path()))?;
     println!(
         "{} - {} of {} lines",
         string_or_default(&ci.name.to_string_lossy(), "??"),
@@ -73,7 +74,8 @@ fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
         let li = chip.line_info(offset).with_context(|| {
             format!(
                 "Failed to read line {} info from chip {:?}.",
-                offset, chip.path
+                offset,
+                chip.path()
             )
         })?;
         print_line_info(li);

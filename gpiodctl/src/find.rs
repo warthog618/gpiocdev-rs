@@ -43,13 +43,14 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 fn find_line(chip: &mut Chip, line: &str) -> Result<bool> {
     let ci = chip
         .chip_info()
-        .with_context(|| format!("Failed to read chip {:?} info.", chip.path))?;
+        .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
     let mut found = false;
     for offset in 0..ci.num_lines {
         let li = chip.line_info(offset).with_context(|| {
             format!(
                 "Failed to read line {} info from chip {:?}.",
-                offset, chip.path
+                offset,
+                chip.path()
             )
         })?;
         if li.name.as_os_str() == line {
