@@ -117,6 +117,9 @@ impl Builder {
     ///
     /// On success returns the [`Request`] that provides access to the requested lines.
     pub fn request(&self) -> Result<Request> {
+        if self.chip.as_os_str().is_empty() {
+            return Err(Error::InvalidArgument("No chip specified.".to_string()));
+        }
         let chip = Chip::from_path(&self.chip)?;
         self.do_request(&chip).map(|f| self.to_request(f))
     }
@@ -1602,5 +1605,12 @@ mod tests {
         // should be merged, but mnay be unsorted
         lines.sort_unstable();
         assert_eq!(lines, &[1, 2, 4, 6, 9]);
+    }
+    #[test]
+    fn test_builder_request() {
+        let b = Builder::new();
+        let res = b.request();
+        assert!(res.is_err());
+        assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
     }
 }
