@@ -1268,11 +1268,284 @@ mod tests {
     use EventClock::*;
     use Value::*;
     #[test]
-    fn test_builder_request() {
+    fn test_builder_new() {
         let b = Builder::new();
-        let res = b.request();
+        assert_eq!(b.chip.as_os_str(), "");
+        assert_eq!(b.cfg.num_lines(), 0);
+        assert_eq!(b.consumer.as_os_str(), "");
+        assert_eq!(b.event_buffer_size, 0);
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        assert_eq!(b.cfg.abiv, AbiVersion::V2);
+    }
+    #[test]
+    fn test_builder_from_config() {
+        let mut cfg = Config::new();
+        cfg.as_input().with_lines(&[1, 7, 4]);
+        let b = Builder::from_config(cfg);
+        let mut lines = b.cfg.lines();
+        lines.sort_unstable();
+        assert_eq!(lines, &[1, 4, 7]);
+        assert_eq!(b.cfg.num_lines(), 3);
+    }
+    #[test]
+    fn test_builder_request() {
+        let res = Builder::new().with_line(2).request();
         assert!(res.is_err());
         assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
+    }
+    #[test]
+    fn test_builder_with_config() {
+        let mut b = Builder::new();
+        let mut cfg = Config::new();
+        cfg.as_input().with_lines(&[1, 7, 4]);
+        b.with_config(cfg);
+        let mut lines = b.cfg.lines();
+        lines.sort_unstable();
+        assert_eq!(lines, &[1, 4, 7]);
+        assert_eq!(b.cfg.num_lines(), 3);
+    }
+    #[test]
+    fn test_builder_config() {
+        let mut b = Builder::new();
+        b.as_input().with_lines(&[1, 7, 4]);
+        let cfg = b.config();
+        assert_eq!(cfg.num_lines(), 3);
+        let mut lines = cfg.lines();
+        lines.sort_unstable();
+        assert_eq!(lines, &[1, 4, 7]);
+    }
+    #[test]
+    fn test_builder_with_consumer() {
+        let mut b = Builder::new();
+        assert_eq!(b.consumer.as_os_str(), "");
+        b.with_consumer("builder test");
+        assert_eq!(b.consumer.as_os_str(), "builder test");
+    }
+    #[test]
+    fn test_builder_with_event_buffer_size() {
+        let mut b = Builder::new();
+        assert_eq!(b.event_buffer_size, 0);
+        b.with_event_buffer_size(42);
+        assert_eq!(b.event_buffer_size, 42);
+    }
+    #[test]
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn test_builder_using_abi_version() {
+        let mut b = Builder::new();
+        assert_eq!(b.cfg.abiv, AbiVersion::V2);
+        b.using_abi_version(AbiVersion::V1);
+        assert_eq!(b.cfg.abiv, AbiVersion::V1);
+        b.using_abi_version(AbiVersion::V2);
+        assert_eq!(b.cfg.abiv, AbiVersion::V2);
+    }
+    #[test]
+    fn test_builder_on_chip() {
+        let mut b = Builder::new();
+        assert_eq!(b.chip.as_os_str(), "");
+        b.on_chip("test chip");
+        assert_eq!(b.chip.as_os_str(), "test chip");
+    }
+    #[test]
+    fn test_builder_as_input() {
+        let mut b = Builder::new();
+        b.as_output(Active);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Output);
+        b.as_input();
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Input);
+    }
+    #[test]
+    fn test_builder_as_output() {
+        let mut b = Builder::new();
+        b.as_input();
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Input);
+        b.as_output(Active);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Output);
+    }
+    #[test]
+    fn test_builder_as_active_low() {
+        let mut b = Builder::new();
+        assert!(!b.cfg.base.get(&0).unwrap().active_low);
+        b.as_active_low();
+        assert!(b.cfg.base.get(&0).unwrap().active_low);
+    }
+    #[test]
+    fn test_builder_as_active_high() {
+        let mut b = Builder::new();
+        assert!(!b.cfg.base.get(&0).unwrap().active_low);
+        b.as_active_low();
+        assert!(b.cfg.base.get(&0).unwrap().active_low);
+        b.as_active_high();
+        assert!(!b.cfg.base.get(&0).unwrap().active_low);
+    }
+    #[test]
+    fn test_builder_with_bias() {
+        let mut b = Builder::new();
+        b.with_bias(PullUp);
+        assert_eq!(b.cfg.base.get(&0).unwrap().bias, Some(PullUp));
+        b.with_bias(PullDown);
+        assert_eq!(b.cfg.base.get(&0).unwrap().bias, Some(PullDown));
+        b.with_bias(Disabled);
+        assert_eq!(b.cfg.base.get(&0).unwrap().bias, Some(Disabled));
+        b.with_bias(None);
+        assert_eq!(b.cfg.base.get(&0).unwrap().bias, None);
+    }
+    #[test]
+    fn test_builder_with_debounce_period() {
+        let d_us = std::time::Duration::from_micros(1234);
+        let d_ns = std::time::Duration::from_nanos(234);
+        let mut b = Builder::new();
+        b.with_drive(OpenSource);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Output);
+        b.with_debounce_period(Duration::from_micros(1234));
+        assert_eq!(b.cfg.base.get(&0).unwrap().debounce_period, Some(d_us));
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Input);
+        b.with_debounce_period(Duration::from_nanos(234));
+        assert_eq!(b.cfg.base.get(&0).unwrap().debounce_period, Some(d_ns));
+        b.with_debounce_period(Duration::ZERO);
+        assert!(b.cfg.base.get(&0).unwrap().debounce_period.is_none());
+    }
+    #[test]
+    fn test_builder_with_direction() {
+        let mut b = Builder::new();
+        b.with_direction(Output);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Output);
+        b.with_direction(Input);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Input);
+    }
+    #[test]
+    fn test_builder_with_drive() {
+        let mut b = Builder::new();
+        b.with_bias(PullUp)
+            .with_debounce_period(Duration::from_millis(10))
+            .with_edge_detection(EdgeDetection::RisingEdge);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Input);
+        assert_eq!(b.cfg.base.get(&0).unwrap().bias, Some(PullUp));
+        assert_eq!(
+            b.cfg.base.get(&0).unwrap().debounce_period,
+            Some(Duration::from_millis(10))
+        );
+        assert_eq!(b.cfg.base.get(&0).unwrap().edge_detection, Some(RisingEdge));
+        b.with_drive(PushPull);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Output);
+        assert_eq!(b.cfg.base.get(&0).unwrap().drive, Some(PushPull));
+        assert_eq!(b.cfg.base.get(&0).unwrap().bias, Some(PullUp));
+        assert!(b.cfg.base.get(&0).unwrap().debounce_period.is_none());
+        assert_eq!(b.cfg.base.get(&0).unwrap().edge_detection, None);
+        b.with_drive(OpenDrain);
+        assert_eq!(b.cfg.base.get(&0).unwrap().drive, Some(OpenDrain));
+        b.with_drive(OpenSource);
+        assert_eq!(b.cfg.base.get(&0).unwrap().drive, Some(OpenSource));
+    }
+    #[test]
+    fn test_builder_with_edge_detection() {
+        let mut b = Builder::new();
+        b.with_drive(OpenSource);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Output);
+        b.with_edge_detection(RisingEdge);
+        assert_eq!(b.cfg.base.get(&0).unwrap().edge_detection, Some(RisingEdge));
+        assert_eq!(b.cfg.base.get(&0).unwrap().drive, None);
+        assert_eq!(b.cfg.base.get(&0).unwrap().direction, Input);
+        b.with_edge_detection(FallingEdge);
+        assert_eq!(
+            b.cfg.base.get(&0).unwrap().edge_detection,
+            Some(FallingEdge)
+        );
+        b.with_edge_detection(BothEdges);
+        assert_eq!(b.cfg.base.get(&0).unwrap().edge_detection, Some(BothEdges));
+    }
+    #[test]
+    fn test_builder_with_event_clock() {
+        let mut b = Builder::new();
+        assert_eq!(b.cfg.base.get(&0).unwrap().event_clock, None);
+        b.with_event_clock(Realtime);
+        assert_eq!(b.cfg.base.get(&0).unwrap().event_clock, Some(Realtime));
+        b.with_event_clock(Monotonic);
+        assert_eq!(b.cfg.base.get(&0).unwrap().event_clock, Some(Monotonic));
+    }
+    #[test]
+    fn test_builder_with_line() {
+        let mut b = Builder::new();
+        assert_eq!(b.cfg.num_lines(), 0);
+        b.with_line(3);
+        assert_eq!(b.cfg.num_lines(), 1);
+        b.with_line(5);
+        assert_eq!(b.cfg.num_lines(), 2);
+        b.with_line(3);
+        assert_eq!(b.cfg.num_lines(), 2);
+    }
+    #[test]
+    fn test_builder_without_line() {
+        let mut b = Builder::new();
+        b.with_lines(&[3, 1]);
+        assert_eq!(b.cfg.num_lines(), 2);
+        b.without_line(3);
+        assert_eq!(b.cfg.num_lines(), 1);
+        let mut lines = b.cfg.lines();
+        lines.sort_unstable();
+        assert_eq!(lines, &[1]);
+    }
+    #[test]
+    fn test_builder_with_lines() {
+        let mut b = Builder::new();
+        assert_eq!(b.cfg.num_lines(), 0);
+        b.with_lines(&[3, 1]);
+        assert_eq!(b.cfg.num_lines(), 2);
+        let mut lines = b.cfg.lines();
+        lines.sort_unstable();
+        assert_eq!(lines, &[1, 3]);
+        b.with_lines(&[1, 5]);
+        assert_eq!(b.cfg.num_lines(), 3);
+        let mut lines = b.cfg.lines();
+        lines.sort_unstable();
+        assert_eq!(lines, &[1, 3, 5]);
+    }
+    #[test]
+    fn test_builder_without_lines() {
+        let mut b = Builder::new();
+        b.with_lines(&[3, 1, 5, 7]);
+        assert_eq!(b.cfg.num_lines(), 4);
+        b.without_lines(&[3, 5]);
+        assert_eq!(b.cfg.num_lines(), 2);
+        let mut lines = b.cfg.lines();
+        lines.sort_unstable();
+        assert_eq!(lines, &[1, 7]);
+    }
+    #[test]
+    fn test_builder_with_value() {
+        let mut b = Builder::new();
+        assert_eq!(b.cfg.base.get(&0).unwrap().value, None);
+        b.as_input().with_value(Active);
+        assert_eq!(b.cfg.base.get(&0).unwrap().value, Some(Active));
+        b.as_input().with_value(Inactive);
+        assert_eq!(b.cfg.base.get(&0).unwrap().value, Some(Inactive));
+    }
+    #[test]
+    fn test_builder_from_line_config() {
+        let mut b = Builder::new();
+        let d_us = Duration::from_micros(1234);
+        let lc = line::Config {
+            direction: Output,
+            active_low: true,
+            bias: Some(Disabled),
+            drive: Some(OpenSource),
+            edge_detection: Some(BothEdges),
+            event_clock: Some(Realtime),
+            debounce_period: Some(d_us),
+            value: Some(Active),
+        };
+        b.from_line_config(&lc);
+        assert_eq!(b.cfg.base.len(), 1);
+        assert_eq!(b.cfg.banked.len(), 0);
+        assert_eq!(b.cfg.select.len(), 0);
+        let base = b.cfg.base.get(&0).unwrap();
+        assert_eq!(base.direction, Output);
+        assert!(base.active_low);
+        assert_eq!(base.direction, Output);
+        assert_eq!(base.drive, Some(OpenSource));
+        assert_eq!(base.edge_detection, Some(BothEdges));
+        assert_eq!(base.event_clock, Some(Realtime));
+        assert_eq!(base.value, Some(Active));
+        assert_eq!(base.debounce_period, Some(d_us));
     }
     #[test]
     fn test_config_default() {
