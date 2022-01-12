@@ -173,7 +173,7 @@ pub enum Error {
     /// Problem accessing GPIO chip character devices
     #[error("\"{0}\" {1}.")]
     GpioChip(PathBuf, chip::ErrorKind),
-    /// An error returned from an underlying io call.
+    /// An error returned from an underlying os call.
     #[error(transparent)]
     OsError(#[from] std::io::Error),
     /// An error returned from an underlying uAPI call.

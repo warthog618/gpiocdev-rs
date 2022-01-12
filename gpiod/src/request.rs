@@ -1268,6 +1268,13 @@ mod tests {
     use EventClock::*;
     use Value::*;
     #[test]
+    fn test_builder_request() {
+        let b = Builder::new();
+        let res = b.request();
+        assert!(res.is_err());
+        assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
+    }
+    #[test]
     fn test_config_default() {
         let cfg = Config::new();
         assert_eq!(cfg.base.len(), 1);
@@ -1346,7 +1353,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_with_debounce() {
+    fn test_config_with_debounce_period() {
         let d_us = std::time::Duration::from_micros(1234);
         let d_ns = std::time::Duration::from_nanos(234);
         let mut cfg = Config::new();
@@ -1602,15 +1609,22 @@ mod tests {
         // should have 1,4 banked and 2,6,9 select
         let mut lines = cfg.lines();
         assert_eq!(lines.len(), 5);
-        // should be merged, but mnay be unsorted
+        // should be merged, but may be unsorted
         lines.sort_unstable();
         assert_eq!(lines, &[1, 2, 4, 6, 9]);
+        cfg.without_lines(&[1, 2]);
+        lines = cfg.lines();
+        lines.sort_unstable();
+        assert_eq!(lines, &[4, 6, 9]);
     }
     #[test]
-    fn test_builder_request() {
-        let b = Builder::new();
-        let res = b.request();
-        assert!(res.is_err());
-        assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
+    fn test_config_num_lines() {
+        let mut cfg = Config::new();
+        cfg.with_lines(&[1, 2, 4, 6]);
+        assert_eq!(cfg.num_lines(), 4);
+        cfg.with_lines(&[2, 6, 9]);
+        // should have 1,4 banked and 2,6,9 select
+        assert_eq!(cfg.num_lines(), 5);
+        cfg.without_lines(&[1, 2]);
     }
 }
