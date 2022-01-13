@@ -154,10 +154,9 @@ impl Builder {
     }
 
     fn to_request(&self, f: File) -> Request {
-        let mut offsets = self.cfg.lines();
-        offsets.sort_unstable(); // for predictability
         let mut cfg = self.cfg.clone();
         cfg.bank(); // for predictability
+        let offsets = cfg.lines.clone();
         Request { f, cfg, offsets }
     }
 
@@ -412,8 +411,7 @@ impl Builder {
                         "does not support selecting the event clock source.".to_string(),
                     ));
                 }
-                let mut offsets = self.cfg.lines();
-                offsets.sort_unstable(); // !!! perhaps allow client to specify ordering, or determine it from ordering of with_lines calls??
+                let offsets = &self.cfg.lines;
                 let consumer = if self.consumer.is_empty() {
                     default_consumer().into()
                 } else {
@@ -435,9 +433,9 @@ impl Builder {
                     }))
                 } else {
                     Ok(UapiRequest::Handle(v1::HandleRequest {
-                        offsets: v1::Offsets::from_slice(&offsets),
+                        offsets: v1::Offsets::from_slice(offsets),
                         flags: lcfg.into(),
-                        values: self.cfg.to_v1_values(&offsets)?,
+                        values: self.cfg.to_v1_values(offsets)?,
                         consumer,
                         lines: offsets.len() as u32,
                         ..Default::default()
@@ -449,19 +447,18 @@ impl Builder {
 
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     fn to_v2(&self) -> Result<UapiRequest> {
-        let mut offsets = self.cfg.lines();
-        offsets.sort_unstable(); // !!! perhaps allow client to specify ordering, or determine it from ordering of with_lines calls??
+        let offsets = &self.cfg.lines;
         let consumer = if self.consumer.is_empty() {
             default_consumer().into()
         } else {
             self.consumer.clone().into()
         };
         Ok(UapiRequest::Line(v2::LineRequest {
-            offsets: v2::Offsets::from_slice(&offsets),
+            offsets: v2::Offsets::from_slice(offsets),
             consumer,
             event_buffer_size: self.event_buffer_size,
             num_lines: offsets.len() as u32,
-            config: self.cfg.to_v2(&offsets)?,
+            config: self.cfg.to_v2(offsets)?,
             ..Default::default()
         }))
     }
@@ -519,11 +516,14 @@ pub struct Config {
     /// Prior to adding lines this config is the receiver for all mutations.
     base: IntMap<Offset, line::Config>,
 
-    // The configuration for the unselected lines.
+    /// The configuration for the unselected lines.
     banked: IntMap<Offset, line::Config>,
 
-    // The current set of lines being configured.  If empty then it is the base config.
+    /// The current set of lines being configured.  If empty then it is the base config.
     select: IntMap<Offset, line::Config>,
+
+    /// The set of lines described by this configuration, in order added.
+    lines: Vec<Offset>,
 
     /// The ABI version used to create the request, and so determines how to decode events.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -535,6 +535,7 @@ impl Default for Config {
             base: Default::default(),
             banked: Default::default(),
             select: Default::default(),
+            lines: Default::default(),
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             abiv: Default::default(),
         };
@@ -691,14 +692,13 @@ impl Config {
     /// apply to this line.
     pub fn with_line(&mut self, offset: Offset) -> &mut Self {
         self.bank();
-        self.select_line(offset);
+        self.select_line(&offset);
         self
     }
 
     /// Remove a lines from the config.
     pub fn without_line(&mut self, offset: Offset) -> &mut Self {
-        self.banked.remove(&offset);
-        self.select.remove(&offset);
+        self.remove_line(&offset);
         self
     }
 
@@ -711,7 +711,7 @@ impl Config {
     pub fn with_lines(&mut self, offsets: &[Offset]) -> &mut Self {
         self.bank();
         for offset in offsets {
-            self.select_line(*offset);
+            self.select_line(offset);
         }
         self
     }
@@ -719,8 +719,7 @@ impl Config {
     /// Remove a set of lines from the config.
     pub fn without_lines(&mut self, offsets: &[Offset]) -> &mut Self {
         for offset in offsets {
-            self.banked.remove(offset);
-            self.select.remove(offset);
+            self.remove_line(offset);
         }
         self
     }
@@ -751,15 +750,14 @@ impl Config {
             .or_else(|| self.banked.get(&offset))
     }
 
-    /// Returns a snapshot of the offsets of the set of lines described by the Config.
-    pub fn lines(&self) -> Offsets {
-        let lines: Offsets = self
-            .select
-            .keys()
-            .chain(self.banked.keys())
-            .copied()
-            .collect();
-        lines
+    /// Returns the set of lines described by the Config.
+    ///
+    /// Lines are in the order first added by calls to [`with_line`] or [`with_lines`].
+    ///
+    /// [`with_line`]: #method.with_line
+    /// [`with_lines`]: #method.with_lines
+    pub fn lines(&self) -> &Offsets {
+        &self.lines
     }
 
     /// Returns the number of lines currently described by the Config.
@@ -772,7 +770,7 @@ impl Config {
     #[cfg(feature = "uapi_v1")]
     fn unique(&self) -> Result<&line::Config> {
         // have previously checked there is at least one line.
-        let offsets = self.lines();
+        let offsets = &self.lines;
         // unwrap is safe as offset is drawn from either select or banked.
         let lcfg = self.line_config(offsets[0]).unwrap();
         if offsets.len() > 1 {
@@ -800,15 +798,26 @@ impl Config {
         self.select.clear();
     }
 
-    fn select_line(&mut self, offset: Offset) {
-        let cfg = self
-            .banked
-            .remove(&offset)
-            .unwrap_or_else(|| self.base.get(&0).cloned().unwrap());
-        self.select.insert(offset, cfg);
+    fn remove_line(&mut self, offset: &Offset) {
+        self.banked.remove(offset);
+        self.select.remove(offset);
+        let index = self.lines.iter().position(|x| *x == *offset).unwrap();
+        self.lines.remove(index);
     }
 
-    // overlay one config over another.
+    fn select_line(&mut self, offset: &Offset) {
+        let cfg = self
+            .banked
+            .remove(offset)
+            .unwrap_or_else(|| self.base.get(&0).cloned().unwrap());
+        self.select.insert(*offset, cfg);
+        match self.lines.iter().position(|x| *x == *offset) {
+            Some(_) => {}
+            None => self.lines.push(*offset),
+        }
+    }
+
+    // Overlay one config over another.
     // Used by reconfigure to update the request config.
     // New lines cannot be added, nor can any be removed.
     // If new lines are present in top they are ignored.
@@ -1282,9 +1291,7 @@ mod tests {
         let mut cfg = Config::new();
         cfg.as_input().with_lines(&[1, 7, 4]);
         let b = Builder::from_config(cfg);
-        let mut lines = b.cfg.lines();
-        lines.sort_unstable();
-        assert_eq!(lines, &[1, 4, 7]);
+        assert_eq!(b.cfg.lines, &[1, 7, 4]);
         assert_eq!(b.cfg.num_lines(), 3);
     }
     #[test]
@@ -1299,9 +1306,7 @@ mod tests {
         let mut cfg = Config::new();
         cfg.as_input().with_lines(&[1, 7, 4]);
         b.with_config(cfg);
-        let mut lines = b.cfg.lines();
-        lines.sort_unstable();
-        assert_eq!(lines, &[1, 4, 7]);
+        assert_eq!(b.cfg.lines, &[1, 7, 4]);
         assert_eq!(b.cfg.num_lines(), 3);
     }
     #[test]
@@ -1310,9 +1315,7 @@ mod tests {
         b.as_input().with_lines(&[1, 7, 4]);
         let cfg = b.config();
         assert_eq!(cfg.num_lines(), 3);
-        let mut lines = cfg.lines();
-        lines.sort_unstable();
-        assert_eq!(lines, &[1, 4, 7]);
+        assert_eq!(cfg.lines, &[1, 7, 4]);
     }
     #[test]
     fn test_builder_with_consumer() {
@@ -1480,9 +1483,7 @@ mod tests {
         assert_eq!(b.cfg.num_lines(), 2);
         b.without_line(3);
         assert_eq!(b.cfg.num_lines(), 1);
-        let mut lines = b.cfg.lines();
-        lines.sort_unstable();
-        assert_eq!(lines, &[1]);
+        assert_eq!(b.cfg.lines, &[1]);
     }
     #[test]
     fn test_builder_with_lines() {
@@ -1490,25 +1491,19 @@ mod tests {
         assert_eq!(b.cfg.num_lines(), 0);
         b.with_lines(&[3, 1]);
         assert_eq!(b.cfg.num_lines(), 2);
-        let mut lines = b.cfg.lines();
-        lines.sort_unstable();
-        assert_eq!(lines, &[1, 3]);
+        assert_eq!(b.cfg.lines, &[3, 1]);
         b.with_lines(&[1, 5]);
         assert_eq!(b.cfg.num_lines(), 3);
-        let mut lines = b.cfg.lines();
-        lines.sort_unstable();
-        assert_eq!(lines, &[1, 3, 5]);
+        assert_eq!(b.cfg.lines, &[3, 1, 5]);
     }
     #[test]
     fn test_builder_without_lines() {
         let mut b = Builder::new();
-        b.with_lines(&[3, 1, 5, 7]);
-        assert_eq!(b.cfg.num_lines(), 4);
+        b.with_lines(&[3, 1, 0, 5, 7]);
+        assert_eq!(b.cfg.num_lines(), 5);
         b.without_lines(&[3, 5]);
-        assert_eq!(b.cfg.num_lines(), 2);
-        let mut lines = b.cfg.lines();
-        lines.sort_unstable();
-        assert_eq!(lines, &[1, 7]);
+        assert_eq!(b.cfg.num_lines(), 3);
+        assert_eq!(b.cfg.lines, &[1, 0, 7]);
     }
     #[test]
     fn test_builder_with_value() {
@@ -1730,7 +1725,7 @@ mod tests {
         cfg.as_output(Active);
         assert_eq!(cfg.base.get(&0).unwrap().direction, Output);
         assert_eq!(cfg.base.get(&0).unwrap().value, Some(Active));
-        cfg.with_lines(&[1, 2, 6, 7]);
+        cfg.with_lines(&[1, 6, 2, 7]);
         assert_eq!(cfg.select.len(), 4);
         assert_eq!(cfg.select.get(&2).unwrap().direction, Output);
         assert_eq!(cfg.select.get(&2).unwrap().value, Some(Active));
@@ -1766,13 +1761,14 @@ mod tests {
         assert_eq!(cfg.base.get(&0).unwrap().direction, Output);
         assert_eq!(cfg.base.get(&0).unwrap().value, Some(Active));
         // select some
-        cfg.with_lines(&[1, 2, 6, 7]);
+        cfg.with_lines(&[7, 2, 6, 1]);
         assert_eq!(cfg.banked.len(), 0);
         assert_eq!(cfg.select.len(), 4);
         assert!(cfg.select.get(&1).is_some());
         assert!(cfg.select.get(&2).is_some());
         assert!(cfg.select.get(&6).is_some());
         assert!(cfg.select.get(&7).is_some());
+        assert_eq!(cfg.lines, &[7, 2, 6, 1]);
         // bank some, add another
         cfg.with_lines(&[1, 2, 9]);
         assert_eq!(cfg.banked.len(), 2);
@@ -1782,6 +1778,7 @@ mod tests {
         assert!(cfg.select.get(&1).is_some());
         assert!(cfg.select.get(&2).is_some());
         assert!(cfg.select.get(&9).is_some());
+        assert_eq!(cfg.lines, &[7, 2, 6, 1, 9]);
         // bank all, select none
         cfg.with_lines(&[]);
         assert_eq!(cfg.banked.len(), 5);
@@ -1791,6 +1788,7 @@ mod tests {
         assert!(cfg.banked.get(&6).is_some());
         assert!(cfg.banked.get(&7).is_some());
         assert!(cfg.banked.get(&9).is_some());
+        assert_eq!(cfg.lines, &[7, 2, 6, 1, 9]);
     }
     #[test]
     fn test_config_without_lines() {
@@ -1880,15 +1878,9 @@ mod tests {
         let mut cfg = Config::new();
         cfg.with_lines(&[1, 2, 4, 6]).with_lines(&[2, 6, 9]);
         // should have 1,4 banked and 2,6,9 select
-        let mut lines = cfg.lines();
-        assert_eq!(lines.len(), 5);
-        // should be merged, but may be unsorted
-        lines.sort_unstable();
-        assert_eq!(lines, &[1, 2, 4, 6, 9]);
+        assert_eq!(cfg.lines, &[1, 2, 4, 6, 9]);
         cfg.without_lines(&[1, 2]);
-        lines = cfg.lines();
-        lines.sort_unstable();
-        assert_eq!(lines, &[4, 6, 9]);
+        assert_eq!(cfg.lines, &[4, 6, 9]);
     }
     #[test]
     fn test_config_num_lines() {
