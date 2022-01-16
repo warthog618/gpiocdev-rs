@@ -310,7 +310,7 @@ impl From<uv::ChipInfo> for Info {
 }
 
 /// Reasons a file cannot be opened as a GPIO character device.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
     /// File is not a character device.
     NotCharacterDevice,

@@ -74,7 +74,7 @@ use std::ffi::{OsStr, OsString};
 /// * `V2` is the current ABI and is used by default.
 /// * `V1` is more restrictive than V2, so some information and features are
 /// unavailable, but the ABI itself is more widely available.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AbiVersion {
     V1,
     V2,
@@ -98,7 +98,7 @@ impl fmt::Display for AbiVersion {
 /// A name string.
 ///
 /// Typically returned by the operating system.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Name(OsString);
 
 impl Name {
@@ -139,7 +139,7 @@ impl From<Name> for OsString {
 }
 
 /// A moment in time in utc.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Timestamp(DateTime<Utc>);
 
 impl Timestamp {
@@ -189,7 +189,7 @@ pub enum Error {
 
 /// Identifiers for the underlying uAPI calls.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum UapiCall {
     GetChipInfo,
     GetLine,
@@ -231,7 +231,7 @@ impl fmt::Display for UapiCall {
 
 /// Components that may not support a particular ABI version.
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum AbiSupportKind {
     /// The library does not have the feature enabled for the requested ABI version.
     Library,

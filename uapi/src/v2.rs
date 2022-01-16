@@ -70,7 +70,7 @@ bitflags! {
 ///
 /// [`LineRequest.offsets`]: struct@LineRequest
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LineValues {
     /// The value of the lines, set to 1 for *active* and 0 for *inactive*.
     pub bits: Bitmap<64>,
@@ -178,7 +178,7 @@ pub fn set_line_values(lf: &File, lv: &LineValues) -> Result<()> {
 
 /// An identifier for which field of the [`LineAttributeValueUnion`] is in use.
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LineAttributeKind {
     /// The attribute is *inactive* - no fields are in use.
     Unused = 0,
@@ -220,7 +220,7 @@ impl LineAttributeKind {
 
 /// A configurable attribute of a line.
 #[repr(C)]
-#[derive(Copy, Clone, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct LineAttribute {
     /// The type of attribute stored in `value`.
     pub kind: LineAttributeKind,
@@ -284,9 +284,27 @@ impl fmt::Debug for LineAttribute {
     }
 }
 
+impl PartialEq for LineAttribute {
+    fn eq(&self, other: &Self) -> bool {
+        use LineAttributeKind::*;
+        if self.kind != other.kind {
+            return false;
+        }
+        unsafe {
+            match self.kind {
+                Unused => true,
+                Flags => self.value.flags == other.value.flags,
+                Values => self.value.values == other.value.values,
+                Debounce => self.value.debounce_period_us == other.value.debounce_period_us,
+            }
+        }
+    }
+}
+impl Eq for LineAttribute {}
+
 /// The value of a particular line attribute.
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy)]
 pub union LineAttributeValueUnion {
     /// The line configuration flags.
     pub flags: LineFlags,
@@ -319,7 +337,7 @@ pub enum LineAttributeValue {
 
 /// A configuration attribute associated with one or more of the requested lines.
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LineConfigAttribute {
     /// The configurable attribute.
     pub attr: LineAttribute,
@@ -353,7 +371,7 @@ impl LineConfigAttribute {
 ///
 /// [`LineConfig.num_attrs`]: struct@LineConfig
 #[repr(C)]
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct LineConfigAttributes(pub [LineConfigAttribute; NUM_ATTRS_MAX as usize]);
 
 /// Configuration for a set of requested lines.
@@ -461,7 +479,7 @@ pub fn get_line(cf: &File, lr: LineRequest) -> Result<File> {
 ///
 /// [`LineInfo.num_attrs`]: struct@LineInfo
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LineAttributes([LineAttribute; NUM_ATTRS_MAX]);
 
 /// The capacity of [`LineAttributes`] and [`LineConfigAttributes`] arrays.
@@ -469,7 +487,7 @@ pub const NUM_ATTRS_MAX: usize = 10;
 
 /// Information about a certain GPIO line.
 #[repr(C)]
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LineInfo {
     /// The name of this GPIO line, such as the output pin of the line on the chip,
     /// a rail or a pin header name on a board, as specified by the GPIO chip.
@@ -570,7 +588,7 @@ pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
 
 /// An event indicating a change to the info for a line.
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LineInfoChangeEvent {
     /// The new line info.
     pub info: LineInfo,
@@ -600,7 +618,7 @@ impl LineInfoChangeEvent {
 
 /// Information about an edge event on a requested line.
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LineEdgeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     ///

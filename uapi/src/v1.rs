@@ -31,7 +31,7 @@ enum Ioctl {
 
 /// Information about a certain GPIO line.
 #[repr(C)]
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LineInfo {
     /// The line offset on this GPIO device.
     /// This is the identifier used when requesting the line from the kernel.
@@ -126,7 +126,7 @@ pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
 
 /// Information about a change in status of a GPIO line.
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LineInfoChangeEvent {
     /// Updated line information.
     pub info: LineInfo,
@@ -159,7 +159,7 @@ impl LineInfoChangeEvent {
 
 /// Information about a GPIO line handle request.
 #[repr(C)]
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct HandleRequest {
     /// An array of requested lines, identitifed by offset on the associated GPIO device.
     pub offsets: Offsets,
@@ -240,7 +240,7 @@ pub fn get_line_handle(cf: &File, hr: HandleRequest) -> Result<File> {
 
 /// Updated configuration for an existing GPIO handle request.
 #[repr(C)]
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct HandleConfig {
     /// Updated flags for the requested GPIO lines.
     ///
@@ -285,7 +285,7 @@ pub fn set_line_config(cf: &File, hc: HandleConfig) -> Result<()> {
 ///
 /// [`HandleRequest.offsets`]: struct@HandleRequest
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LineValues([u8; 64usize]);
 
 impl LineValues {
@@ -377,7 +377,7 @@ pub fn set_line_values(lf: &File, vals: &LineValues) -> Result<()> {
 
 /// Information about a GPIO event request.
 #[repr(C)]
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EventRequest {
     /// The line to request edge events from, identified by its offset
     /// on the associated GPIO device.
@@ -435,7 +435,7 @@ pub fn get_line_event(cf: &File, er: EventRequest) -> Result<File> {
 
 /// Information about an edge event on a requested line.
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LineEdgeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     pub timestamp_ns: u64,

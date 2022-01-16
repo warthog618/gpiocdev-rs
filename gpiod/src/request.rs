@@ -85,7 +85,7 @@ use std::time::Duration;
 ///
 /// ```
 ///
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Builder {
     chip: PathBuf,
     cfg: Config,
@@ -504,7 +504,7 @@ enum UapiRequest {
 ///
 /// [`Builder.request`]: struct.Builder.html#method.request
 /// [`Request.reconfigure`]: struct.Request.html#method.reconfigure
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Config {
     /// The base configuration that applies to a line when it is first mentioned.
     ///

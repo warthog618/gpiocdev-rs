@@ -55,7 +55,7 @@ enum Ioctl {
 
 /// Information about a particular GPIO chip.
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChipInfo {
     /// The Linux kernel name of this GPIO chip.
     pub name: Name,
@@ -126,7 +126,7 @@ pub enum Error {
 /// A failure to validate a struct returned from a system call.
 //
 // Should only be seen if a kernel update adds an enum value we are unaware of.
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, Eq, PartialEq)]
 #[error("Kernel returned invalid {field}: {msg}")]
 pub struct ValidationError {
     pub field: String,
@@ -147,7 +147,7 @@ pub const NAME_MAX: usize = 32;
 
 /// A uAPI name string, common to ABI v1 and v2.
 #[repr(C)]
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Name([u8; NAME_MAX]);
 
 impl Name {
@@ -201,7 +201,7 @@ pub const LINES_MAX: usize = 64;
 ///
 /// Typically used to identify the lines belonging to a particular request.
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Offsets([Offset; LINES_MAX]);
 
 impl Offsets {
@@ -237,7 +237,7 @@ impl Default for Offsets {
 ///
 /// Sized in multiples of u32 words.
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[doc(hidden)]
 pub struct Padding<const SIZE: usize>([u32; SIZE]);
 
@@ -263,7 +263,7 @@ impl<const SIZE: usize> Padding<SIZE> {
 /// [`LineInfoChangeEvent`]: struct.LineInfoChangeEvent.html
 
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InfoChangeKind {
     /// The line has been requested.
     Requested = 1,
@@ -298,7 +298,7 @@ impl InfoChangeKind {
 ///
 /// [`LineEdgeEvent`]: struct.LineEdgeEvent.html
 #[repr(u32)]
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LineEdgeEventKind {
     /// Indicates the line transitioned from *inactive* to *active*.
     RisingEdge = 1,

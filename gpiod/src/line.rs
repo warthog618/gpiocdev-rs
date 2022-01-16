@@ -15,7 +15,7 @@ use std::time::Duration;
 /// The configuration settings for a single line.
 ///
 // Note it does not contain the offset to allow it to be applied to multiple lines.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
     /// The direction setting for the line.
     pub direction: Direction,
@@ -173,7 +173,7 @@ impl From<&Config> for v1::HandleRequestFlags {
 }
 
 /// The publicly available information for a line.
-#[derive(Default, Debug)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Info {
     /// The line offset on the GPIO chip.
     pub offset: Offset,
@@ -276,7 +276,7 @@ pub type Offsets = Vec<Offset>;
 /// | **Active-High** | Inactive | Active |
 /// | **Active-Low**  | Active | Inactive |
 ///
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Value {
     /// The line is inactive.
     Inactive,
@@ -332,7 +332,7 @@ impl From<u8> for Value {
 /// A  collection of line values.
 ///
 /// Lines are identified by their offset.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct Values(IntMap<Offset, Value>);
 impl Values {
     /// overlays the values from src over the values in the dst.
@@ -446,7 +446,7 @@ impl Values {
 }
 
 /// The direction of a line.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Direction {
     /// The line is an input.
     Input,
@@ -478,7 +478,7 @@ impl From<v2::LineFlags> for Direction {
 }
 
 /// The bias settings for a line.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Bias {
     /// The line has pull-up enabled.
     PullUp,
@@ -524,7 +524,7 @@ impl TryFrom<v2::LineFlags> for Bias {
 }
 
 /// The drive policy settings for an output line.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Drive {
     /// The line is driven when both active and inactive.
     PushPull,
@@ -574,7 +574,7 @@ impl TryFrom<v2::LineFlags> for Drive {
 }
 
 /// The edge detection options for an input line.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EdgeDetection {
     /// Edge detection is only enabled on rising edges.
     ///
@@ -606,7 +606,7 @@ impl TryFrom<v2::LineFlags> for EdgeDetection {
 }
 
 /// The available clock sources for [`EdgeEvent`] timestamps.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EventClock {
     /// The **CLOCK_MONOTONIC** is used as the source for edge event timestamps.
     ///
@@ -633,7 +633,7 @@ impl From<v2::LineFlags> for EventClock {
 /// The details of an edge detected on an input line.
 ///
 /// ABI v1 does not provide the seqno nor line_seqno fields.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EdgeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     ///
@@ -683,7 +683,7 @@ impl From<&v2::LineEdgeEvent> for EdgeEvent {
 }
 
 /// The cause of an [`EdgeEvent`].
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EdgeEventKind {
     /// Indicates the line transitioned from inactive to active.
     RisingEdge = 1,
@@ -700,7 +700,7 @@ impl From<uv::LineEdgeEventKind> for EdgeEventKind {
 }
 
 /// The details of a change to the [`Info`] for a line.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InfoChangeEvent {
     /// The updated line info.
     pub info: Info,
@@ -731,7 +731,7 @@ impl From<&v2::LineInfoChangeEvent> for InfoChangeEvent {
 }
 
 /// The cause of a [`InfoChangeEvent`]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InfoChangeKind {
     /// Line has been requested.
     Requested = 1,
@@ -809,7 +809,7 @@ mod tests {
         assert_eq!(dst.get(3), 1); // 8
     }
     #[test]
-    #[cfg(feature = "uapi_v2")]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     fn test_values_to_v2() {
         let offsets = Vec::from([1, 5, 3, 8]);
         let mut src = Values::default();
