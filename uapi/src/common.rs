@@ -11,8 +11,6 @@ use std::mem::{size_of, MaybeUninit};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::AsRawFd;
 use std::slice;
-use std::str::FromStr;
-use std::str::Utf8Error;
 use std::time::Duration;
 
 /// Check if the file has an event available to read.
@@ -174,18 +172,6 @@ impl Name {
             *dst = *src;
         }
         d
-    }
-}
-
-impl FromStr for Name {
-    type Err = Utf8Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let mut n: Name = Default::default();
-        for (src, dst) in s.as_bytes().iter().zip(n.0.iter_mut()) {
-            *dst = *src;
-        }
-        Ok(n)
     }
 }
 
@@ -373,9 +359,9 @@ mod tests {
         x[3] = 97;
         x[4] = 110;
         x[5] = 97;
-        let mut a = Name::from_str("banana").unwrap();
+        let mut a = Name::from_bytes("banana".as_bytes());
         assert_eq!(a.0, x);
-        a = Name::from_str("apple").unwrap();
+        a = Name::from_bytes("apple".as_bytes());
         x[0] = 97;
         x[1] = 112;
         x[2] = 112;
@@ -388,25 +374,25 @@ mod tests {
     fn test_name_is_empty() {
         let mut a = Name::default();
         assert!(a.is_empty());
-        a = Name::from_str("banana").unwrap();
+        a = Name::from_bytes("banana".as_bytes());
         assert!(!a.is_empty());
     }
     #[test]
     fn test_name_strlen() {
         let mut a = Name::default();
         assert_eq!(a.strlen(), 0);
-        a = Name::from_str("banana").unwrap();
+        a = Name::from_bytes("banana".as_bytes());
         assert_eq!(a.strlen(), 6);
-        a = Name::from_str("an overly long truncated name -><- cut here").unwrap();
+        a = Name::from_bytes("an overly long truncated name -><- cut here".as_bytes());
         assert_eq!(a.strlen(), 32);
     }
     #[test]
     fn test_name_as_os_str() {
         let mut a = Name::default();
         assert_eq!(a.as_os_str(), "");
-        a = Name::from_str("banana").unwrap();
+        a = Name::from_bytes("banana".as_bytes());
         assert_eq!(a.as_os_str(), "banana");
-        a = Name::from_str("an overly long truncated name -><- cut here").unwrap();
+        a = Name::from_bytes("an overly long truncated name -><- cut here".as_bytes());
         assert_eq!(a.as_os_str(), "an overly long truncated name ->");
     }
     #[test]
