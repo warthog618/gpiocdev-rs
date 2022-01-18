@@ -141,12 +141,12 @@ impl ValidationError {
 }
 
 /// The maximum number of bytes stored in a Name.
-pub const NAME_MAX: usize = 32;
+pub const NAME_LEN_MAX: usize = 32;
 
 /// A uAPI name string, common to ABI v1 and v2.
 #[repr(C)]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct Name([u8; NAME_MAX]);
+pub struct Name([u8; NAME_LEN_MAX]);
 
 impl Name {
     /// Checks whether the Name is empty.
@@ -181,14 +181,14 @@ impl Name {
 pub type Offset = u32;
 
 /// The maximum number of lines that may be requested in a single request.
-pub const LINES_MAX: usize = 64;
+pub const NUM_LINES_MAX: usize = 64;
 
 /// A collection of line offsets.
 ///
 /// Typically used to identify the lines belonging to a particular request.
 #[repr(C)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Offsets([Offset; LINES_MAX]);
+pub struct Offsets([Offset; NUM_LINES_MAX]);
 
 impl Offsets {
     /// Create offsets from an iterable list.
@@ -215,7 +215,7 @@ impl Offsets {
 
 impl Default for Offsets {
     fn default() -> Self {
-        Offsets([0; LINES_MAX])
+        Offsets([0; NUM_LINES_MAX])
     }
 }
 
@@ -250,7 +250,7 @@ impl<const SIZE: usize> Padding<SIZE> {
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum InfoChangeKind {
+pub enum LineInfoChangeKind {
     /// The line has been requested.
     Requested = 1,
     /// The line has been released.
@@ -259,11 +259,11 @@ pub enum InfoChangeKind {
     Reconfigured = 3,
 }
 
-impl TryFrom<u32> for InfoChangeKind {
+impl TryFrom<u32> for LineInfoChangeKind {
     type Error = String;
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
-        use InfoChangeKind::*;
+        use LineInfoChangeKind::*;
         match v {
             x if x == Requested as u32 => Ok(Requested),
             x if x == Released as u32 => Ok(Released),
@@ -273,10 +273,10 @@ impl TryFrom<u32> for InfoChangeKind {
     }
 }
 
-impl InfoChangeKind {
+impl LineInfoChangeKind {
     /// Confirm that the value read from the kernel is valid in Rust.
     pub(crate) fn validate(&self) -> std::result::Result<(), String> {
-        InfoChangeKind::try_from(*self as u32).map(|_i| ())
+        LineInfoChangeKind::try_from(*self as u32).map(|_i| ())
     }
 }
 
@@ -326,27 +326,27 @@ mod tests {
     }
     #[test]
     fn test_line_info_changed_kind_validate() {
-        let mut a = InfoChangeKind::Requested;
+        let mut a = LineInfoChangeKind::Requested;
         assert!(a.validate().is_ok());
         unsafe {
-            a = *(&0 as *const i32 as *const InfoChangeKind);
+            a = *(&0 as *const i32 as *const LineInfoChangeKind);
             assert_eq!(a.validate().unwrap_err(), "invalid value: 0");
-            a = *(&4 as *const i32 as *const InfoChangeKind);
+            a = *(&4 as *const i32 as *const LineInfoChangeKind);
             assert_eq!(a.validate().unwrap_err(), "invalid value: 4");
-            a = *(&3 as *const i32 as *const InfoChangeKind);
+            a = *(&3 as *const i32 as *const LineInfoChangeKind);
             assert!(a.validate().is_ok());
         }
     }
     #[test]
     fn test_line_event_kind_validate() {
-        let mut a = InfoChangeKind::Requested;
+        let mut a = LineInfoChangeKind::Requested;
         assert!(a.validate().is_ok());
         unsafe {
-            a = *(&0 as *const i32 as *const InfoChangeKind);
+            a = *(&0 as *const i32 as *const LineInfoChangeKind);
             assert_eq!(a.validate().unwrap_err(), "invalid value: 0");
-            a = *(&4 as *const i32 as *const InfoChangeKind);
+            a = *(&4 as *const i32 as *const LineInfoChangeKind);
             assert_eq!(a.validate().unwrap_err(), "invalid value: 4");
-            a = *(&3 as *const i32 as *const InfoChangeKind);
+            a = *(&3 as *const i32 as *const LineInfoChangeKind);
             assert!(a.validate().is_ok());
         }
     }
@@ -397,11 +397,11 @@ mod tests {
     }
     #[test]
     fn test_name_default() {
-        assert_eq!(Name::default().0, [0u8; NAME_MAX]);
+        assert_eq!(Name::default().0, [0u8; NAME_LEN_MAX]);
     }
     #[test]
     fn test_offsets_from_slice() {
-        let mut x = [0u32; LINES_MAX];
+        let mut x = [0u32; NUM_LINES_MAX];
         x[0] = 1;
         x[1] = 2;
         x[2] = 3;
@@ -429,7 +429,7 @@ mod tests {
     }
     #[test]
     fn test_offsets_default() {
-        assert_eq!(Offsets::default().0, [0u32; LINES_MAX]);
+        assert_eq!(Offsets::default().0, [0u32; NUM_LINES_MAX]);
     }
     #[test]
     fn test_padding_is_zeroed() {
@@ -442,7 +442,7 @@ mod tests {
     fn test_size_name() {
         assert_eq!(
             size_of::<Name>(),
-            NAME_MAX,
+            NAME_LEN_MAX,
             concat!("Size of: ", stringify!(Name))
         );
     }

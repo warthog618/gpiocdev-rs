@@ -168,7 +168,7 @@ pub enum Error {
     #[error("{0}")]
     InvalidArgument(String),
     /// No gpiochips are available to the user.
-    #[error("No GPIO chips are available.")]
+    #[error("No GPIO chips are available")]
     NoGpioChips(),
     /// Problem accessing GPIO chip character devices
     #[error("\"{0}\" {1}.")]

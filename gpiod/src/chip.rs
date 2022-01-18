@@ -8,9 +8,9 @@ use crate::{
     UapiCall,
 };
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-use gpiod_uapi::v1 as uv;
+use gpiod_uapi::v1 as uapi;
 #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-use gpiod_uapi::v2 as uv;
+use gpiod_uapi::v2 as uapi;
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiod_uapi::{v1, v2};
 use std::fmt;
@@ -85,11 +85,12 @@ impl Chip {
         })
     }
     /// Get the information for the chip.
-    pub fn chip_info(&mut self) -> Result<Info> {
+    pub fn info(&mut self) -> Result<Info> {
         Ok(Info::from(
-            uv::get_chip_info(&self.f).map_err(|e| Error::UapiError(UapiCall::GetChipInfo, e))?,
+            uapi::get_chip_info(&self.f).map_err(|e| Error::UapiError(UapiCall::GetChipInfo, e))?,
         ))
     }
+
     /// Return the name of the chip.
     ///
     /// This is based on the filename component of the resolved chip path, not the name
@@ -110,7 +111,7 @@ impl Chip {
     ///
     /// Returns the first matching line.
     pub fn find_line(&mut self, line: &str) -> Option<Offset> {
-        if let Ok(ci) = self.chip_info() {
+        if let Ok(ci) = self.info() {
             for offset in 0..ci.num_lines {
                 if let Ok(li) = self.line_info(offset) {
                     if li.name.as_os_str() == line {
@@ -133,7 +134,7 @@ impl Chip {
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     pub fn line_info(&mut self, offset: u32) -> Result<line::Info> {
-        uv::get_line_info(&self.f, offset)
+        uapi::get_line_info(&self.f, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))
     }
@@ -154,7 +155,7 @@ impl Chip {
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_watch_line_info(&mut self, offset: u32) -> Result<line::Info> {
-        uv::watch_line_info(&self.f, offset)
+        uapi::watch_line_info(&self.f, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::WatchLineInfo, e))
     }
@@ -162,17 +163,17 @@ impl Chip {
     ///
     /// This is a null operation if there is no existing watch on the line.
     pub fn unwatch_line_info(&mut self, offset: u32) -> Result<()> {
-        uv::unwatch_line_info(&self.f, offset)
+        uapi::unwatch_line_info(&self.f, offset)
             .map_err(|e| Error::UapiError(UapiCall::UnwatchLineInfo, e))
     }
 
     /// Check if the request has at least one info change event available to read.
-    pub fn has_info_change_event(&mut self) -> Result<bool> {
+    pub fn has_line_info_change_event(&mut self) -> Result<bool> {
         gpiod_uapi::has_event(&mut self.f).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
     }
 
     /// Wait for an info change event to be available.
-    pub fn wait_info_change_event(&mut self, timeout: Duration) -> Result<bool> {
+    pub fn wait_line_info_change_event(&mut self, timeout: Duration) -> Result<bool> {
         gpiod_uapi::wait_event(&mut self.f, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
     }
@@ -205,7 +206,7 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         match abiv {
-            V1 => uv::get_line_info(&self.f, 0)
+            V1 => uapi::get_line_info(&self.f, 0)
                 .map(|_| ())
                 .map_err(|_| Error::UnsupportedAbi(abiv, AbiSupportKind::Platform)),
             V2 => Err(Error::UnsupportedAbi(
@@ -217,7 +218,7 @@ impl Chip {
     #[cfg(not(feature = "uapi_v1"))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         match abiv {
-            V2 => uv::get_line_info(&self.f, 0)
+            V2 => uapi::get_line_info(&self.f, 0)
                 .map(|_| ())
                 .map_err(|_| Error::UnsupportedAbi(abiv, AbiSupportKind::Platform)),
             V1 => Err(Error::UnsupportedAbi(
@@ -237,11 +238,11 @@ impl Chip {
     /// Read an InfoChangeEvent from a buffer.
     ///
     /// Assumes the buffer has been previously populated by a call to read on the request.
-    pub fn info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
-        self.do_info_change_event_from_buf(d)
+    pub fn line_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
+        self.do_line_info_change_event_from_buf(d)
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
+    fn do_line_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
         match self.abiv {
             V1 => Ok(InfoChangeEvent::from(
                 v1::LineInfoChangeEvent::from_buf(d)
@@ -254,9 +255,9 @@ impl Chip {
         }
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    fn do_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
+    fn do_line_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
         Ok(InfoChangeEvent::from(
-            uv::LineInfoChangeEvent::from_buf(d)
+            uapi::LineInfoChangeEvent::from_buf(d)
                 .map_err(|e| Error::UapiError(UapiCall::LICEFromBuf, e))?,
         ))
     }
@@ -265,19 +266,19 @@ impl Chip {
     ///
     /// This can be used to size a [u8] buffer to read events into - the buffer size
     /// should be a multiple of this size.
-    pub fn info_change_event_size(&self) -> usize {
-        self.do_info_change_event_size()
+    pub fn line_info_change_event_size(&self) -> usize {
+        self.do_line_info_change_event_size()
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_info_change_event_size(&self) -> usize {
+    fn do_line_info_change_event_size(&self) -> usize {
         match self.abiv {
             V1 => size_of::<v1::LineInfoChangeEvent>(),
             V2 => size_of::<v2::LineInfoChangeEvent>(),
         }
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    fn do_info_change_event_size(&self) -> usize {
-        size_of::<uv::LineInfoChangeEvent>()
+    fn do_line_info_change_event_size(&self) -> usize {
+        size_of::<uapi::LineInfoChangeEvent>()
     }
 }
 impl std::io::Read for Chip {
@@ -299,8 +300,8 @@ pub struct Info {
     /// The number of lines provided by the chip.
     pub num_lines: u32,
 }
-impl From<uv::ChipInfo> for Info {
-    fn from(ci: uv::ChipInfo) -> Self {
+impl From<uapi::ChipInfo> for Info {
+    fn from(ci: uapi::ChipInfo) -> Self {
         Info {
             name: Name::from(&ci.name),
             label: Name::from(&ci.label),
@@ -325,5 +326,30 @@ impl fmt::Display for ErrorKind {
             ErrorKind::NotGpioDevice => "is not a GPIO character device",
         };
         write!(f, "{}", msg)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
+    use gpiod_uapi::v1 as uapi;
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    use gpiod_uapi::v2 as uapi;
+    use gpiod_uapi::Name;
+
+    // Chip tests are all integration tests as construction requires GPIO chips.
+
+    #[test]
+    fn test_info_from_uapi() {
+        let ui = uapi::ChipInfo {
+            name: Name::from_bytes("banana".as_bytes()),
+            label: Name::from_bytes("peel".as_bytes()),
+            num_lines: 42,
+        };
+        let i = Info::from(ui);
+        assert_eq!(i.num_lines, 42);
+        assert_eq!(i.name.as_os_str(), "banana");
+        assert_eq!(i.label.as_os_str(), "peel");
     }
 }

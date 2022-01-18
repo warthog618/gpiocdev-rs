@@ -35,7 +35,7 @@ fn detect_chip(p: &Path) -> Result<()> {
 
 fn print_chip_info(chip: &mut Chip) -> Result<()> {
     let ci = chip
-        .chip_info()
+        .info()
         .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
     println!(
         "{} [{}] ({} lines)",

@@ -30,13 +30,13 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             .context("Failed to watch lines.")?;
     }
 
-    let mut buf = Vec::with_capacity(chip.info_change_event_size());
+    let mut buf = Vec::with_capacity(chip.line_info_change_event_size());
     buf.resize(buf.capacity(), 0);
     loop {
         let n = chip.read(&mut buf)?;
-        assert_eq!(n, chip.info_change_event_size());
+        assert_eq!(n, chip.line_info_change_event_size());
         let change = chip
-            .info_change_event_from_buf(&buf)
+            .line_info_change_event_from_buf(&buf)
             .context("Failed to read event.")?;
         println!("{:?}", change);
     }

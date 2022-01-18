@@ -40,7 +40,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 
 fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
     let ci = chip
-        .chip_info()
+        .info()
         .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
     println!(
         "{} - {} lines",
@@ -62,7 +62,7 @@ fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
 
 fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
     let ci = chip
-        .chip_info()
+        .info()
         .with_context(|| format!("Failed to read info from chip {:?}.", chip.path()))?;
     println!(
         "{} - {} of {} lines",
@@ -117,7 +117,7 @@ fn stringify_attrs(li: &gpiod::line::Info) -> String {
         Some(Bias::PullDown) => attrs.push("pull-down"),
         Some(Bias::Disabled) => attrs.push("bias-disabled"),
     }
-    match li.edge {
+    match li.edge_detection {
         None => (),
         Some(EdgeDetection::RisingEdge) => attrs.push("rising-edge"),
         Some(EdgeDetection::FallingEdge) => attrs.push("falling-edge"),

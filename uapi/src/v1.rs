@@ -13,8 +13,8 @@ use super::common::{ValidationResult, IOCTL_MAGIC};
 
 // common to ABI v1 and v2.
 pub use super::common::{
-    get_chip_info, unwatch_line_info, ChipInfo, InfoChangeKind, LineEdgeEventKind, Offset, Offsets,
-    Padding, ValidationError,
+    get_chip_info, unwatch_line_info, ChipInfo, LineEdgeEventKind, LineInfoChangeKind, Offset,
+    Offsets, Padding, ValidationError,
 };
 use super::{Error, Name, Result};
 
@@ -133,7 +133,7 @@ pub struct LineInfoChangeEvent {
     /// An estimate of time of status change occurrence, in nanoseconds.
     pub timestamp_ns: u64,
     /// The kind of change event.
-    pub kind: InfoChangeKind,
+    pub kind: LineInfoChangeKind,
     /// Reserved for future use.
     #[doc(hidden)]
     pub padding: Padding<5>,
@@ -180,7 +180,7 @@ pub struct HandleRequest {
     /// the `offsets` and `values` arrays.
     ///
     /// Set to 1 to request a single line.
-    pub lines: u32,
+    pub num_lines: u32,
     /// This field is only present for the underlying ioctl call and is only used internally.
     //
     // This is actually specified as an int in gpio.h, but that presents problems
@@ -526,22 +526,22 @@ mod tests {
         let mut a = LineInfoChangeEvent {
             info: Default::default(),
             timestamp_ns: 0,
-            kind: InfoChangeKind::Released,
+            kind: LineInfoChangeKind::Released,
             padding: Default::default(),
         };
         assert!(a.validate().is_ok());
         a.timestamp_ns = 1234;
         assert!(a.validate().is_ok());
         unsafe {
-            a.kind = *(&0 as *const i32 as *const InfoChangeKind);
+            a.kind = *(&0 as *const i32 as *const LineInfoChangeKind);
             let e = a.validate().unwrap_err();
             assert_eq!(e.field, "kind");
             assert_eq!(e.msg, "invalid value: 0");
-            a.kind = *(&4 as *const i32 as *const InfoChangeKind);
+            a.kind = *(&4 as *const i32 as *const LineInfoChangeKind);
             let e = a.validate().unwrap_err();
             assert_eq!(e.field, "kind");
             assert_eq!(e.msg, "invalid value: 4");
-            a.kind = *(&1 as *const i32 as *const InfoChangeKind);
+            a.kind = *(&1 as *const i32 as *const LineInfoChangeKind);
             assert!(a.validate().is_ok());
         }
     }

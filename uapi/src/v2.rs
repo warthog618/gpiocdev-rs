@@ -17,8 +17,8 @@ use super::common::{ValidationResult, IOCTL_MAGIC};
 
 // common to ABI v1 and v2.
 pub use super::common::{
-    get_chip_info, unwatch_line_info, ChipInfo, InfoChangeKind, LineEdgeEventKind, Offset, Offsets,
-    Padding, ValidationError,
+    get_chip_info, unwatch_line_info, ChipInfo, LineEdgeEventKind, LineInfoChangeKind, Offset,
+    Offsets, Padding, ValidationError,
 };
 use super::{Error, Name, Result};
 
@@ -376,7 +376,7 @@ pub struct LineConfigAttributes(pub [LineConfigAttribute; NUM_ATTRS_MAX as usize
 
 /// Configuration for a set of requested lines.
 #[repr(C)]
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct LineConfig {
     /// Flags for the GPIO lines.  This is the default for all requested lines but
     /// may be overridden for particular lines using `attrs`.
@@ -426,7 +426,7 @@ pub fn set_line_config(lf: &File, lc: LineConfig) -> Result<()> {
 
 /// Information about a request for GPIO lines.
 #[repr(C)]
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct LineRequest {
     /// An array of requested lines, identified by offset on the associated GPIO chip.
     pub offsets: Offsets,
@@ -595,7 +595,7 @@ pub struct LineInfoChangeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     pub timestamp_ns: u64,
     /// The trigger for the change.
-    pub kind: InfoChangeKind,
+    pub kind: LineInfoChangeKind,
     /// Reserved for future use.
     #[doc(hidden)]
     pub padding: Padding<5>,
@@ -822,22 +822,22 @@ mod tests {
         let mut a = LineInfoChangeEvent {
             info: Default::default(),
             timestamp_ns: 0,
-            kind: InfoChangeKind::Released,
+            kind: LineInfoChangeKind::Released,
             padding: Default::default(),
         };
         assert!(a.validate().is_ok());
         a.timestamp_ns = 1234;
         assert!(a.validate().is_ok());
         unsafe {
-            a.kind = *(&0 as *const i32 as *const InfoChangeKind);
+            a.kind = *(&0 as *const i32 as *const LineInfoChangeKind);
             let e = a.validate().unwrap_err();
             assert_eq!(e.field, "kind");
             assert_eq!(e.msg, "invalid value: 0");
-            a.kind = *(&4 as *const i32 as *const InfoChangeKind);
+            a.kind = *(&4 as *const i32 as *const LineInfoChangeKind);
             let e = a.validate().unwrap_err();
             assert_eq!(e.field, "kind");
             assert_eq!(e.msg, "invalid value: 4");
-            a.kind = *(&1 as *const i32 as *const InfoChangeKind);
+            a.kind = *(&1 as *const i32 as *const LineInfoChangeKind);
             assert!(a.validate().is_ok());
         }
     }

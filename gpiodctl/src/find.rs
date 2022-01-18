@@ -42,7 +42,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 // Exhaustive form that checks every line even when a matching line has already been found.
 fn find_line(chip: &mut Chip, line: &str) -> Result<bool> {
     let ci = chip
-        .chip_info()
+        .info()
         .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
     let mut found = false;
     for offset in 0..ci.num_lines {

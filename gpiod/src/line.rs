@@ -4,11 +4,11 @@
 
 use crate::{Name, Timestamp};
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-use gpiod_uapi::v1 as uv;
+use gpiod_uapi::v1 as uapi;
 #[cfg(feature = "uapi_v1")]
 use gpiod_uapi::v1;
 #[cfg(feature = "uapi_v2")]
-use gpiod_uapi::{v2, v2 as uv};
+use gpiod_uapi::{v2, v2 as uapi};
 use nohash_hasher::IntMap;
 use std::time::Duration;
 
@@ -120,13 +120,15 @@ impl From<&Config> for v2::LineFlags {
                     true,
                 ),
             };
-        }
-        if cfg.edge_detection.is_some() {
-            match cfg.event_clock {
-                None => {}
-                Some(EventClock::Monotonic) => {}
-                Some(EventClock::Realtime) => flags.set(v2::LineFlags::EVENT_CLOCK_REALTIME, true),
-            };
+            if cfg.edge_detection.is_some() {
+                match cfg.event_clock {
+                    None => {}
+                    Some(EventClock::Monotonic) => {}
+                    Some(EventClock::Realtime) => {
+                        flags.set(v2::LineFlags::EVENT_CLOCK_REALTIME, true)
+                    }
+                };
+            }
         }
         flags
     }
@@ -156,12 +158,14 @@ impl From<&Config> for v1::HandleRequestFlags {
         if cfg.active_low {
             flags.set(v1::HandleRequestFlags::ACTIVE_LOW, true);
         }
-        match cfg.drive {
-            None => {}
-            Some(Drive::PushPull) => {}
-            Some(Drive::OpenDrain) => flags.set(v1::HandleRequestFlags::OPEN_DRAIN, true),
-            Some(Drive::OpenSource) => flags.set(v1::HandleRequestFlags::OPEN_SOURCE, true),
-        };
+        if cfg.direction == Direction::Output {
+            match cfg.drive {
+                None => {}
+                Some(Drive::PushPull) => {}
+                Some(Drive::OpenDrain) => flags.set(v1::HandleRequestFlags::OPEN_DRAIN, true),
+                Some(Drive::OpenSource) => flags.set(v1::HandleRequestFlags::OPEN_SOURCE, true),
+            };
+        }
         match cfg.bias {
             None => {}
             Some(Bias::PullUp) => flags.set(v1::HandleRequestFlags::BIAS_PULL_UP, true),
@@ -203,7 +207,7 @@ pub struct Info {
     /// The edge detection state for the line.
     ///
     /// Only relevant for input lines.
-    pub edge: Option<EdgeDetection>,
+    pub edge_detection: Option<EdgeDetection>,
     /// The source clock for edge event timestamps.
     ///
     /// Only relevant for input lines with edge detection.
@@ -223,8 +227,8 @@ impl From<&v1::LineInfo> for Info {
             offset: li.offset,
             name: Name::from(&li.name),
             consumer: Name::from(&li.consumer),
-            used: li.flags & v1::LineInfoFlags::USED == v1::LineInfoFlags::USED,
-            active_low: li.flags & v1::LineInfoFlags::ACTIVE_LOW == v1::LineInfoFlags::ACTIVE_LOW,
+            used: li.flags.contains(v1::LineInfoFlags::USED),
+            active_low: li.flags.contains(v1::LineInfoFlags::ACTIVE_LOW),
             direction: Direction::from(li.flags),
             bias: Bias::try_from(li.flags).ok(),
             drive: Drive::try_from(li.flags).ok(),
@@ -242,17 +246,23 @@ impl From<&v2::LineInfo> for Info {
                 debounce_period = Some(db);
             }
         }
+        let ed = EdgeDetection::try_from(li.flags).ok();
+        let ec = if ed.is_some() {
+            EventClock::try_from(li.flags).ok()
+        } else {
+            None
+        };
         Info {
             offset: li.offset,
             name: Name::from(&li.name),
             consumer: Name::from(&li.consumer),
-            used: li.flags & v2::LineFlags::USED == v2::LineFlags::USED,
-            active_low: li.flags & v2::LineFlags::ACTIVE_LOW == v2::LineFlags::ACTIVE_LOW,
+            used: li.flags.contains(v2::LineFlags::USED),
+            active_low: li.flags.contains(v2::LineFlags::ACTIVE_LOW),
             direction: Direction::from(li.flags),
             bias: Bias::try_from(li.flags).ok(),
             drive: Drive::try_from(li.flags).ok(),
-            edge: EdgeDetection::try_from(li.flags).ok(),
-            event_clock: EventClock::try_from(li.flags).ok(),
+            edge_detection: ed,
+            event_clock: ec,
             debounce_period,
         }
     }
@@ -337,11 +347,11 @@ pub struct Values(IntMap<Offset, Value>);
 impl Values {
     /// overlays the values from src over the values in the dst.
     #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-    pub(crate) fn from_uapi(&mut self, offsets: &[Offset], src: &uv::LineValues) {
+    pub(crate) fn from_uapi(&mut self, offsets: &[Offset], src: &uapi::LineValues) {
         self.from_v1(offsets, src)
     }
     #[cfg(not(feature = "uapi_v1"))]
-    pub(crate) fn from_uapi(&mut self, offsets: &[Offset], src: &uv::LineValues) {
+    pub(crate) fn from_uapi(&mut self, offsets: &[Offset], src: &uapi::LineValues) {
         self.from_v2(offsets, src)
     }
     /// overlays the values from src over the values in the dst.
@@ -361,11 +371,11 @@ impl Values {
         }
     }
     #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-    pub(crate) fn to_uapi(&self, offsets: &[Offset]) -> uv::LineValues {
+    pub(crate) fn to_uapi(&self, offsets: &[Offset]) -> uapi::LineValues {
         self.to_v1(offsets)
     }
     #[cfg(not(feature = "uapi_v1"))]
-    pub(crate) fn to_uapi(&self, offsets: &[Offset]) -> uv::LineValues {
+    pub(crate) fn to_uapi(&self, offsets: &[Offset]) -> uapi::LineValues {
         self.to_v2(offsets)
     }
     // v1 values are a contiguous list.  If a list shorter than offsets
@@ -394,7 +404,7 @@ impl Values {
 
     /// Get the value of a line.
     #[inline]
-    pub fn get(&mut self, offset: Offset) -> Option<Value> {
+    pub fn get(&self, offset: Offset) -> Option<Value> {
         self.0.get(&offset).copied()
     }
 
@@ -646,7 +656,7 @@ pub struct EdgeEvent {
     /// should be converted to [`Duration`].
     pub timestamp_ns: u64,
     /// The event trigger identifier.
-    pub kind: EdgeEventKind,
+    pub kind: EdgeKind,
     /// The offset of the line that triggered the event.
     pub offset: Offset,
     /// The sequence number for this event in the sequence of events for all
@@ -661,7 +671,7 @@ impl From<&v1::LineEdgeEvent> for EdgeEvent {
     fn from(le: &v1::LineEdgeEvent) -> Self {
         EdgeEvent {
             timestamp_ns: le.timestamp_ns,
-            kind: EdgeEventKind::from(le.kind),
+            kind: EdgeKind::from(le.kind),
             // v1 doesn't provide the remaining fields...
             offset: 0,
             seqno: 0,
@@ -674,7 +684,7 @@ impl From<&v2::LineEdgeEvent> for EdgeEvent {
     fn from(le: &v2::LineEdgeEvent) -> Self {
         EdgeEvent {
             timestamp_ns: le.timestamp_ns,
-            kind: EdgeEventKind::from(le.kind),
+            kind: EdgeKind::from(le.kind),
             offset: le.offset,
             seqno: le.seqno,
             line_seqno: le.line_seqno,
@@ -684,17 +694,17 @@ impl From<&v2::LineEdgeEvent> for EdgeEvent {
 
 /// The cause of an [`EdgeEvent`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum EdgeEventKind {
+pub enum EdgeKind {
     /// Indicates the line transitioned from inactive to active.
-    RisingEdge = 1,
+    Rising = 1,
     /// Indicates the line transitioned from active to inactive.
-    FallingEdge = 2,
+    Falling = 2,
 }
-impl From<uv::LineEdgeEventKind> for EdgeEventKind {
-    fn from(kind: uv::LineEdgeEventKind) -> Self {
+impl From<uapi::LineEdgeEventKind> for EdgeKind {
+    fn from(kind: uapi::LineEdgeEventKind) -> Self {
         match kind {
-            uv::LineEdgeEventKind::RisingEdge => EdgeEventKind::RisingEdge,
-            uv::LineEdgeEventKind::FallingEdge => EdgeEventKind::FallingEdge,
+            uapi::LineEdgeEventKind::RisingEdge => EdgeKind::Rising,
+            uapi::LineEdgeEventKind::FallingEdge => EdgeKind::Falling,
         }
     }
 }
@@ -740,12 +750,12 @@ pub enum InfoChangeKind {
     /// Line has been reconfigured.
     Reconfigured = 3,
 }
-impl From<uv::InfoChangeKind> for InfoChangeKind {
-    fn from(kind: uv::InfoChangeKind) -> Self {
+impl From<uapi::LineInfoChangeKind> for InfoChangeKind {
+    fn from(kind: uapi::LineInfoChangeKind) -> Self {
         match kind {
-            uv::InfoChangeKind::Requested => InfoChangeKind::Requested,
-            uv::InfoChangeKind::Released => InfoChangeKind::Released,
-            uv::InfoChangeKind::Reconfigured => InfoChangeKind::Reconfigured,
+            uapi::LineInfoChangeKind::Requested => InfoChangeKind::Requested,
+            uapi::LineInfoChangeKind::Released => InfoChangeKind::Released,
+            uapi::LineInfoChangeKind::Reconfigured => InfoChangeKind::Reconfigured,
         }
     }
 }
@@ -753,6 +763,374 @@ impl From<uv::InfoChangeKind> for InfoChangeKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpiod_uapi as uapi;
+
+    #[test]
+    fn test_config_default() {
+        let cfg: Config = Default::default();
+        assert_eq!(cfg.direction, Direction::Input);
+        assert!(!cfg.active_low);
+        assert!(cfg.bias.is_none());
+        assert!(cfg.drive.is_none());
+        assert!(cfg.edge_detection.is_none());
+        assert!(cfg.event_clock.is_none());
+        assert!(cfg.debounce_period.is_none());
+        assert!(cfg.value.is_none());
+    }
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_config_equivalent() {
+        let mut lcfg: Config = Default::default();
+        let mut rcfg: Config = Default::default();
+        assert!(lcfg.equivalent(&rcfg));
+        rcfg.value = Some(Value::Active);
+        assert!(lcfg.equivalent(&rcfg));
+        lcfg.active_low = true;
+        assert!(!lcfg.equivalent(&rcfg));
+        rcfg.active_low = true;
+        assert!(lcfg.equivalent(&rcfg));
+        lcfg.bias = Some(Bias::PullDown);
+        assert!(!lcfg.equivalent(&rcfg));
+        rcfg.bias = Some(Bias::PullDown);
+        assert!(lcfg.equivalent(&rcfg));
+        lcfg.drive = Some(Drive::OpenDrain);
+        assert!(!lcfg.equivalent(&rcfg));
+        rcfg.drive = Some(Drive::OpenDrain);
+        assert!(lcfg.equivalent(&rcfg));
+        lcfg.edge_detection = Some(EdgeDetection::RisingEdge);
+        assert!(!lcfg.equivalent(&rcfg));
+        rcfg.edge_detection = Some(EdgeDetection::RisingEdge);
+        assert!(lcfg.equivalent(&rcfg));
+        lcfg.event_clock = Some(EventClock::Realtime);
+        assert!(!lcfg.equivalent(&rcfg));
+        rcfg.event_clock = Some(EventClock::Realtime);
+        assert!(lcfg.equivalent(&rcfg));
+        lcfg.debounce_period = Some(Duration::from_millis(5));
+        assert!(!lcfg.equivalent(&rcfg));
+        rcfg.debounce_period = Some(Duration::from_millis(5));
+        assert!(lcfg.equivalent(&rcfg));
+    }
+    #[test]
+    fn test_config_value() {
+        let mut cfg: Config = Default::default();
+        assert_eq!(cfg.value(), Value::Inactive);
+        cfg.value = Some(Value::Active);
+        assert_eq!(cfg.value(), Value::Active);
+        cfg.value = Some(Value::Inactive);
+        assert_eq!(cfg.value(), Value::Inactive);
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_v2_line_flags_from_config() {
+        let cfg = Config {
+            direction: Direction::Input,
+            active_low: false,
+            bias: Some(Bias::Disabled),
+            drive: Some(Drive::OpenDrain), // ignored for input
+            edge_detection: Some(EdgeDetection::BothEdges),
+            event_clock: Some(EventClock::Realtime),
+            debounce_period: None,
+            value: None,
+        };
+        let flags = v2::LineFlags::from(&cfg);
+        assert!(flags.contains(v2::LineFlags::INPUT));
+        assert!(!flags.contains(v2::LineFlags::OUTPUT));
+        assert!(!flags.contains(v2::LineFlags::ACTIVE_LOW));
+        assert!(flags.contains(v2::LineFlags::BIAS_DISABLED));
+        assert!(!flags.contains(v2::LineFlags::BIAS_PULL_UP));
+        assert!(!flags.contains(v2::LineFlags::BIAS_PULL_DOWN));
+        assert!(flags.contains(v2::LineFlags::EDGE_RISING));
+        assert!(flags.contains(v2::LineFlags::EDGE_FALLING));
+        assert!(!flags.contains(v2::LineFlags::OPEN_DRAIN));
+        assert!(!flags.contains(v2::LineFlags::OPEN_SOURCE));
+        assert!(flags.contains(v2::LineFlags::EVENT_CLOCK_REALTIME));
+        let cfg = Config {
+            direction: Direction::Input,
+            active_low: true,
+            bias: Some(Bias::PullUp),
+            drive: Some(Drive::OpenSource), // ignored for input
+            edge_detection: None,
+            event_clock: Some(EventClock::Realtime), // ignored for no edges
+            debounce_period: None,
+            value: None,
+        };
+        let flags = v2::LineFlags::from(&cfg);
+        assert!(flags.contains(v2::LineFlags::INPUT));
+        assert!(!flags.contains(v2::LineFlags::OUTPUT));
+        assert!(flags.contains(v2::LineFlags::ACTIVE_LOW));
+        assert!(!flags.contains(v2::LineFlags::BIAS_DISABLED));
+        assert!(flags.contains(v2::LineFlags::BIAS_PULL_UP));
+        assert!(!flags.contains(v2::LineFlags::BIAS_PULL_DOWN));
+        assert!(!flags.contains(v2::LineFlags::EDGE_RISING));
+        assert!(!flags.contains(v2::LineFlags::EDGE_FALLING));
+        assert!(!flags.contains(v2::LineFlags::OPEN_DRAIN));
+        assert!(!flags.contains(v2::LineFlags::OPEN_SOURCE));
+        assert!(!flags.contains(v2::LineFlags::EVENT_CLOCK_REALTIME));
+        let cfg = Config {
+            direction: Direction::Output,
+            active_low: false,
+            bias: Some(Bias::PullDown),
+            drive: Some(Drive::OpenSource),
+            edge_detection: Some(EdgeDetection::BothEdges), // ignored for output
+            event_clock: Some(EventClock::Realtime),        // ignored for output
+            debounce_period: None,
+            value: None,
+        };
+        let flags = v2::LineFlags::from(&cfg);
+        assert!(!flags.contains(v2::LineFlags::INPUT));
+        assert!(flags.contains(v2::LineFlags::OUTPUT));
+        assert!(!flags.contains(v2::LineFlags::ACTIVE_LOW));
+        assert!(!flags.contains(v2::LineFlags::BIAS_DISABLED));
+        assert!(!flags.contains(v2::LineFlags::BIAS_PULL_UP));
+        assert!(flags.contains(v2::LineFlags::BIAS_PULL_DOWN));
+        assert!(!flags.contains(v2::LineFlags::EDGE_RISING));
+        assert!(!flags.contains(v2::LineFlags::EDGE_FALLING));
+        assert!(!flags.contains(v2::LineFlags::OPEN_DRAIN));
+        assert!(flags.contains(v2::LineFlags::OPEN_SOURCE));
+        assert!(!flags.contains(v2::LineFlags::EVENT_CLOCK_REALTIME));
+    }
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_v1_event_request_flags_from_config() {
+        let mut cfg = Config {
+            direction: Direction::Input,
+            active_low: false,
+            bias: Some(Bias::Disabled),
+            drive: Some(Drive::OpenDrain),
+            edge_detection: Some(EdgeDetection::BothEdges),
+            event_clock: Some(EventClock::Realtime),
+            debounce_period: None,
+            value: None,
+        };
+        let flags = v1::EventRequestFlags::from(&cfg);
+        assert!(flags.contains(v1::EventRequestFlags::RISING_EDGE));
+        assert!(flags.contains(v1::EventRequestFlags::FALLING_EDGE));
+        assert!(flags.contains(v1::EventRequestFlags::BOTH_EDGES));
+        cfg.edge_detection = Some(EdgeDetection::RisingEdge);
+        let flags = v1::EventRequestFlags::from(&cfg);
+        assert!(flags.contains(v1::EventRequestFlags::RISING_EDGE));
+        assert!(!flags.contains(v1::EventRequestFlags::FALLING_EDGE));
+        assert!(!flags.contains(v1::EventRequestFlags::BOTH_EDGES));
+        cfg.edge_detection = Some(EdgeDetection::FallingEdge);
+        let flags = v1::EventRequestFlags::from(&cfg);
+        assert!(!flags.contains(v1::EventRequestFlags::RISING_EDGE));
+        assert!(flags.contains(v1::EventRequestFlags::FALLING_EDGE));
+        assert!(!flags.contains(v1::EventRequestFlags::BOTH_EDGES));
+        cfg.edge_detection = None;
+        let flags = v1::EventRequestFlags::from(&cfg);
+        assert!(!flags.contains(v1::EventRequestFlags::RISING_EDGE));
+        assert!(!flags.contains(v1::EventRequestFlags::FALLING_EDGE));
+        assert!(!flags.contains(v1::EventRequestFlags::BOTH_EDGES));
+    }
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_v1_handle_request_flags_from_config() {
+        let cfg = Config {
+            direction: Direction::Input,
+            active_low: false,
+            bias: Some(Bias::Disabled),
+            drive: Some(Drive::OpenDrain), // ignored for input
+            edge_detection: Some(EdgeDetection::BothEdges),
+            event_clock: None,
+            debounce_period: None,
+            value: None,
+        };
+        let flags = v1::HandleRequestFlags::from(&cfg);
+        assert!(flags.contains(v1::HandleRequestFlags::INPUT));
+        assert!(!flags.contains(v1::HandleRequestFlags::OUTPUT));
+        assert!(!flags.contains(v1::HandleRequestFlags::ACTIVE_LOW));
+        assert!(flags.contains(v1::HandleRequestFlags::BIAS_DISABLED));
+        assert!(!flags.contains(v1::HandleRequestFlags::BIAS_PULL_UP));
+        assert!(!flags.contains(v1::HandleRequestFlags::BIAS_PULL_DOWN));
+        assert!(!flags.contains(v1::HandleRequestFlags::OPEN_DRAIN));
+        assert!(!flags.contains(v1::HandleRequestFlags::OPEN_SOURCE));
+        let cfg = Config {
+            direction: Direction::Input,
+            active_low: true,
+            bias: Some(Bias::PullUp),
+            drive: Some(Drive::OpenSource), // ignored for input
+            edge_detection: None,
+            event_clock: None,
+            debounce_period: None,
+            value: None,
+        };
+        let flags = v1::HandleRequestFlags::from(&cfg);
+        assert!(flags.contains(v1::HandleRequestFlags::INPUT));
+        assert!(!flags.contains(v1::HandleRequestFlags::OUTPUT));
+        assert!(flags.contains(v1::HandleRequestFlags::ACTIVE_LOW));
+        assert!(!flags.contains(v1::HandleRequestFlags::BIAS_DISABLED));
+        assert!(flags.contains(v1::HandleRequestFlags::BIAS_PULL_UP));
+        assert!(!flags.contains(v1::HandleRequestFlags::BIAS_PULL_DOWN));
+        assert!(!flags.contains(v1::HandleRequestFlags::OPEN_DRAIN));
+        assert!(!flags.contains(v1::HandleRequestFlags::OPEN_SOURCE));
+        let cfg = Config {
+            direction: Direction::Output,
+            active_low: false,
+            bias: Some(Bias::PullDown),
+            drive: Some(Drive::OpenSource),
+            edge_detection: Some(EdgeDetection::BothEdges), // ignored for output
+            event_clock: None,
+            debounce_period: None,
+            value: None,
+        };
+        let flags = v1::HandleRequestFlags::from(&cfg);
+        assert!(!flags.contains(v1::HandleRequestFlags::INPUT));
+        assert!(flags.contains(v1::HandleRequestFlags::OUTPUT));
+        assert!(!flags.contains(v1::HandleRequestFlags::ACTIVE_LOW));
+        assert!(!flags.contains(v1::HandleRequestFlags::BIAS_DISABLED));
+        assert!(!flags.contains(v1::HandleRequestFlags::BIAS_PULL_UP));
+        assert!(flags.contains(v1::HandleRequestFlags::BIAS_PULL_DOWN));
+        assert!(!flags.contains(v1::HandleRequestFlags::OPEN_DRAIN));
+        assert!(flags.contains(v1::HandleRequestFlags::OPEN_SOURCE));
+    }
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_info_from_v1_line_info() {
+        let v1info: v1::LineInfo = Default::default();
+        let info = Info::from(&v1info);
+        assert_eq!(info.offset, 0);
+        assert!(info.name.is_empty());
+        assert!(info.consumer.is_empty());
+        assert!(!info.used);
+        assert!(!info.active_low);
+        assert_eq!(info.direction, Direction::Input);
+        assert!(info.bias.is_none());
+        assert!(info.drive.is_none());
+        assert!(info.edge_detection.is_none());
+        assert!(info.event_clock.is_none());
+        assert!(info.debounce_period.is_none());
+        let v1info = v1::LineInfo {
+            offset: 32,
+            flags: v1::LineInfoFlags::USED
+                | v1::LineInfoFlags::ACTIVE_LOW
+                | v1::LineInfoFlags::OUTPUT
+                | v1::LineInfoFlags::BIAS_PULL_DOWN,
+            name: uapi::Name::from_bytes("banana".as_bytes()),
+            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+        };
+        let info = Info::from(&v1info);
+        assert_eq!(info.offset, 32);
+        assert_eq!(info.name.as_os_str(), "banana");
+        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert!(info.used);
+        assert!(info.active_low);
+        assert_eq!(info.direction, Direction::Output);
+        assert_eq!(info.bias, Some(Bias::PullDown));
+        assert_eq!(info.drive, Some(Drive::PushPull));
+        assert!(info.edge_detection.is_none());
+        assert!(info.event_clock.is_none());
+        assert!(info.debounce_period.is_none());
+        let v1info = v1::LineInfo {
+            offset: 32,
+            flags: v1::LineInfoFlags::USED
+                | v1::LineInfoFlags::OUTPUT
+                | v1::LineInfoFlags::OPEN_DRAIN
+                | v1::LineInfoFlags::BIAS_DISABLED,
+            name: uapi::Name::from_bytes("banana".as_bytes()),
+            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+        };
+        let info = Info::from(&v1info);
+        assert_eq!(info.offset, 32);
+        assert_eq!(info.name.as_os_str(), "banana");
+        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert!(info.used);
+        assert!(!info.active_low);
+        assert_eq!(info.direction, Direction::Output);
+        assert_eq!(info.bias, Some(Bias::Disabled));
+        assert_eq!(info.drive, Some(Drive::OpenDrain));
+        assert!(info.edge_detection.is_none());
+        assert!(info.event_clock.is_none());
+        assert!(info.debounce_period.is_none());
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_info_from_v2_line_info() {
+        let v2info: v2::LineInfo = Default::default();
+        let info = Info::from(&v2info);
+        assert_eq!(info.offset, 0);
+        assert!(info.name.is_empty());
+        assert!(info.consumer.is_empty());
+        assert!(!info.used);
+        assert!(!info.active_low);
+        assert_eq!(info.direction, Direction::Input);
+        assert!(info.bias.is_none());
+        assert!(info.drive.is_none());
+        assert!(info.edge_detection.is_none());
+        assert!(info.event_clock.is_none());
+        assert!(info.debounce_period.is_none());
+        let v2info = v2::LineInfo {
+            offset: 32,
+            flags: v2::LineFlags::USED
+                | v2::LineFlags::ACTIVE_LOW
+                | v2::LineFlags::OUTPUT
+                | v2::LineFlags::BIAS_PULL_DOWN,
+            name: uapi::Name::from_bytes("banana".as_bytes()),
+            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+            num_attrs: 0,
+            attrs: Default::default(),
+            padding: Default::default(),
+        };
+        let info = Info::from(&v2info);
+        assert_eq!(info.offset, 32);
+        assert_eq!(info.name.as_os_str(), "banana");
+        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert!(info.used);
+        assert!(info.active_low);
+        assert_eq!(info.direction, Direction::Output);
+        assert_eq!(info.bias, Some(Bias::PullDown));
+        assert_eq!(info.drive, Some(Drive::PushPull));
+        assert!(info.edge_detection.is_none());
+        assert!(info.event_clock.is_none());
+        assert!(info.debounce_period.is_none());
+        let v2info = v2::LineInfo {
+            offset: 32,
+            flags: v2::LineFlags::USED
+                | v2::LineFlags::OUTPUT
+                | v2::LineFlags::OPEN_DRAIN
+                | v2::LineFlags::BIAS_DISABLED,
+            name: uapi::Name::from_bytes("banana".as_bytes()),
+            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+            num_attrs: 0,
+            attrs: Default::default(),
+            padding: Default::default(),
+        };
+        let info = Info::from(&v2info);
+        assert_eq!(info.offset, 32);
+        assert_eq!(info.name.as_os_str(), "banana");
+        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert!(info.used);
+        assert!(!info.active_low);
+        assert_eq!(info.direction, Direction::Output);
+        assert_eq!(info.bias, Some(Bias::Disabled));
+        assert_eq!(info.drive, Some(Drive::OpenDrain));
+        assert!(info.edge_detection.is_none());
+        assert!(info.event_clock.is_none());
+        assert!(info.debounce_period.is_none());
+        let v2info = v2::LineInfo {
+            offset: 32,
+            flags: v2::LineFlags::USED
+                | v2::LineFlags::INPUT
+                | v2::LineFlags::EDGE_RISING
+                | v2::LineFlags::BIAS_PULL_DOWN,
+            name: uapi::Name::from_bytes("banana".as_bytes()),
+            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+            num_attrs: 0,
+            attrs: Default::default(),
+            padding: Default::default(),
+        };
+        let info = Info::from(&v2info);
+        assert_eq!(info.offset, 32);
+        assert_eq!(info.name.as_os_str(), "banana");
+        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert!(info.used);
+        assert!(!info.active_low);
+        assert_eq!(info.direction, Direction::Input);
+        assert_eq!(info.bias, Some(Bias::PullDown));
+        assert!(info.drive.is_none());
+        assert_eq!(info.edge_detection, Some(EdgeDetection::RisingEdge));
+        assert_eq!(info.event_clock, Some(EventClock::Monotonic));
+        assert!(info.debounce_period.is_none());
+    }
     #[test]
     #[cfg(feature = "uapi_v1")]
     fn test_values_from_v1() {
@@ -824,5 +1202,207 @@ mod tests {
         assert!(!dst.get(2).unwrap()); // 3
         assert!(dst.get(3).unwrap()); // 8
         assert_eq!(dst.mask.into_value(), 0b1101); // only 3 entries set
+    }
+    #[test]
+    fn test_values_from_lines() {
+        let values = Values::from_lines(&[1, 6, 3, 9]);
+        assert_eq!(values.get(0), None);
+        assert_eq!(values.get(1), Some(Value::Inactive));
+        assert_eq!(values.get(2), None);
+        assert_eq!(values.get(3), Some(Value::Inactive));
+        assert_eq!(values.get(4), None);
+        assert_eq!(values.get(5), None);
+        assert_eq!(values.get(6), Some(Value::Inactive));
+        assert_eq!(values.get(7), None);
+        assert_eq!(values.get(8), None);
+        assert_eq!(values.get(9), Some(Value::Inactive));
+    }
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_direction_from_v1_line_info_flags() {
+        assert_eq!(
+            Direction::from(v1::LineInfoFlags::OUTPUT),
+            Direction::Output
+        );
+        assert_eq!(
+            Direction::from(v1::LineInfoFlags::ACTIVE_LOW),
+            Direction::Input
+        );
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_direction_from_v2_line_flags() {
+        assert_eq!(Direction::from(v2::LineFlags::OUTPUT), Direction::Output);
+        assert_eq!(Direction::from(v2::LineFlags::INPUT), Direction::Input);
+    }
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_bias_try_from_v1_line_info_flags() {
+        assert_eq!(Bias::try_from(v1::LineInfoFlags::ACTIVE_LOW), Err(()));
+        assert_eq!(
+            Bias::try_from(v1::LineInfoFlags::BIAS_PULL_DOWN),
+            Ok(Bias::PullDown)
+        );
+        assert_eq!(
+            Bias::try_from(v1::LineInfoFlags::BIAS_PULL_UP),
+            Ok(Bias::PullUp)
+        );
+        assert_eq!(
+            Bias::try_from(v1::LineInfoFlags::BIAS_DISABLED),
+            Ok(Bias::Disabled)
+        );
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_bias_from_v2_line_flags() {
+        assert_eq!(Bias::try_from(v2::LineFlags::INPUT), Err(()));
+        assert_eq!(
+            Bias::try_from(v2::LineFlags::BIAS_PULL_DOWN),
+            Ok(Bias::PullDown)
+        );
+        assert_eq!(
+            Bias::try_from(v2::LineFlags::BIAS_PULL_UP),
+            Ok(Bias::PullUp)
+        );
+        assert_eq!(
+            Bias::try_from(v2::LineFlags::BIAS_DISABLED),
+            Ok(Bias::Disabled)
+        );
+    }
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_drive_try_from_v1_line_info_flags() {
+        assert_eq!(Drive::try_from(v1::LineInfoFlags::ACTIVE_LOW), Err(()));
+        assert_eq!(
+            Drive::try_from(v1::LineInfoFlags::OUTPUT),
+            Ok(Drive::PushPull)
+        );
+        assert_eq!(
+            Drive::try_from(v1::LineInfoFlags::OUTPUT | v1::LineInfoFlags::OPEN_DRAIN),
+            Ok(Drive::OpenDrain)
+        );
+        assert_eq!(
+            Drive::try_from(v1::LineInfoFlags::OUTPUT | v1::LineInfoFlags::OPEN_SOURCE),
+            Ok(Drive::OpenSource)
+        );
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_drive_try_from_v2_line_flags() {
+        assert_eq!(Drive::try_from(v2::LineFlags::INPUT), Err(()));
+        assert_eq!(Drive::try_from(v2::LineFlags::OUTPUT), Ok(Drive::PushPull));
+        assert_eq!(
+            Drive::try_from(v2::LineFlags::OUTPUT | v2::LineFlags::OPEN_DRAIN),
+            Ok(Drive::OpenDrain)
+        );
+        assert_eq!(
+            Drive::try_from(v2::LineFlags::OUTPUT | v2::LineFlags::OPEN_SOURCE),
+            Ok(Drive::OpenSource)
+        );
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_edge_detection_try_from_v2_line_flags() {
+        assert_eq!(EdgeDetection::try_from(v2::LineFlags::INPUT), Err(()));
+        assert_eq!(
+            EdgeDetection::try_from(v2::LineFlags::EDGE_RISING),
+            Ok(EdgeDetection::RisingEdge)
+        );
+        assert_eq!(
+            EdgeDetection::try_from(v2::LineFlags::EDGE_FALLING),
+            Ok(EdgeDetection::FallingEdge)
+        );
+        assert_eq!(
+            EdgeDetection::try_from(v2::LineFlags::EDGE_RISING | v2::LineFlags::EDGE_FALLING),
+            Ok(EdgeDetection::BothEdges)
+        );
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_event_clock_from_v2_line_flags() {
+        assert_eq!(
+            EventClock::from(v2::LineFlags::INPUT),
+            EventClock::Monotonic
+        );
+        assert_eq!(
+            EventClock::from(v2::LineFlags::EVENT_CLOCK_REALTIME),
+            EventClock::Realtime
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_edge_event_from_v1() {
+        let v1event = v1::LineEdgeEvent {
+            timestamp_ns: 1234,
+            kind: gpiod_uapi::v1::LineEdgeEventKind::FallingEdge,
+        };
+        let ee = EdgeEvent::from(&v1event);
+        assert_eq!(ee.timestamp_ns, 1234);
+        assert_eq!(ee.kind, EdgeKind::Falling);
+        assert_eq!(ee.offset, 0);
+        assert_eq!(ee.seqno, 0);
+        assert_eq!(ee.line_seqno, 0);
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_edge_event_from_v2() {
+        let v2event = v2::LineEdgeEvent {
+            timestamp_ns: 1234,
+            kind: gpiod_uapi::v2::LineEdgeEventKind::RisingEdge,
+            offset: 23,
+            seqno: 2,
+            line_seqno: 1,
+            padding: Default::default(),
+        };
+        let ee = EdgeEvent::from(&v2event);
+        assert_eq!(ee.timestamp_ns, 1234);
+        assert_eq!(ee.kind, EdgeKind::Rising);
+        assert_eq!(ee.offset, 23);
+        assert_eq!(ee.seqno, 2);
+        assert_eq!(ee.line_seqno, 1);
+    }
+    #[test]
+    #[cfg(feature = "uapi_v1")]
+    fn test_info_change_event_from_v1() {
+        let v1event = v1::LineInfoChangeEvent {
+            timestamp_ns: 1234,
+            kind: gpiod_uapi::v1::LineInfoChangeKind::Reconfigured,
+            info: v1::LineInfo {
+                offset: 32,
+                flags: v1::LineInfoFlags::OPEN_DRAIN,
+                name: Default::default(),
+                consumer: Default::default(),
+            },
+            padding: Default::default(),
+        };
+        let ee = InfoChangeEvent::from(&v1event);
+        assert_eq!(ee.timestamp, Timestamp::from_nanos(1234));
+        assert_eq!(ee.kind, InfoChangeKind::Reconfigured);
+        assert_eq!(ee.info.offset, 32);
+        assert_eq!(ee.info.drive, Some(Drive::OpenDrain));
+    }
+    #[test]
+    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+    fn test_info_change_event_from_v2() {
+        let v2event = v2::LineInfoChangeEvent {
+            timestamp_ns: 1234,
+            kind: gpiod_uapi::v1::LineInfoChangeKind::Reconfigured,
+            info: v2::LineInfo {
+                offset: 32,
+                flags: v2::LineFlags::OPEN_DRAIN,
+                name: Default::default(),
+                consumer: Default::default(),
+                num_attrs: 0,
+                attrs: Default::default(),
+                padding: Default::default(),
+            },
+            padding: Default::default(),
+        };
+        let ee = InfoChangeEvent::from(&v2event);
+        assert_eq!(ee.timestamp, Timestamp::from_nanos(1234));
+        assert_eq!(ee.kind, InfoChangeKind::Reconfigured);
+        assert_eq!(ee.info.offset, 32);
+        assert_eq!(ee.info.drive, Some(Drive::OpenDrain));
     }
 }
