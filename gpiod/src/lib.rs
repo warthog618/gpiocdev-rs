@@ -33,7 +33,7 @@ pub mod line;
 /// The [`Builder`] creates the [`Request`] which can access and manipulate sets of lines,
 /// and return edge events via the [`EdgeEventBuffer`].
 ///
-/// The line configuration can be proivided to the [`Builder`] using either direct mutators,
+/// The line configuration can be provided to the [`Builder`] using either direct mutators,
 /// such as [`as_input`] and [`with_edge_detection`], or via a [`Config`].
 ///
 /// To request and read a basic input line:
