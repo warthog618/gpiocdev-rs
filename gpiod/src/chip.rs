@@ -341,7 +341,7 @@ mod tests {
     // Chip tests are all integration tests as construction requires GPIO chips.
 
     #[test]
-    fn test_info_from_uapi() {
+    fn info_from_uapi() {
         let ui = uapi::ChipInfo {
             name: Name::from_bytes("banana".as_bytes()),
             label: Name::from_bytes("peel".as_bytes()),

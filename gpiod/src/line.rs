@@ -766,7 +766,7 @@ mod tests {
     use gpiod_uapi as uapi;
 
     #[test]
-    fn test_config_default() {
+    fn config_default() {
         let cfg: Config = Default::default();
         assert_eq!(cfg.direction, Direction::Input);
         assert!(!cfg.active_low);
@@ -779,7 +779,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_config_equivalent() {
+    fn config_equivalent() {
         let mut lcfg: Config = Default::default();
         let mut rcfg: Config = Default::default();
         assert!(lcfg.equivalent(&rcfg));
@@ -811,7 +811,7 @@ mod tests {
         assert!(lcfg.equivalent(&rcfg));
     }
     #[test]
-    fn test_config_value() {
+    fn config_value() {
         let mut cfg: Config = Default::default();
         assert_eq!(cfg.value(), Value::Inactive);
         cfg.value = Some(Value::Active);
@@ -821,7 +821,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_v2_line_flags_from_config() {
+    fn v2_line_flags_from_config() {
         let cfg = Config {
             direction: Direction::Input,
             active_low: false,
@@ -891,7 +891,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_v1_event_request_flags_from_config() {
+    fn v1_event_request_flags_from_config() {
         let mut cfg = Config {
             direction: Direction::Input,
             active_low: false,
@@ -924,7 +924,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_v1_handle_request_flags_from_config() {
+    fn v1_handle_request_flags_from_config() {
         let cfg = Config {
             direction: Direction::Input,
             active_low: false,
@@ -985,7 +985,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_info_from_v1_line_info() {
+    fn info_from_v1_line_info() {
         let v1info: v1::LineInfo = Default::default();
         let info = Info::from(&v1info);
         assert_eq!(info.offset, 0);
@@ -1044,7 +1044,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_info_from_v2_line_info() {
+    fn info_from_v2_line_info() {
         let v2info: v2::LineInfo = Default::default();
         let info = Info::from(&v2info);
         assert_eq!(info.offset, 0);
@@ -1133,7 +1133,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_values_from_v1() {
+    fn values_from_v1() {
         let offsets = Vec::from([1, 5, 3, 8]);
         let src = v1::LineValues::from_slice(&[1, 1, 0, 1]);
         let mut dst = Values::default();
@@ -1151,7 +1151,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_values_from_v2() {
+    fn values_from_v2() {
         let offsets = Vec::from([1, 5, 3, 8]);
         let mut src = v2::LineValues::default();
         src.set(0, true);
@@ -1173,7 +1173,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_values_to_v1() {
+    fn values_to_v1() {
         let offsets = Vec::from([1, 5, 3, 8]);
         let mut src = Values::default();
         src.set(1, Value::Active);
@@ -1188,7 +1188,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_values_to_v2() {
+    fn values_to_v2() {
         let offsets = Vec::from([1, 5, 3, 8]);
         let mut src = Values::default();
         src.set(1, Value::Active);
@@ -1204,7 +1204,7 @@ mod tests {
         assert_eq!(dst.mask.into_value(), 0b1101); // only 3 entries set
     }
     #[test]
-    fn test_values_from_lines() {
+    fn values_from_lines() {
         let values = Values::from_lines(&[1, 6, 3, 9]);
         assert_eq!(values.get(0), None);
         assert_eq!(values.get(1), Some(Value::Inactive));
@@ -1219,7 +1219,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_direction_from_v1_line_info_flags() {
+    fn direction_from_v1_line_info_flags() {
         assert_eq!(
             Direction::from(v1::LineInfoFlags::OUTPUT),
             Direction::Output
@@ -1231,13 +1231,13 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_direction_from_v2_line_flags() {
+    fn direction_from_v2_line_flags() {
         assert_eq!(Direction::from(v2::LineFlags::OUTPUT), Direction::Output);
         assert_eq!(Direction::from(v2::LineFlags::INPUT), Direction::Input);
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_bias_try_from_v1_line_info_flags() {
+    fn bias_try_from_v1_line_info_flags() {
         assert_eq!(Bias::try_from(v1::LineInfoFlags::ACTIVE_LOW), Err(()));
         assert_eq!(
             Bias::try_from(v1::LineInfoFlags::BIAS_PULL_DOWN),
@@ -1254,7 +1254,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_bias_from_v2_line_flags() {
+    fn bias_from_v2_line_flags() {
         assert_eq!(Bias::try_from(v2::LineFlags::INPUT), Err(()));
         assert_eq!(
             Bias::try_from(v2::LineFlags::BIAS_PULL_DOWN),
@@ -1271,7 +1271,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_drive_try_from_v1_line_info_flags() {
+    fn drive_try_from_v1_line_info_flags() {
         assert_eq!(Drive::try_from(v1::LineInfoFlags::ACTIVE_LOW), Err(()));
         assert_eq!(
             Drive::try_from(v1::LineInfoFlags::OUTPUT),
@@ -1288,7 +1288,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_drive_try_from_v2_line_flags() {
+    fn drive_try_from_v2_line_flags() {
         assert_eq!(Drive::try_from(v2::LineFlags::INPUT), Err(()));
         assert_eq!(Drive::try_from(v2::LineFlags::OUTPUT), Ok(Drive::PushPull));
         assert_eq!(
@@ -1302,7 +1302,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_edge_detection_try_from_v2_line_flags() {
+    fn edge_detection_try_from_v2_line_flags() {
         assert_eq!(EdgeDetection::try_from(v2::LineFlags::INPUT), Err(()));
         assert_eq!(
             EdgeDetection::try_from(v2::LineFlags::EDGE_RISING),
@@ -1319,7 +1319,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_event_clock_from_v2_line_flags() {
+    fn event_clock_from_v2_line_flags() {
         assert_eq!(
             EventClock::from(v2::LineFlags::INPUT),
             EventClock::Monotonic
@@ -1332,7 +1332,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_edge_event_from_v1() {
+    fn edge_event_from_v1() {
         let v1event = v1::LineEdgeEvent {
             timestamp_ns: 1234,
             kind: gpiod_uapi::v1::LineEdgeEventKind::FallingEdge,
@@ -1346,7 +1346,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_edge_event_from_v2() {
+    fn edge_event_from_v2() {
         let v2event = v2::LineEdgeEvent {
             timestamp_ns: 1234,
             kind: gpiod_uapi::v2::LineEdgeEventKind::RisingEdge,
@@ -1364,7 +1364,7 @@ mod tests {
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
-    fn test_info_change_event_from_v1() {
+    fn info_change_event_from_v1() {
         let v1event = v1::LineInfoChangeEvent {
             timestamp_ns: 1234,
             kind: gpiod_uapi::v1::LineInfoChangeKind::Reconfigured,
@@ -1384,7 +1384,7 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn test_info_change_event_from_v2() {
+    fn info_change_event_from_v2() {
         let v2event = v2::LineInfoChangeEvent {
             timestamp_ns: 1234,
             kind: gpiod_uapi::v1::LineInfoChangeKind::Reconfigured,

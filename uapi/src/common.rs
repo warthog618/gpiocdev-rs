@@ -317,7 +317,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_size_chip_info() {
+    fn  size_of_chip_info() {
         assert_eq!(
             size_of::<ChipInfo>(),
             68usize,
@@ -325,7 +325,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_line_info_changed_kind_validate() {
+    fn line_info_changed_kind_validate() {
         let mut a = LineInfoChangeKind::Requested;
         assert!(a.validate().is_ok());
         unsafe {
@@ -338,7 +338,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_line_event_kind_validate() {
+    fn line_event_kind_validate() {
         let mut a = LineInfoChangeKind::Requested;
         assert!(a.validate().is_ok());
         unsafe {
@@ -351,7 +351,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_name_from_str() {
+    fn name_from_str() {
         let mut x = [0u8; 32];
         x[0] = 98;
         x[1] = 97;
@@ -371,14 +371,14 @@ mod tests {
         assert_eq!(a.0, x);
     }
     #[test]
-    fn test_name_is_empty() {
+    fn name_is_empty() {
         let mut a = Name::default();
         assert!(a.is_empty());
         a = Name::from_bytes("banana".as_bytes());
         assert!(!a.is_empty());
     }
     #[test]
-    fn test_name_strlen() {
+    fn name_strlen() {
         let mut a = Name::default();
         assert_eq!(a.strlen(), 0);
         a = Name::from_bytes("banana".as_bytes());
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(a.strlen(), 32);
     }
     #[test]
-    fn test_name_as_os_str() {
+    fn name_as_os_str() {
         let mut a = Name::default();
         assert_eq!(a.as_os_str(), "");
         a = Name::from_bytes("banana".as_bytes());
@@ -396,11 +396,11 @@ mod tests {
         assert_eq!(a.as_os_str(), "an overly long truncated name ->");
     }
     #[test]
-    fn test_name_default() {
+    fn name_default() {
         assert_eq!(Name::default().0, [0u8; NAME_LEN_MAX]);
     }
     #[test]
-    fn test_offsets_from_slice() {
+    fn offsets_from_slice() {
         let mut x = [0u32; NUM_LINES_MAX];
         x[0] = 1;
         x[1] = 2;
@@ -428,18 +428,18 @@ mod tests {
         assert_eq!(a.0, x);
     }
     #[test]
-    fn test_offsets_default() {
+    fn offsets_default() {
         assert_eq!(Offsets::default().0, [0u32; NUM_LINES_MAX]);
     }
     #[test]
-    fn test_padding_is_zeroed() {
+    fn padding_is_zeroed() {
         let mut padding: Padding<3> = Padding::default();
         assert!(padding.is_zeroed());
         padding.0[1] = 3;
         assert!(!padding.is_zeroed());
     }
     #[test]
-    fn test_size_name() {
+    fn  size_of_name() {
         assert_eq!(
             size_of::<Name>(),
             NAME_LEN_MAX,
@@ -447,7 +447,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_offsets() {
+    fn  size_of_offsets() {
         assert_eq!(
             size_of::<Offsets>(),
             256usize,
@@ -455,7 +455,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_padding() {
+    fn  size_of_padding() {
         assert_eq!(
             size_of::<Padding<1>>(),
             4usize,

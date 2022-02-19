@@ -664,7 +664,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_size_line_values() {
+    fn  size_of_line_values() {
         assert_eq!(
             size_of::<LineValues>(),
             16usize,
@@ -672,7 +672,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_line_attribute() {
+    fn  size_of_line_attribute() {
         assert_eq!(
             size_of::<LineAttribute>(),
             16usize,
@@ -680,7 +680,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_line_attribute_value() {
+    fn  size_of_line_attribute_value() {
         assert_eq!(
             size_of::<LineAttributeValueUnion>(),
             8usize,
@@ -688,7 +688,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_line_config_attribute() {
+    fn  size_of_line_config_attribute() {
         assert_eq!(
             size_of::<LineConfigAttribute>(),
             24usize,
@@ -696,7 +696,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_line_config() {
+    fn  size_of_line_config() {
         assert_eq!(
             size_of::<LineConfig>(),
             272usize,
@@ -704,7 +704,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_line_request() {
+    fn  size_of_line_request() {
         assert_eq!(
             size_of::<LineRequest>(),
             592usize,
@@ -712,7 +712,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_line_info() {
+    fn  size_of_line_info() {
         assert_eq!(
             size_of::<LineInfo>(),
             256usize,
@@ -720,7 +720,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_line_info_changed() {
+    fn  size_of_line_info_changed() {
         assert_eq!(
             size_of::<LineInfoChangeEvent>(),
             288usize,
@@ -728,7 +728,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_size_line_event() {
+    fn  size_of_line_event() {
         assert_eq!(
             size_of::<LineEdgeEvent>(),
             48usize,
@@ -736,7 +736,7 @@ mod tests {
         );
     }
     #[test]
-    fn test_line_values_get() {
+    fn line_values_get() {
         let mut a = LineValues::default();
         for idx in [0, 2] {
             assert!(!a.bits.get(idx), "idx: {}", idx);
@@ -748,7 +748,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_line_values_set() {
+    fn line_values_set() {
         let mut a = LineValues::default();
         for idx in [0, 2] {
             a.set(idx, false);
@@ -760,7 +760,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_line_values_unset_mask() {
+    fn line_values_unset_mask() {
         let mut a = LineValues {
             mask: Bitmap::mask(6),
             ..Default::default()
@@ -784,7 +784,7 @@ mod tests {
         assert_eq!(a.mask.len(), 3);
     }
     #[test]
-    fn test_line_attribute_kind_validate() {
+    fn line_attribute_kind_validate() {
         let mut a = LineAttributeKind::Flags;
         assert!(a.validate().is_ok());
         a = LineAttributeKind::Unused;
@@ -797,7 +797,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_line_info_validate() {
+    fn line_info_validate() {
         let mut a = LineInfo::default();
         assert!(a.validate().is_ok());
         a.num_attrs = NUM_ATTRS_MAX as u32;
@@ -818,7 +818,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_line_info_changed_validate() {
+    fn line_info_changed_validate() {
         let mut a = LineInfoChangeEvent {
             info: Default::default(),
             timestamp_ns: 0,
@@ -842,7 +842,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_line_event_validate() {
+    fn line_event_validate() {
         let mut a = LineEdgeEvent {
             timestamp_ns: 0,
             kind: LineEdgeEventKind::RisingEdge,
