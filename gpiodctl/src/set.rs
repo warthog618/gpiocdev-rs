@@ -35,7 +35,7 @@ pub struct Opts {
     /// Set the lines then interactively wait for additional set commands on the requested lines.
     #[structopt(short, long)]
     interactive: bool,
-    /// The minimum period to hold at the requested the lines before exiting.
+    /// The minimum period to hold lines at the requested values.
     #[structopt(short = "p", long, default_value = "0", parse(try_from_str = parse_duration))]
     hold_period: Duration,
     #[structopt(flatten)]
@@ -75,12 +75,18 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             print!("gpiodctl-set> ");
             std::io::stdout().flush().unwrap();
             if handle.read_line(&mut buffer)? == 0 {
-                continue;
+                // EOF
+                break;
             }
             let mut words = buffer.trim().split_ascii_whitespace();
             match words.next() {
                 Some("exit") => break,
-                Some("set") => set_values(&mut req, words),
+                Some("set") => {
+                    set_values(&mut req, words);
+                    if !opts.hold_period.is_zero() {
+                        sleep(opts.hold_period);
+                    }
+                }
                 Some("sleep") => match words.next() {
                     Some(period) => match parse_duration(period) {
                         Ok(d) => sleep(d),
