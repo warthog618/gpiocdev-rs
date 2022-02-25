@@ -8,7 +8,7 @@ use super::common::{
 };
 use anyhow::{Context, Result};
 use gpiod::line::{Offset, Value, Values};
-use gpiod::request::{Builder, Config};
+use gpiod::request::{Builder, Config, Request};
 use std::error::Error;
 use std::fmt;
 use std::io::{self, BufRead, Write};
@@ -75,32 +75,41 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             print!("gpiodctl-set> ");
             std::io::stdout().flush().unwrap();
             if handle.read_line(&mut buffer)? == 0 {
-                println!();
-                break;
+                continue;
             }
-            match parse_line_values(&buffer) {
-                Err(e) => println!("{}", e),
-                Ok(values) => {
-                    req.set_values(&values).context("Failed to set values.")?;
-                    if !opts.hold_period.is_zero() {
-                        sleep(opts.hold_period);
-                    }
-                }
+            let mut words = buffer.trim().split_ascii_whitespace();
+            match words.next() {
+                Some("exit") => break,
+                Some("set") => set_values(&mut req, words),
+                Some("sleep") => match words.next() {
+                    Some(period) => match parse_duration(period) {
+                        Ok(d) => sleep(d),
+                        Err(e) => println!("Invalid duration: {}", e),
+                    },
+                    None => println!("Invalid command: require duration"),
+                },
+                Some(x) => println!("Unknown command: {}", x),
+                None => continue,
             }
         }
     }
     Ok(())
 }
 
-fn parse_line_values(s: &str) -> std::result::Result<Values, Box<dyn Error>> {
+fn set_values(req: &mut Request, line_values: std::str::SplitAsciiWhitespace) {
     let mut values = Values::default();
-    for lv in s.trim().split_ascii_whitespace() {
+    for lv in line_values {
         match parse_key_val::<u32, LineValue>(lv) {
-            Err(e) => return Err(e),
+            Err(e) => {
+                println!("Invalid value: {}", e);
+                return;
+            }
             Ok((offset, value)) => values.set(offset, value.0),
         }
     }
-    Ok(values)
+    if let Err(err) = req.set_values(&values) {
+        println!("set failed: {}", err);
+    }
 }
 
 /// Parse a single key-value pair
