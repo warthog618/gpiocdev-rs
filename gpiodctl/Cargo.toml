@@ -10,7 +10,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0"
+clap = {version = "3.1", features = ["derive", "env"]}
 gpiod = {path = "../gpiod", features = ["uapi_v1", "uapi_v2"]}
-structopt = "0.3"
-strum = {version = "0.23", features = ["derive"]}
+strum = {version = "0.24", features = ["derive"]}
 thiserror = "1.0"

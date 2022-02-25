@@ -11,24 +11,24 @@ use gpiod::request::{Builder, Config};
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Opts {
     /// The chip to interrogate.
-    #[structopt(required = true, parse(from_os_str = parse_chip_path))]
+    #[clap(required = true, parse(from_os_str = parse_chip_path))]
     chip: PathBuf,
     /// The set of lines to get.
-    #[structopt(min_values = 1, required = true)]
+    #[clap(min_values = 1, required = true)]
     lines: Vec<Offset>,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     active_low_opts: ActiveLowOpts,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     bias_opts: BiasOpts,
-    #[structopt(short, long, default_value = "0", parse(try_from_str = parse_duration))]
+    #[clap(short, long, default_value = "0", parse(try_from_str = parse_duration))]
     /// A settling period between requesting the lines and reading, to allow bias to take effect.
     settling_period: Duration,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
 

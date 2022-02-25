@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::{Context, Result};
+use clap::Parser;
 use gpiod::chip::{chips, is_chip, Chip};
 use gpiod::request::Config;
 use gpiod::{
@@ -12,7 +13,6 @@ use gpiod::{
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use structopt::StructOpt;
 use strum::{EnumString, EnumVariantNames, VariantNames};
 
 // common helper functions
@@ -98,20 +98,20 @@ pub fn string_or_default<'a, 'b: 'a>(s: &'a str, def: &'b str) -> &'a str {
 
 // common command line parser options
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct UapiOpts {
     /// The uAPI ABI version to use to perform the operation.
     ///
     /// The auto option detects the uAPI versions supported by the kernel and uses the latest.
     // This is primarily aimed at debugging and so is a hidden option.
-    #[structopt(long, default_value = "0", hidden = true, env = "GPIOD_ABI_VERSION")]
+    #[structopt(long, default_value = "0", hide = true, env = "GPIOD_ABI_VERSION")]
     pub abiv: u8,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct ActiveLowOpts {
     /// Treat the line as active-low when determining value.
-    #[structopt(short = "l", long)]
+    #[structopt(short = 'l', long)]
     pub active_low: bool,
 }
 impl ActiveLowOpts {
@@ -140,10 +140,10 @@ impl From<BiasFlags> for gpiod::line::Bias {
     }
 }
 
-#[derive(Copy, Clone, Debug, StructOpt)]
+#[derive(Copy, Clone, Debug, Parser)]
 pub struct BiasOpts {
     /// The bias to be applied to the lines.
-    #[structopt(short, long, possible_values = BiasFlags::VARIANTS, case_insensitive = true)]
+    #[structopt(short, long, possible_values = BiasFlags::VARIANTS, ignore_case = true)]
     pub bias: Option<BiasFlags>,
 }
 impl BiasOpts {
@@ -171,10 +171,10 @@ impl From<DriveFlags> for gpiod::line::Drive {
         }
     }
 }
-#[derive(Copy, Clone, Debug, StructOpt)]
+#[derive(Copy, Clone, Debug, Parser)]
 pub struct DriveOpts {
     /// How the lines should be driven.
-    #[structopt(short, long, possible_values = DriveFlags::VARIANTS, case_insensitive = true)]
+    #[structopt(short, long, possible_values = DriveFlags::VARIANTS, ignore_case = true)]
     pub drive: Option<DriveFlags>,
 }
 impl DriveOpts {
@@ -202,10 +202,10 @@ impl From<EdgeFlags> for gpiod::line::EdgeDetection {
         }
     }
 }
-#[derive(Copy, Clone, Debug, StructOpt)]
+#[derive(Copy, Clone, Debug, Parser)]
 pub struct EdgeOpts {
     /// Which edges should be detected and reported.
-    #[structopt(short, long, possible_values = EdgeFlags::VARIANTS, default_value="both-edges", case_insensitive = true)]
+    #[structopt(short, long, possible_values = EdgeFlags::VARIANTS, default_value="both-edges", ignore_case = true)]
     pub edge: EdgeFlags,
 }
 impl EdgeOpts {

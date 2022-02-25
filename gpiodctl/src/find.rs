@@ -8,20 +8,20 @@ use super::common::{
 use anyhow::{Context, Result};
 use gpiod::chip::Chip;
 use std::path::PathBuf;
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Opts {
     /// The chips to interrogate.  If not specified then all chips are searched.
-    #[structopt(short, long, parse(from_os_str = parse_chip_path))]
+    #[clap(short, long, parse(from_os_str = parse_chip_path))]
     chips: Vec<PathBuf>,
     /// The name of the line to find.
-    #[structopt()]
+    #[clap()]
     line: String,
     /// Print the info for found lines.
-    #[structopt(short = "i", long)]
+    #[clap(short = 'i', long)]
     pub info: bool,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
 

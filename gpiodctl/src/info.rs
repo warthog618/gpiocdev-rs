@@ -9,17 +9,17 @@ use anyhow::{Context, Result};
 use gpiod::chip::Chip;
 use gpiod::line::Offset;
 use std::path::PathBuf;
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Opts {
     /// The chip to interrogate.  If not specified then all chips are searched.
-    #[structopt(parse(from_os_str = parse_chip_path))]
+    #[clap(parse(from_os_str = parse_chip_path))]
     chip: Option<PathBuf>,
     /// The offsets of the lines to get.  In not specified then all lines are returned.
-    #[structopt(short, long, requires("chip"))]
+    #[clap(short, long, requires("chip"))]
     lines: Vec<Offset>,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
 

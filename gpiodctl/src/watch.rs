@@ -7,17 +7,17 @@ use anyhow::{Context, Result};
 use gpiod::chip::Chip;
 use std::io::Read;
 use std::path::PathBuf;
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Opts {
     /// The chip to watch
-    #[structopt(required = true, parse(from_os_str = parse_chip_path))]
+    #[clap(required = true, parse(from_os_str = parse_chip_path))]
     chip: PathBuf,
     /// The set of lines to watch.
-    #[structopt(min_values = 1, required = true)]
+    #[clap(min_values = 1, required = true)]
     lines: Vec<u32>,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
 

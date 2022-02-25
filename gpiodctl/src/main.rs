@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use structopt::StructOpt;
+use clap::Parser;
 
 mod common;
 mod detect;
@@ -14,7 +14,7 @@ mod set;
 mod watch;
 
 fn main() {
-    let opt = Opts::from_args();
+    let opt = Opts::parse();
     let res = match opt.cmd {
         Command::Detect(cfg) => detect::cmd(&cfg),
         Command::Find(cfg) => find::cmd(&cfg),
@@ -34,21 +34,21 @@ fn main() {
     }
 }
 
-#[derive(StructOpt)]
-#[structopt(
+#[derive(Parser)]
+#[clap(
     name = "gpiodctl",
     about = "A utility to control GPIO lines on Linux GPIO character devices."
 )]
 struct Opts {
     /// Provide more detailed error messages.
-    #[structopt(short = "v", long)]
+    #[clap(short = 'v', long)]
     pub verbose: bool,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     cmd: Command,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum Command {
     /// Get info for the GPIO chips present on the system.
     Detect(detect::Opts),

@@ -11,29 +11,29 @@ use gpiod::line::Offset;
 use gpiod::request::{Builder, Config};
 use std::path::PathBuf;
 use std::time::Duration;
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Opts {
     /// The chip to monitor.
-    #[structopt(required = true, parse(from_os_str = parse_chip_path))]
+    #[clap(required = true, parse(from_os_str = parse_chip_path))]
     chip: PathBuf,
     /// The set of lines to monitor.
-    #[structopt(min_values = 1, required = true)]
+    #[clap(min_values = 1, required = true)]
     lines: Vec<Offset>,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     active_low_opts: ActiveLowOpts,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     bias_opts: BiasOpts,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     edge_opts: EdgeOpts,
     /// The debounce period for the input lines.
-    #[structopt(short, long, default_value = "0", parse(try_from_str = parse_duration))]
+    #[clap(short, long, default_value = "0", parse(try_from_str = parse_duration))]
     debounce_period: Duration,
     /// Exit after n events.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     num_events: Option<u32>,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
 

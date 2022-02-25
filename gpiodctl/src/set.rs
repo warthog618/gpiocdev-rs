@@ -7,6 +7,7 @@ use super::common::{
     UapiOpts,
 };
 use anyhow::{Context, Result};
+use clap::Parser;
 use gpiod::line::{Offset, Value, Values};
 use gpiod::request::{Builder, Config, Request};
 use std::error::Error;
@@ -16,29 +17,28 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::thread::sleep;
 use std::time::Duration;
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Opts {
     /// The chip to set.
-    #[structopt(required = true, parse(from_os_str = parse_chip_path))]
+    #[clap(required = true, parse(from_os_str = parse_chip_path))]
     chip: PathBuf,
     /// The line values in offset=value format.
-    #[structopt(required = true, parse(try_from_str = parse_key_val))]
+    #[clap(required = true, parse(try_from_str = parse_key_val))]
     values: Vec<(Offset, LineValue)>,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     active_low_opts: ActiveLowOpts,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     bias_opts: BiasOpts,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     drive_opts: DriveOpts,
     /// Set the lines then interactively wait for additional set commands on the requested lines.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     interactive: bool,
     /// The minimum period to hold lines at the requested values.
-    #[structopt(short = "p", long, default_value = "0", parse(try_from_str = parse_duration))]
+    #[clap(short = 'p', long, default_value = "0", parse(try_from_str = parse_duration))]
     hold_period: Duration,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
 
@@ -119,12 +119,14 @@ fn set_values(req: &mut Request, line_values: std::str::SplitAsciiWhitespace) {
 }
 
 /// Parse a single key-value pair
-fn parse_key_val<T, U>(s: &str) -> std::result::Result<(T, U), Box<dyn Error>>
+fn parse_key_val<T, U>(
+    s: &str,
+) -> std::result::Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
 where
     T: std::str::FromStr,
-    T::Err: Error + 'static,
+    T::Err: Error + Send + Sync + 'static,
     U: std::str::FromStr,
-    U::Err: Error + 'static,
+    U::Err: Error + Send + Sync + 'static,
 {
     let pos = s
         .find('=')

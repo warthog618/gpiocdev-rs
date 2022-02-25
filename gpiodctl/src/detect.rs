@@ -6,12 +6,12 @@ use super::common::{all_chips, parse_chip_path};
 use anyhow::{Context, Result};
 use gpiod::chip::Chip;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Opts {
     /// The chips to interrogate.  If not specified then all chips are searched.
-    #[structopt(parse(from_os_str = parse_chip_path))]
+    #[clap(parse(from_os_str = parse_chip_path))]
     chips: Vec<PathBuf>,
 }
 
