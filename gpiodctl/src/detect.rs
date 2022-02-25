@@ -4,9 +4,9 @@
 
 use super::common::{all_chips, parse_chip_path};
 use anyhow::{Context, Result};
+use clap::Parser;
 use gpiod::chip::Chip;
 use std::path::{Path, PathBuf};
-use clap::Parser;
 
 #[derive(Debug, Parser)]
 pub struct Opts {

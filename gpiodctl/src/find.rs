@@ -6,15 +6,15 @@ use super::common::{
     all_chips, chip_from_opts, parse_chip_path, string_or_default, stringify_attrs, UapiOpts,
 };
 use anyhow::{Context, Result};
+use clap::Parser;
 use gpiod::chip::Chip;
 use std::path::PathBuf;
-use clap::Parser;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// The chips to interrogate.  If not specified then all chips are searched.
+    /// The chip to interrogate.  If not specified then all chips are searched.
     #[clap(short, long, parse(from_os_str = parse_chip_path))]
-    chips: Vec<PathBuf>,
+    chip: Option<PathBuf>,
     /// The name of the line to find.
     #[clap()]
     line: String,
@@ -26,10 +26,9 @@ pub struct Opts {
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
-    let chips = if opts.chips.is_empty() {
-        all_chips()?
-    } else {
-        opts.chips.clone()
+    let chips = match &opts.chip {
+        None => all_chips()?,
+        Some(chip) => vec![chip.clone()],
     };
     let mut found = false;
     for p in chips {
@@ -61,7 +60,7 @@ fn find_line(chip: &mut Chip, line: &str, opts: &Opts) -> Result<bool> {
         if li.name.as_os_str() == line {
             if opts.info {
                 println!(
-                    "{} {} {:>12} {:>11} [{}]",
+                    "{} {}\t{}\t{} [{}]",
                     chip.name().to_string_lossy(),
                     li.offset,
                     &li.name.to_string_lossy(),

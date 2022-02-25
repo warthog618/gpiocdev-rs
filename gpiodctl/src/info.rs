@@ -6,10 +6,10 @@ use super::common::{
     all_chips, chip_from_opts, parse_chip_path, string_or_default, stringify_attrs, UapiOpts,
 };
 use anyhow::{Context, Result};
+use clap::Parser;
 use gpiod::chip::Chip;
 use gpiod::line::Offset;
 use std::path::PathBuf;
-use clap::Parser;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
@@ -17,7 +17,7 @@ pub struct Opts {
     #[clap(parse(from_os_str = parse_chip_path))]
     chip: Option<PathBuf>,
     /// The offsets of the lines to get.  In not specified then all lines are returned.
-    #[clap(short, long, requires("chip"))]
+    #[clap(requires("chip"))]
     lines: Vec<Offset>,
     #[clap(flatten)]
     uapi_opts: UapiOpts,
@@ -87,7 +87,7 @@ fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
 
 fn print_line_info(li: gpiod::line::Info) {
     println!(
-        "\tline {:>3}: {:>16} {:>11} [{}]",
+        "\tline {:>3}:\t{:16}\t{:11} [{}]",
         li.offset,
         string_or_default(&li.name.to_string_lossy(), "unnamed"),
         string_or_default(&li.consumer.to_string_lossy(), "unused"),

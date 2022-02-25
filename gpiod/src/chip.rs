@@ -58,6 +58,7 @@ pub fn chips() -> Result<Vec<PathBuf>> {
             }
         }
     }
+    chips.sort();
     Ok(chips)
 }
 
