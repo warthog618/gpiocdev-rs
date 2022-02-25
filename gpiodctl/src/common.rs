@@ -213,3 +213,48 @@ impl EdgeOpts {
         r.with_edge_detection(Some(self.edge.into()))
     }
 }
+
+pub fn stringify_attrs(li: &gpiod::line::Info) -> String {
+    use gpiod::line::{Bias, Direction, Drive, EdgeDetection, EventClock};
+
+    let mut attrs = Vec::new();
+    match li.direction {
+        gpiod::line::Direction::Input => attrs.push("input"),
+        Direction::Output => attrs.push("output"),
+    }
+    if li.used {
+        attrs.push("used");
+    }
+    if li.active_low {
+        attrs.push("active-low");
+    }
+    match li.drive {
+        None => (),
+        Some(Drive::PushPull) => (),
+        Some(Drive::OpenDrain) => attrs.push("open-drain"),
+        Some(Drive::OpenSource) => attrs.push("open-source"),
+    }
+    match li.bias {
+        None => (),
+        Some(Bias::PullUp) => attrs.push("pull-up"),
+        Some(Bias::PullDown) => attrs.push("pull-down"),
+        Some(Bias::Disabled) => attrs.push("bias-disabled"),
+    }
+    match li.edge_detection {
+        None => (),
+        Some(EdgeDetection::RisingEdge) => attrs.push("rising-edge"),
+        Some(EdgeDetection::FallingEdge) => attrs.push("falling-edge"),
+        Some(EdgeDetection::BothEdges) => attrs.push("both-edges"),
+    }
+    match li.event_clock {
+        None => (),                        // Not present for v1.
+        Some(EventClock::Monotonic) => (), // default for ABI v2
+        Some(EventClock::Realtime) => attrs.push("event-clock-realtime"),
+    }
+    let db;
+    if li.debounce_period.is_some() {
+        db = format!("debounce_period={:?}", li.debounce_period.unwrap());
+        attrs.push(&db);
+    }
+    attrs.join(", ")
+}

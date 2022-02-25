@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: MIT
 
-use super::common::{all_chips, chip_from_opts, parse_chip_path, string_or_default, UapiOpts};
+use super::common::{
+    all_chips, chip_from_opts, parse_chip_path, string_or_default, stringify_attrs, UapiOpts,
+};
 use anyhow::{Context, Result};
 use gpiod::chip::Chip;
 use std::path::PathBuf;
@@ -16,6 +18,9 @@ pub struct Opts {
     /// The name of the line to find.
     #[structopt()]
     line: String,
+    /// Print the info for found lines.
+    #[structopt(short = "i", long)]
+    pub info: bool,
     #[structopt(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -29,7 +34,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     let mut found = false;
     for p in chips {
         let mut c = chip_from_opts(&p, opts.uapi_opts.abiv)?;
-        if find_line(&mut c, &opts.line)? {
+        if find_line(&mut c, &opts.line, opts)? {
             found = true;
         }
     }
@@ -40,7 +45,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 }
 
 // Exhaustive form that checks every line even when a matching line has already been found.
-fn find_line(chip: &mut Chip, line: &str) -> Result<bool> {
+fn find_line(chip: &mut Chip, line: &str, opts: &Opts) -> Result<bool> {
     let ci = chip
         .info()
         .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
@@ -54,13 +59,18 @@ fn find_line(chip: &mut Chip, line: &str) -> Result<bool> {
             )
         })?;
         if li.name.as_os_str() == line {
-            println!(
-                "{} line {:>3}:{:>12}{:>12}",
-                chip.name().to_string_lossy(),
-                li.offset,
-                &li.name.to_string_lossy(),
-                string_or_default(&li.consumer.to_string_lossy(), "unused"),
-            );
+            if opts.info {
+                println!(
+                    "{} {} {:>12} {:>11} [{}]",
+                    chip.name().to_string_lossy(),
+                    li.offset,
+                    &li.name.to_string_lossy(),
+                    string_or_default(&li.consumer.to_string_lossy(), "unused"),
+                    stringify_attrs(&li),
+                );
+            } else {
+                println!("{} {}", chip.name().to_string_lossy(), li.offset);
+            }
             found = true;
         }
     }
