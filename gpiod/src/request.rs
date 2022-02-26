@@ -536,10 +536,23 @@ impl Config {
     /// [`with_direction(Input)`]: #method.with_direction
     pub fn as_input(&mut self) -> &mut Self {
         for cfg in self.selected_iter() {
-            cfg.direction = Direction::Input;
+            cfg.direction = Some(Direction::Input);
             // set output specific options back to default
             cfg.drive = None;
             cfg.value = None;
+        }
+        self
+    }
+
+    /// Do not set the direction of the selected lines.
+    pub fn as_is(&mut self) -> &mut Self {
+        for cfg in self.selected_iter() {
+            cfg.direction = None;
+            // set input/output specific options back to default
+            cfg.drive = None;
+            cfg.value = None;
+            cfg.edge_detection = None;
+            cfg.debounce_period = None;
         }
         self
     }
@@ -552,7 +565,7 @@ impl Config {
     /// [`with_direction(Output)`]: #method.with_direction
     pub fn as_output(&mut self, value: Value) -> &mut Self {
         for cfg in self.selected_iter() {
-            cfg.direction = Direction::Output;
+            cfg.direction = Some(Direction::Output);
             cfg.value = Some(value);
             // set input specific options back to default
             cfg.edge_detection = None;
@@ -596,7 +609,7 @@ impl Config {
         let dp = if period.is_zero() { None } else { Some(period) };
         for cfg in self.selected_iter() {
             cfg.debounce_period = dp;
-            cfg.direction = Direction::Input;
+            cfg.direction = Some(Direction::Input);
             cfg.drive = None;
             cfg.value = None;
         }
@@ -610,15 +623,18 @@ impl Config {
     /// Setting to output removes any input specific settings.
     pub fn with_direction(&mut self, direction: Direction) -> &mut Self {
         for cfg in self.selected_iter() {
-            cfg.direction = direction;
-            if cfg.direction == Direction::Output {
-                // set input specific options back to default
-                cfg.edge_detection = None;
-                cfg.debounce_period = None;
-            } else {
-                // set output specific options back to default
-                cfg.drive = None;
-                cfg.value = None;
+            cfg.direction = Some(direction);
+            match direction {
+                Direction::Output => {
+                    // set input specific options back to default
+                    cfg.edge_detection = None;
+                    cfg.debounce_period = None;
+                }
+                Direction::Input => {
+                    // set output specific options back to default
+                    cfg.drive = None;
+                    cfg.value = None;
+                }
             }
         }
         self
@@ -632,7 +648,7 @@ impl Config {
         for cfg in self.selected_iter() {
             cfg.drive = Some(drive);
             // driven lines imply output
-            cfg.direction = Direction::Output;
+            cfg.direction = Some(Direction::Output);
             // set input specific options back to default
             cfg.edge_detection = None;
             cfg.debounce_period = None;
@@ -648,7 +664,7 @@ impl Config {
         for cfg in self.selected_iter() {
             cfg.edge_detection = edge;
             // edge detection implies input
-            cfg.direction = Direction::Input;
+            cfg.direction = Some(Direction::Input);
             // set output specific options back to default
             cfg.drive = None;
             cfg.value = None;
@@ -867,7 +883,7 @@ impl Config {
                     }
                 };
             }
-            if lcfg.direction == Direction::Output {
+            if lcfg.direction == Some(Direction::Output) {
                 values.mask |= mask;
                 values.bits.set(idx, lcfg.value().into());
             }
@@ -1346,17 +1362,17 @@ mod tests {
     fn builder_as_input() {
         let mut b = Builder::new();
         b.as_output(Active);
-        assert_eq!(b.cfg.base.direction, Output);
+        assert_eq!(b.cfg.base.direction, Some(Output));
         b.as_input();
-        assert_eq!(b.cfg.base.direction, Input);
+        assert_eq!(b.cfg.base.direction, Some(Input));
     }
     #[test]
     fn builder_as_output() {
         let mut b = Builder::new();
         b.as_input();
-        assert_eq!(b.cfg.base.direction, Input);
+        assert_eq!(b.cfg.base.direction, Some(Input));
         b.as_output(Active);
-        assert_eq!(b.cfg.base.direction, Output);
+        assert_eq!(b.cfg.base.direction, Some(Output));
     }
     #[test]
     fn builder_as_active_low() {
@@ -1392,10 +1408,10 @@ mod tests {
         let d_ns = Duration::from_nanos(234);
         let mut b = Builder::new();
         b.with_drive(OpenSource);
-        assert_eq!(b.cfg.base.direction, Output);
+        assert_eq!(b.cfg.base.direction, Some(Output));
         b.with_debounce_period(Duration::from_micros(1234));
         assert_eq!(b.cfg.base.debounce_period, Some(d_us));
-        assert_eq!(b.cfg.base.direction, Input);
+        assert_eq!(b.cfg.base.direction, Some(Input));
         b.with_debounce_period(Duration::from_nanos(234));
         assert_eq!(b.cfg.base.debounce_period, Some(d_ns));
         b.with_debounce_period(Duration::ZERO);
@@ -1405,9 +1421,9 @@ mod tests {
     fn builder_with_direction() {
         let mut b = Builder::new();
         b.with_direction(Output);
-        assert_eq!(b.cfg.base.direction, Output);
+        assert_eq!(b.cfg.base.direction, Some(Output));
         b.with_direction(Input);
-        assert_eq!(b.cfg.base.direction, Input);
+        assert_eq!(b.cfg.base.direction, Some(Input));
     }
     #[test]
     fn builder_with_drive() {
@@ -1415,12 +1431,12 @@ mod tests {
         b.with_bias(PullUp)
             .with_debounce_period(Duration::from_millis(10))
             .with_edge_detection(RisingEdge);
-        assert_eq!(b.cfg.base.direction, Input);
+        assert_eq!(b.cfg.base.direction, Some(Input));
         assert_eq!(b.cfg.base.bias, Some(PullUp));
         assert_eq!(b.cfg.base.debounce_period, Some(Duration::from_millis(10)));
         assert_eq!(b.cfg.base.edge_detection, Some(RisingEdge));
         b.with_drive(PushPull);
-        assert_eq!(b.cfg.base.direction, Output);
+        assert_eq!(b.cfg.base.direction, Some(Output));
         assert_eq!(b.cfg.base.drive, Some(PushPull));
         assert_eq!(b.cfg.base.bias, Some(PullUp));
         assert!(b.cfg.base.debounce_period.is_none());
@@ -1434,11 +1450,11 @@ mod tests {
     fn builder_with_edge_detection() {
         let mut b = Builder::new();
         b.with_drive(OpenSource);
-        assert_eq!(b.cfg.base.direction, Output);
+        assert_eq!(b.cfg.base.direction, Some(Output));
         b.with_edge_detection(RisingEdge);
         assert_eq!(b.cfg.base.edge_detection, Some(RisingEdge));
         assert_eq!(b.cfg.base.drive, None);
-        assert_eq!(b.cfg.base.direction, Input);
+        assert_eq!(b.cfg.base.direction, Some(Input));
         b.with_edge_detection(FallingEdge);
         assert_eq!(b.cfg.base.edge_detection, Some(FallingEdge));
         b.with_edge_detection(BothEdges);
@@ -1507,7 +1523,7 @@ mod tests {
         let mut b = Builder::new();
         let d_us = Duration::from_micros(1234);
         let lc = line::Config {
-            direction: Output,
+            direction: Some(Output),
             active_low: true,
             bias: Some(Disabled),
             drive: Some(OpenSource),
@@ -1520,9 +1536,9 @@ mod tests {
         assert_eq!(b.cfg.lcfg.len(), 0);
         assert_eq!(b.cfg.selected.len(), 0);
         let base = b.cfg.base;
-        assert_eq!(base.direction, Output);
+        assert_eq!(base.direction, Some(Output));
         assert!(base.active_low);
-        assert_eq!(base.direction, Output);
+        assert_eq!(base.direction, Some(Output));
         assert_eq!(base.drive, Some(OpenSource));
         assert_eq!(base.edge_detection, Some(BothEdges));
         assert_eq!(base.event_clock, Some(Realtime));
@@ -1751,9 +1767,8 @@ mod tests {
         assert_eq!(cfg.selected.len(), 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         assert_eq!(cfg.abiv, AbiVersion::V2);
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, None);
         assert!(!cfg.base.active_low);
-        assert_eq!(cfg.base.direction, Input);
         assert_eq!(cfg.base.drive, None);
         assert_eq!(cfg.base.edge_detection, None);
         assert_eq!(cfg.base.event_clock, None);
@@ -1764,11 +1779,11 @@ mod tests {
     fn config_as_input() {
         let mut cfg = Config::new();
         cfg.as_output(Active).with_drive(OpenDrain);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.value, Some(Active));
         assert_eq!(cfg.base.drive, Some(OpenDrain));
         cfg.as_input();
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, Some(Input));
         assert_eq!(cfg.base.value, None);
         assert_eq!(cfg.base.drive, None);
     }
@@ -1776,11 +1791,11 @@ mod tests {
     fn config_as_output() {
         let mut cfg = Config::new();
         cfg.as_input().with_edge_detection(RisingEdge);
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, Some(Input));
         assert_eq!(cfg.base.value, None);
         assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
         cfg.as_output(Active);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.value, Some(Active));
         assert_eq!(cfg.base.edge_detection, None);
     }
@@ -1821,10 +1836,10 @@ mod tests {
         let d_ns = Duration::from_nanos(234);
         let mut cfg = Config::new();
         cfg.with_drive(OpenSource);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         cfg.with_debounce_period(Duration::from_micros(1234));
         assert_eq!(cfg.base.debounce_period, Some(d_us));
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, Some(Input));
         cfg.with_debounce_period(Duration::from_nanos(234));
         assert_eq!(cfg.base.debounce_period, Some(d_ns));
         cfg.with_debounce_period(Duration::ZERO);
@@ -1834,9 +1849,9 @@ mod tests {
     fn config_with_direction() {
         let mut cfg = Config::new();
         cfg.with_direction(Output);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         cfg.with_direction(Input);
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, Some(Input));
     }
     #[test]
     fn config_with_drive() {
@@ -1844,12 +1859,12 @@ mod tests {
         cfg.with_bias(PullUp)
             .with_debounce_period(Duration::from_millis(10))
             .with_edge_detection(RisingEdge);
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, Some(Input));
         assert_eq!(cfg.base.bias, Some(PullUp));
         assert_eq!(cfg.base.debounce_period, Some(Duration::from_millis(10)));
         assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
         cfg.with_drive(PushPull);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.drive, Some(PushPull));
         assert_eq!(cfg.base.bias, Some(PullUp));
         assert!(cfg.base.debounce_period.is_none());
@@ -1863,11 +1878,11 @@ mod tests {
     fn config_with_edge_detection() {
         let mut cfg = Config::new();
         cfg.with_drive(OpenSource);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         cfg.with_edge_detection(RisingEdge);
         assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
         assert_eq!(cfg.base.drive, None);
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, Some(Input));
         cfg.with_edge_detection(FallingEdge);
         assert_eq!(cfg.base.edge_detection, Some(FallingEdge));
         cfg.with_edge_detection(BothEdges);
@@ -1887,10 +1902,10 @@ mod tests {
         let mut cfg = Config::new();
         // initial mutator hits base config
         cfg.as_output(Active);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.value, Some(Active));
         cfg.as_input();
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, Some(Input));
         assert_eq!(cfg.base.value, None);
         assert!(cfg.offsets.is_empty());
         assert!(cfg.selected.is_empty());
@@ -1898,50 +1913,50 @@ mod tests {
         cfg.with_line(3);
         assert_eq!(cfg.offsets, &[3]);
         assert_eq!(cfg.selected, &[3]);
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Input);
+        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
         assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
         // mutator only hits selected config
         cfg.with_line(5);
         assert_eq!(cfg.offsets, &[3, 5]);
         assert_eq!(cfg.selected, &[5]);
-        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Input);
+        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Input));
         assert_eq!(cfg.lcfg.get(&5).unwrap().value, None);
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Input);
+        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
         assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
         cfg.as_output(Inactive);
         assert_eq!(cfg.offsets, &[3, 5]);
         assert_eq!(cfg.selected, &[5]);
-        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Output);
+        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Output));
         assert_eq!(cfg.lcfg.get(&5).unwrap().value, Some(Inactive));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Input);
+        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
         assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
-        assert_eq!(cfg.base.direction, Input);
+        assert_eq!(cfg.base.direction, Some(Input));
         assert_eq!(cfg.base.value, None);
     }
     #[test]
     fn config_without_line() {
         let mut cfg = Config::new();
         cfg.as_output(Active);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.value, Some(Active));
         cfg.with_lines(&[1, 6, 2, 7]);
         assert_eq!(cfg.offsets, &[1, 6, 2, 7]);
         assert_eq!(cfg.selected, &[1, 6, 2, 7]);
-        assert_eq!(cfg.lcfg.get(&2).unwrap().direction, Output);
+        assert_eq!(cfg.lcfg.get(&2).unwrap().direction, Some(Output));
         assert_eq!(cfg.lcfg.get(&2).unwrap().value, Some(Active));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Output);
+        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
         assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
         // from selected
         cfg.without_line(2);
         assert_eq!(cfg.offsets, &[1, 6, 7]);
         assert_eq!(cfg.selected, &[1, 6, 7]);
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Output);
+        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
         assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
         cfg.with_line(1);
         assert_eq!(cfg.offsets, &[1, 6, 7]);
         assert_eq!(cfg.selected, &[1]);
         assert_eq!(cfg.lcfg.len(), 3);
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Output);
+        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
         assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
         // from unselected
         cfg.without_line(6);
@@ -1962,7 +1977,7 @@ mod tests {
     fn config_with_lines() {
         let mut cfg = Config::new();
         cfg.as_output(Active);
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.value, Some(Active));
         // select some
         cfg.with_lines(&[7, 2, 6, 1]);
@@ -2024,7 +2039,7 @@ mod tests {
     fn config_from_line_config() {
         let d_us = Duration::from_micros(1234);
         let lc = line::Config {
-            direction: Output,
+            direction: Some(Output),
             active_low: true,
             bias: Some(Disabled),
             drive: Some(OpenSource),
@@ -2038,7 +2053,7 @@ mod tests {
         cfg.from_line_config(&lc);
         assert!(cfg.lcfg.is_empty());
         assert!(cfg.selected.is_empty());
-        assert_eq!(cfg.base.direction, Output);
+        assert_eq!(cfg.base.direction, Some(Output));
         assert!(cfg.base.active_low);
         assert_eq!(cfg.base.drive, Some(OpenSource));
         assert_eq!(cfg.base.edge_detection, Some(BothEdges));
@@ -2051,9 +2066,9 @@ mod tests {
         assert_eq!(cfg.selected, &[1]);
         assert_eq!(cfg.lcfg.len(), 1);
         let select = cfg.lcfg.get(&1).unwrap();
-        assert_eq!(select.direction, Output);
+        assert_eq!(select.direction, Some(Output));
         assert!(select.active_low);
-        assert_eq!(select.direction, Output);
+        assert_eq!(select.direction, Some(Output));
         assert_eq!(select.drive, Some(OpenSource));
         assert_eq!(select.edge_detection, Some(BothEdges));
         assert_eq!(select.event_clock, Some(Realtime));

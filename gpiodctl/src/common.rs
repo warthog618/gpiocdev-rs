@@ -214,6 +214,9 @@ impl EdgeOpts {
     }
 }
 
+#[derive(Clone, Debug, Parser)]
+pub struct LinesOpts {}
+
 pub fn stringify_attrs(li: &gpiod::line::Info) -> String {
     use gpiod::line::{Bias, Direction, Drive, EdgeDetection, EventClock};
 

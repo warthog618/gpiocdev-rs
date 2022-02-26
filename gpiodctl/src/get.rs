@@ -6,12 +6,12 @@ use super::common::{
     abi_version_from_opts, parse_chip_path, parse_duration, ActiveLowOpts, BiasOpts, UapiOpts,
 };
 use anyhow::{Context, Result};
+use clap::Parser;
 use gpiod::line::{Offset, Values};
 use gpiod::request::{Builder, Config};
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use clap::Parser;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
@@ -21,6 +21,9 @@ pub struct Opts {
     /// The set of lines to get.
     #[clap(min_values = 1, required = true)]
     lines: Vec<Offset>,
+    /// Request the line as-is rather than as an input.
+    #[clap(short, long)]
+    as_is: bool,
     #[clap(flatten)]
     active_low_opts: ActiveLowOpts,
     #[clap(flatten)]
@@ -37,7 +40,10 @@ impl Opts {
     fn apply<'b>(&self, config: &'b mut Config) -> &'b mut Config {
         self.active_low_opts.apply(config);
         self.bias_opts.apply(config);
-        config.with_lines(&self.lines).as_input()
+        if !self.as_is {
+            config.as_input();
+        }
+        config.with_lines(&self.lines)
     }
 }
 

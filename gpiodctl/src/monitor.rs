@@ -7,16 +7,17 @@ use super::common::{
     UapiOpts,
 };
 use anyhow::{Context, Result};
+use clap::Parser;
 use gpiod::line::Offset;
 use gpiod::request::{Builder, Config};
 use std::path::PathBuf;
 use std::time::Duration;
-use clap::Parser;
 
 #[derive(Debug, Parser)]
+#[clap(alias("mon"))]
 pub struct Opts {
     /// The chip to monitor.
-    #[clap(required = true, parse(from_os_str = parse_chip_path))]
+    #[clap(required(true), parse(from_os_str = parse_chip_path))]
     chip: PathBuf,
     /// The set of lines to monitor.
     #[clap(min_values = 1, required = true)]

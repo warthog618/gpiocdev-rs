@@ -18,7 +18,7 @@ use std::time::Duration;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
     /// The direction setting for the line.
-    pub direction: Direction,
+    pub direction: Option<Direction>,
     /// The active low setting for the line.
     pub active_low: bool,
     /// The bias setting for the line.
@@ -73,7 +73,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            direction: Direction::Input,
+            direction: None,
             active_low: false,
             bias: None,
             drive: None,
@@ -99,37 +99,40 @@ impl From<&Config> for v2::LineFlags {
             Some(Bias::Disabled) => flags.set(v2::LineFlags::BIAS_DISABLED, true),
         };
         match cfg.direction {
-            Direction::Input => flags.set(v2::LineFlags::INPUT, true),
-            Direction::Output => flags.set(v2::LineFlags::OUTPUT, true),
-        };
-        if cfg.direction == Direction::Output {
-            match cfg.drive {
-                None => {}
-                Some(Drive::PushPull) => {}
-                Some(Drive::OpenDrain) => flags.set(v2::LineFlags::OPEN_DRAIN, true),
-                Some(Drive::OpenSource) => flags.set(v2::LineFlags::OPEN_SOURCE, true),
-            };
-        }
-        if cfg.direction == Direction::Input {
-            match cfg.edge_detection {
-                None => {}
-                Some(EdgeDetection::RisingEdge) => flags.set(v2::LineFlags::EDGE_RISING, true),
-                Some(EdgeDetection::FallingEdge) => flags.set(v2::LineFlags::EDGE_FALLING, true),
-                Some(EdgeDetection::BothEdges) => flags.set(
-                    v2::LineFlags::EDGE_RISING | v2::LineFlags::EDGE_FALLING,
-                    true,
-                ),
-            };
-            if cfg.edge_detection.is_some() {
-                match cfg.event_clock {
+            None => {}
+            Some(Direction::Output) => {
+                flags.set(v2::LineFlags::OUTPUT, true);
+                match cfg.drive {
                     None => {}
-                    Some(EventClock::Monotonic) => {}
-                    Some(EventClock::Realtime) => {
-                        flags.set(v2::LineFlags::EVENT_CLOCK_REALTIME, true)
-                    }
+                    Some(Drive::PushPull) => {}
+                    Some(Drive::OpenDrain) => flags.set(v2::LineFlags::OPEN_DRAIN, true),
+                    Some(Drive::OpenSource) => flags.set(v2::LineFlags::OPEN_SOURCE, true),
                 };
             }
-        }
+            Some(Direction::Input) => {
+                flags.set(v2::LineFlags::INPUT, true);
+                match cfg.edge_detection {
+                    None => {}
+                    Some(EdgeDetection::RisingEdge) => flags.set(v2::LineFlags::EDGE_RISING, true),
+                    Some(EdgeDetection::FallingEdge) => {
+                        flags.set(v2::LineFlags::EDGE_FALLING, true)
+                    }
+                    Some(EdgeDetection::BothEdges) => flags.set(
+                        v2::LineFlags::EDGE_RISING | v2::LineFlags::EDGE_FALLING,
+                        true,
+                    ),
+                };
+                if cfg.edge_detection.is_some() {
+                    match cfg.event_clock {
+                        None => {}
+                        Some(EventClock::Monotonic) => {}
+                        Some(EventClock::Realtime) => {
+                            flags.set(v2::LineFlags::EVENT_CLOCK_REALTIME, true)
+                        }
+                    };
+                }
+            }
+        };
         flags
     }
 }
@@ -152,19 +155,20 @@ impl From<&Config> for v1::HandleRequestFlags {
     fn from(cfg: &Config) -> v1::HandleRequestFlags {
         let mut flags = v1::HandleRequestFlags::default();
         match cfg.direction {
-            Direction::Input => flags.set(v1::HandleRequestFlags::INPUT, true),
-            Direction::Output => flags.set(v1::HandleRequestFlags::OUTPUT, true),
+            None => {}
+            Some(Direction::Input) => flags.set(v1::HandleRequestFlags::INPUT, true),
+            Some(Direction::Output) => {
+                flags.set(v1::HandleRequestFlags::OUTPUT, true);
+                match cfg.drive {
+                    None => {}
+                    Some(Drive::PushPull) => {}
+                    Some(Drive::OpenDrain) => flags.set(v1::HandleRequestFlags::OPEN_DRAIN, true),
+                    Some(Drive::OpenSource) => flags.set(v1::HandleRequestFlags::OPEN_SOURCE, true),
+                };
+            }
         };
         if cfg.active_low {
             flags.set(v1::HandleRequestFlags::ACTIVE_LOW, true);
-        }
-        if cfg.direction == Direction::Output {
-            match cfg.drive {
-                None => {}
-                Some(Drive::PushPull) => {}
-                Some(Drive::OpenDrain) => flags.set(v1::HandleRequestFlags::OPEN_DRAIN, true),
-                Some(Drive::OpenSource) => flags.set(v1::HandleRequestFlags::OPEN_SOURCE, true),
-            };
         }
         match cfg.bias {
             None => {}
@@ -768,7 +772,7 @@ mod tests {
     #[test]
     fn config_default() {
         let cfg: Config = Default::default();
-        assert_eq!(cfg.direction, Direction::Input);
+        assert_eq!(cfg.direction, None);
         assert!(!cfg.active_low);
         assert!(cfg.bias.is_none());
         assert!(cfg.drive.is_none());
@@ -823,7 +827,7 @@ mod tests {
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     fn v2_line_flags_from_config() {
         let cfg = Config {
-            direction: Direction::Input,
+            direction: Some(Direction::Input),
             active_low: false,
             bias: Some(Bias::Disabled),
             drive: Some(Drive::OpenDrain), // ignored for input
@@ -845,7 +849,7 @@ mod tests {
         assert!(!flags.contains(v2::LineFlags::OPEN_SOURCE));
         assert!(flags.contains(v2::LineFlags::EVENT_CLOCK_REALTIME));
         let cfg = Config {
-            direction: Direction::Input,
+            direction: Some(Direction::Input),
             active_low: true,
             bias: Some(Bias::PullUp),
             drive: Some(Drive::OpenSource), // ignored for input
@@ -867,7 +871,7 @@ mod tests {
         assert!(!flags.contains(v2::LineFlags::OPEN_SOURCE));
         assert!(!flags.contains(v2::LineFlags::EVENT_CLOCK_REALTIME));
         let cfg = Config {
-            direction: Direction::Output,
+            direction: Some(Direction::Output),
             active_low: false,
             bias: Some(Bias::PullDown),
             drive: Some(Drive::OpenSource),
@@ -893,7 +897,7 @@ mod tests {
     #[cfg(feature = "uapi_v1")]
     fn v1_event_request_flags_from_config() {
         let mut cfg = Config {
-            direction: Direction::Input,
+            direction: Some(Direction::Input),
             active_low: false,
             bias: Some(Bias::Disabled),
             drive: Some(Drive::OpenDrain),
@@ -926,7 +930,7 @@ mod tests {
     #[cfg(feature = "uapi_v1")]
     fn v1_handle_request_flags_from_config() {
         let cfg = Config {
-            direction: Direction::Input,
+            direction: Some(Direction::Input),
             active_low: false,
             bias: Some(Bias::Disabled),
             drive: Some(Drive::OpenDrain), // ignored for input
@@ -945,7 +949,7 @@ mod tests {
         assert!(!flags.contains(v1::HandleRequestFlags::OPEN_DRAIN));
         assert!(!flags.contains(v1::HandleRequestFlags::OPEN_SOURCE));
         let cfg = Config {
-            direction: Direction::Input,
+            direction: Some(Direction::Input),
             active_low: true,
             bias: Some(Bias::PullUp),
             drive: Some(Drive::OpenSource), // ignored for input
@@ -964,7 +968,7 @@ mod tests {
         assert!(!flags.contains(v1::HandleRequestFlags::OPEN_DRAIN));
         assert!(!flags.contains(v1::HandleRequestFlags::OPEN_SOURCE));
         let cfg = Config {
-            direction: Direction::Output,
+            direction: Some(Direction::Output),
             active_low: false,
             bias: Some(Bias::PullDown),
             drive: Some(Drive::OpenSource),
