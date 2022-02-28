@@ -15,7 +15,7 @@ use std::time::Duration;
 /// The configuration settings for a single line.
 ///
 // Note it does not contain the offset to allow it to be applied to multiple lines.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Config {
     /// The direction setting for the line.
     pub direction: Option<Direction>,
@@ -66,21 +66,6 @@ impl Config {
         match self.value {
             None => Value::Inactive,
             Some(x) => x,
-        }
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            direction: None,
-            active_low: false,
-            bias: None,
-            drive: None,
-            edge_detection: None,
-            event_clock: None,
-            debounce_period: None,
-            value: None,
         }
     }
 }
