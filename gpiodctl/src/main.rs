@@ -54,13 +54,13 @@ enum Command {
     Detect(detect::Opts),
     /// Find a line by name.
     Find(find::Opts),
-    /// Read the values of a set of lines on a chip.
+    /// Read the values of a set of lines.
     Get(get::Opts),
-    /// Get info for the lines on a chip.
+    /// Get information for lines.
     Info(info::Opts),
     /// Monitor changes in line values.
     Monitor(monitor::Opts),
-    /// Set the value of a set of lines on a chip.
+    /// Set the value of a set of lines.
     Set(set::Opts),
     /// Watch changes to line request and configuration state.
     Watch(watch::Opts),
