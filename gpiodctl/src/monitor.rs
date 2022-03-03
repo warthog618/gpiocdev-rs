@@ -3,32 +3,31 @@
 // SPDX-License-Identifier: MIT
 
 use super::common::{
-    abi_version_from_opts, parse_chip_path, parse_duration, ActiveLowOpts, BiasOpts, EdgeOpts,
+    abi_version_from_opts, find_lines, parse_duration, ActiveLowOpts, BiasOpts, EdgeOpts, LineOpts,
     UapiOpts,
 };
 use anyhow::{Context, Result};
 use clap::Parser;
 use gpiod::line::Offset;
 use gpiod::request::{Builder, Config};
-use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
 #[clap(alias("mon"))]
 pub struct Opts {
-    /// The chip to monitor.
-    #[clap(required(true), parse(from_os_str = parse_chip_path))]
-    chip: PathBuf,
-    /// The set of lines to monitor.
+    /// The lines to monitor, identified by name or optionally by
+    /// offset if the --chip option is specified.
     #[clap(min_values = 1, required = true)]
-    lines: Vec<Offset>,
+    lines: Vec<String>,
+    #[clap(flatten)]
+    line_opts: LineOpts,
     #[clap(flatten)]
     active_low_opts: ActiveLowOpts,
     #[clap(flatten)]
     bias_opts: BiasOpts,
     #[clap(flatten)]
     edge_opts: EdgeOpts,
-    /// The debounce period for the input lines.
+    /// The debounce period for the monitored lines.
     #[clap(short, long, default_value = "0", parse(try_from_str = parse_duration))]
     debounce_period: Duration,
     /// Exit after n events.
@@ -46,16 +45,28 @@ impl Opts {
         }
         self.active_low_opts.apply(config);
         self.bias_opts.apply(config);
-        self.edge_opts.apply(config);
-        config.with_lines(&self.lines)
+        self.edge_opts.apply(config)
     }
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
+    let (lines, chips) = find_lines(&opts.lines, &opts.line_opts, opts.uapi_opts.abiv)?;
+    if chips.len() > 1 {
+        panic!("presently only support monitoring lines on one chip");
+    }
+    // needs multi-threading or async - so will come back to this...
+    //    for chip in &chips { ...
+    let chip = &chips[0];
     let mut cfg = Config::new();
     opts.apply(&mut cfg);
+    let offsets: Vec<Offset> = lines
+        .values()
+        .filter(|co| co.chip == *chip)
+        .map(|co| co.offset)
+        .collect();
+    cfg.with_lines(&offsets);
     let mut req = Builder::from_config(cfg)
-        .on_chip(&opts.chip)
+        .on_chip(&chip)
         .with_consumer("gpiodctl-monitor")
         .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)
         .request()
@@ -69,7 +80,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         if let Some(limit) = opts.num_events {
             count += 1;
             if count >= limit {
-                println!("Exited after {} events", count);
+                println!("Exited after {} events.", count);
                 return Ok(());
             }
         }

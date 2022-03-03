@@ -2,31 +2,38 @@
 //
 // SPDX-License-Identifier: MIT
 
-use super::common::{abi_version_from_opts, parse_chip_path, UapiOpts};
+use super::common::{chip_from_opts, find_lines, LineOpts, UapiOpts};
 use anyhow::{Context, Result};
-use gpiod::chip::Chip;
-use std::io::Read;
-use std::path::PathBuf;
 use clap::Parser;
+use std::io::Read;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// The chip to watch
-    #[clap(required = true, parse(from_os_str = parse_chip_path))]
-    chip: PathBuf,
-    /// The set of lines to watch.
+    #[clap(flatten)]
+    line_opts: LineOpts,
+    /// The lines to watch, identified by name or optionally by
+    /// offset if the --chip option is specified.
     #[clap(min_values = 1, required = true)]
-    lines: Vec<u32>,
+    lines: Vec<String>,
     #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
-    let mut chip = Chip::from_path(&opts.chip)?;
-    chip.using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?);
+    let (lines, chips) = find_lines(&opts.lines, &opts.line_opts, opts.uapi_opts.abiv)?;
+    if chips.len() > 1 {
+        panic!("presently only support watching lines on one chip");
+    }
+    // needs multi-threading or async - so will come back to this...
+    //    for chip in &chips { ...
+    let mut chip = chip_from_opts(&chips[0], opts.uapi_opts.abiv)?;
 
-    for offset in &opts.lines {
-        chip.watch_line_info(*offset)
+    for offset in lines
+        .values()
+        .filter(|co| co.chip == chips[0])
+        .map(|co| co.offset)
+    {
+        chip.watch_line_info(offset)
             .context("Failed to watch lines.")?;
     }
 

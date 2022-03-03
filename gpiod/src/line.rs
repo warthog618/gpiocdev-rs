@@ -10,6 +10,7 @@ use gpiod_uapi::v1;
 #[cfg(feature = "uapi_v2")]
 use gpiod_uapi::{v2, v2 as uapi};
 use nohash_hasher::IntMap;
+use std::collections::hash_map::Iter;
 use std::time::Duration;
 
 /// The configuration settings for a single line.
@@ -384,7 +385,9 @@ impl Values {
     pub(crate) fn to_v2(&self, offsets: &[Offset]) -> v2::LineValues {
         let mut dst: v2::LineValues = Default::default();
         for (idx, offset) in offsets.iter().enumerate() {
-            if let Some(val) = self.0.get(offset) {
+            if self.is_empty() {
+                dst.set(idx, false);
+            } else if let Some(val) = self.0.get(offset) {
                 dst.set(idx, (*val).into());
             }
         }
@@ -423,6 +426,7 @@ impl Values {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+
     /// Return true if the values is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -441,6 +445,11 @@ impl Values {
             values.set(*offset, Value::Inactive);
         }
         values
+    }
+
+    /// An iterator to visit all values.
+    pub fn iter(&self) -> Iter<'_, Offset, Value> {
+        self.0.iter()
     }
 }
 

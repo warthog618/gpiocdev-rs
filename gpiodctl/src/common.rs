@@ -5,12 +5,16 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use gpiod::chip::{chips, is_chip, Chip};
+use gpiod::line::Offset;
 use gpiod::request::Config;
 use gpiod::{
     detect_abi_version,
     AbiVersion::{self, *},
 };
+use std::collections::HashMap;
+use std::error::Error;
 use std::ffi::{OsStr, OsString};
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use strum::{EnumString, EnumVariantNames, VariantNames};
@@ -60,6 +64,80 @@ pub fn parse_chip_path(s: &OsStr) -> PathBuf {
     PathBuf::from(s)
 }
 
+#[derive(Debug, Eq, Hash, PartialEq)]
+pub struct ChipOffset {
+    pub chip: PathBuf,
+    pub offset: Offset,
+}
+
+pub fn find_lines(
+    lines: &[String],
+    opts: &LineOpts,
+    abiv: u8,
+) -> Result<(HashMap<String, ChipOffset>, Vec<PathBuf>)> {
+    let chips = match &opts.chip {
+        Some(chip_path) => vec![chip_path.clone()],
+        None => all_chips()?,
+    };
+
+    let mut found_lines = HashMap::new();
+    let mut fchips = Vec::new();
+    if chips.len() == 1 && !opts.by_name {
+        let chip = chips.get(0).unwrap();
+        for line_id in lines {
+            if let Ok(offset) = line_id.parse::<u32>() {
+                found_lines.insert(
+                    line_id.to_owned(),
+                    ChipOffset {
+                        chip: chip.clone(),
+                        offset,
+                    },
+                );
+            }
+        }
+    }
+
+    for path in &chips {
+        let mut chip = chip_from_opts(path, abiv)?;
+        let ci = chip
+            .info()
+            .with_context(|| format!("Failed to info from chip {:?}.", path))?;
+        for offset in 0..ci.num_lines {
+            let li = chip.line_info(offset).with_context(|| {
+                format!("Failed to read line {} info from chip {:?}.", offset, path)
+            })?;
+            for name in lines {
+                if name.as_str() == li.name.as_os_str() {
+                    if !found_lines.contains_key(name) {
+                        found_lines.insert(
+                            name.to_owned(),
+                            ChipOffset {
+                                chip: path.to_owned(),
+                                offset,
+                            },
+                        );
+                        if !opts.exhaustive && found_lines.len() == lines.len() {
+                            break;
+                        }
+                    } else if opts.exhaustive {
+                        return Err(anyhow::Error::new(DuplicateLineError::new(name)));
+                    }
+                }
+            }
+        }
+    }
+    for line_id in lines {
+        let co = found_lines
+            .get(line_id)
+            .context(format!("Can't find line {:?}.", line_id))?;
+        if !fchips.contains(&co.chip) {
+            fchips.push(co.chip.clone());
+        }
+    }
+
+    Ok((found_lines, fchips))
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ParseDurationError {
     #[error("Unknown units '{0}'. Use \"s\", \"ms\", \"us\" or \"ns\".")]
@@ -97,6 +175,20 @@ pub fn string_or_default<'a, 'b: 'a>(s: &'a str, def: &'b str) -> &'a str {
 }
 
 // common command line parser options
+
+#[derive(Debug, Parser)]
+/// Options to control the selection of lines.
+pub struct LineOpts {
+    /// Only operate on the lines on this chip.
+    #[clap(short, long, parse(from_os_str = parse_chip_path))]
+    pub chip: Option<PathBuf>,
+    /// Line names must be unique or the command will abort.
+    #[clap(short = 'X', long)]
+    pub exhaustive: bool,
+    /// Lines are strictly identified by name, even if that name looks like an offset.
+    #[clap(short = 'N', long)]
+    pub by_name: bool,
+}
 
 #[derive(Debug, Parser)]
 pub struct UapiOpts {
@@ -261,3 +353,21 @@ pub fn stringify_attrs(li: &gpiod::line::Info) -> String {
     }
     attrs.join(", ")
 }
+
+#[derive(Debug)]
+struct DuplicateLineError {
+    name: String,
+}
+
+impl DuplicateLineError {
+    pub fn new<S: Into<String>>(name: S) -> DuplicateLineError {
+        DuplicateLineError { name: name.into() }
+    }
+}
+
+impl fmt::Display for DuplicateLineError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "duplicate line name: `{}`.", self.name)
+    }
+}
+impl Error for DuplicateLineError {}

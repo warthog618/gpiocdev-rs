@@ -12,14 +12,18 @@ use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// The chip to interrogate.  If not specified then all chips are searched.
+    /// Restrict the search to lines on this chip.
+    /// If omitted then all chips are searched.
     #[clap(short, long, parse(from_os_str = parse_chip_path))]
     chip: Option<PathBuf>,
     /// The name of the line to find.
     #[clap()]
     line: String,
+    /// Check all lines - don't assume names are unique.
+    #[clap(short = 'X', long)]
+    exhaustive: bool,
     /// Print the info for found lines.
-    #[clap(short = 'i', long)]
+    #[clap(short, long)]
     pub info: bool,
     #[clap(flatten)]
     uapi_opts: UapiOpts,
@@ -33,18 +37,21 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     let mut found = false;
     for p in chips {
         let mut c = chip_from_opts(&p, opts.uapi_opts.abiv)?;
-        if find_line(&mut c, &opts.line, opts)? {
+        if find_line(&mut c, opts)? {
+            if !opts.exhaustive {
+                return Ok(());
+            }
             found = true;
         }
     }
     if !found {
-        println!("Line \"{}\" not found.", &opts.line);
+        println!("Can't find line {:?}.", &opts.line);
     }
     Ok(())
 }
 
 // Exhaustive form that checks every line even when a matching line has already been found.
-fn find_line(chip: &mut Chip, line: &str, opts: &Opts) -> Result<bool> {
+fn find_line(chip: &mut Chip, opts: &Opts) -> Result<bool> {
     let ci = chip
         .info()
         .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
@@ -57,7 +64,7 @@ fn find_line(chip: &mut Chip, line: &str, opts: &Opts) -> Result<bool> {
                 chip.path()
             )
         })?;
-        if li.name.as_os_str() == line {
+        if li.name.as_os_str() == opts.line.as_str() {
             if opts.info {
                 println!(
                     "{} {}\t{}\t{} [{}]",
@@ -69,6 +76,9 @@ fn find_line(chip: &mut Chip, line: &str, opts: &Opts) -> Result<bool> {
                 );
             } else {
                 println!("{} {}", chip.name().to_string_lossy(), li.offset);
+            }
+            if !opts.exhaustive {
+                return Ok(true);
             }
             found = true;
         }
