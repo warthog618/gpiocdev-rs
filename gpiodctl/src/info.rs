@@ -14,7 +14,8 @@ use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// Only get information for the specified lines, identified by offset.
+    /// Only get information for the specified lines, identified by name
+    /// or optionally by offset if the --chip option is provided.
     /// If not specified then all lines are returned.
     #[clap()]
     lines: Vec<String>,

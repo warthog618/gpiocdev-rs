@@ -17,7 +17,7 @@ use std::time::Duration;
 #[derive(Debug, Parser)]
 pub struct Opts {
     /// The lines to get, identified by name or optionally by offset
-    /// if the --chip option is provided. .
+    /// if the --chip option is provided.
     #[clap(min_values = 1, required = true)]
     lines: Vec<String>,
     #[clap(flatten)]
