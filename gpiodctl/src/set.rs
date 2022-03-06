@@ -118,10 +118,7 @@ impl Setter {
                 .with_consumer("gpiodctl-set")
                 .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)
                 .request()
-                .context(format!(
-                    "Failed to request and set lines on chip {:?}.",
-                    chip
-                ))?;
+                .with_context(|| format!("Failed to request and set lines on chip {:?}.", chip))?;
             self.requests.push(req);
         }
         Ok(())
@@ -254,7 +251,7 @@ impl Setter {
             if !values.is_empty() {
                 self.requests[idx]
                     .set_values(&values)
-                    .with_context(|| "set failed:")?;
+                    .context("set failed:")?;
                 self.hold();
             }
         }
