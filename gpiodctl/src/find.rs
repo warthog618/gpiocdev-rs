@@ -12,15 +12,27 @@ use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// Restrict the search to lines on this chip.
-    /// If omitted then all chips are searched.
-    #[clap(short, long, parse(from_os_str = parse_chip_path))]
+    /// Only search for the lines on this chip.
+    ///
+    /// If not specified the named line is searched for on all chips in the system.
+    ///
+    /// The chip may be identified by number, name, or path.
+    /// e.g. the following all select the same chip:
+    ///     -c 0
+    ///     -c gpiochip0
+    ///     -c /dev/gpiochip0
+    #[clap(short, long, name="chip", parse(from_os_str = parse_chip_path), verbatim_doc_comment)]
     chip: Option<PathBuf>,
     /// The name of the line to find.
-    #[clap()]
+    #[clap(name = "line")]
     line: String,
     /// Check all lines - don't assume names are unique.
-    #[clap(short = 'X', long)]
+    ///
+    /// If not specified then the find stops when a matching line is found.
+    ///
+    /// If specified then the find returns all lines with the specified name,
+    /// each on a separate line.
+    #[clap(short = 'x', long)]
     exhaustive: bool,
     /// Print the info for found lines.
     #[clap(short, long)]

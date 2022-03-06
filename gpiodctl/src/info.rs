@@ -14,15 +14,33 @@ use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// Only get information for the specified lines, identified by name
-    /// or optionally by offset if the --chip option is provided.
+    /// Only get information for the specified lines.
+    ///
+    /// The lines are identified by name or optionally by offset
+    /// if the --chip option is provided.
+    ///
     /// If not specified then all lines are returned.
-    #[clap()]
+    #[clap(name = "line")]
     lines: Vec<String>,
-    /// Restrict operations to lines on this chip.
-    #[clap(short, long, parse(from_os_str = parse_chip_path))]
+    /// Restrict scope to the lines on this chip.
+    ///
+    /// If not specified then the scope is all chips in the system.
+    ///
+    /// If specified then lines may be identified by either name or offset.
+    ///
+    /// The chip may be identified by number, name, or path.
+    /// e.g. the following all select the same chip:
+    ///     -c 0
+    ///     -c gpiochip0
+    ///     -c /dev/gpiochip0
+    #[clap(short, long, name = "chip", parse(from_os_str = parse_chip_path), verbatim_doc_comment)]
     chip: Option<PathBuf>,
-    /// Lines are strictly identified by name, even if that name looks like an offset.
+    /// Lines are strictly identified by name.
+    ///
+    /// If --chip is provided then lines are initially assumed to be offsets, and only
+    /// fallback to names if the line does not parse as an offset.
+    ///
+    /// With --by-name set the lines are never assumed to be identified by offsets, only names.
     #[clap(short = 'N', long)]
     by_name: bool,
     #[clap(flatten)]

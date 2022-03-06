@@ -16,22 +16,31 @@ use std::time::Duration;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// The lines to get, identified by name or optionally by offset
+    /// The lines to get.
+    ///
+    /// The lines are identified by name or optionally by offset
     /// if the --chip option is provided.
-    #[clap(min_values = 1, required = true)]
-    lines: Vec<String>,
+    #[clap(name = "line", min_values = 1, required = true)]
+    line: Vec<String>,
     #[clap(flatten)]
     line_opts: LineOpts,
     /// Request the line as-is rather than as an input.
+    ///
+    /// If not specified then the lines are explicitly switched to being input lines.
+    ///
+    /// If specified then the line direction is left as-is, making it
+    /// possible to read back the values of output lines.
     #[clap(short, long)]
     as_is: bool,
     #[clap(flatten)]
     active_low_opts: ActiveLowOpts,
     #[clap(flatten)]
     bias_opts: BiasOpts,
-    #[clap(short = 'p', long, default_value = "0", parse(try_from_str = parse_duration))]
-    /// A settling period between requesting the lines and reading, to allow bias to take effect.
-    hold_period: Duration,
+    #[clap(short = 'p', long, name="period", parse(try_from_str = parse_duration))]
+    /// A settling period between requesting the lines and reading the value.
+    ///
+    /// This allows time for any bias setting to take effect.
+    hold_period: Option<Duration>,
     #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -49,7 +58,7 @@ impl Opts {
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
-    let (lines, chips) = find_lines(&opts.lines, &opts.line_opts, opts.uapi_opts.abiv)?;
+    let (lines, chips) = find_lines(&opts.line, &opts.line_opts, opts.uapi_opts.abiv)?;
     let mut requests = Vec::new();
     for chip in &chips {
         let mut cfg = Config::new();
@@ -69,8 +78,8 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             .context(format!("Failed to request lines from chip {:?}.", chip))?;
         requests.push(req);
     }
-    if !opts.hold_period.is_zero() {
-        sleep(opts.hold_period);
+    if let Some(period) = opts.hold_period {
+        sleep(period);
     }
     let mut line_values: HashMap<ChipOffset, Value> = HashMap::new();
     for idx in 0..chips.len() {
@@ -89,7 +98,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         }
     }
     let mut print_values = Vec::new();
-    for line_id in &opts.lines {
+    for line_id in &opts.line {
         let value = line_values.get(lines.get(line_id).unwrap()).unwrap();
         print_values.push(format!("{}={:?}", line_id, value));
     }

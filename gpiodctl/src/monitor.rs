@@ -15,9 +15,11 @@ use std::time::Duration;
 #[derive(Debug, Parser)]
 #[clap(alias("mon"))]
 pub struct Opts {
-    /// The lines to monitor, identified by name or optionally by
-    /// offset if the --chip option is specified.
-    #[clap(min_values = 1, required = true)]
+    /// The lines to monitor.
+    ///
+    /// The lines are identified by name or optionally by offset if
+    /// the --chip option is specified.
+    #[clap(name = "line", min_values = 1, required = true)]
     lines: Vec<String>,
     #[clap(flatten)]
     line_opts: LineOpts,
@@ -28,10 +30,12 @@ pub struct Opts {
     #[clap(flatten)]
     edge_opts: EdgeOpts,
     /// The debounce period for the monitored lines.
-    #[clap(short, long, parse(try_from_str = parse_duration))]
+    #[clap(short, long, name = "period", parse(try_from_str = parse_duration))]
     debounce_period: Option<Duration>,
-    /// Exit after n events.
-    #[clap(short, long)]
+    /// Exit after the specified number of events.
+    ///
+    /// If not specified then the monitor will continue indefinitely.
+    #[clap(short, long, name = "num")]
     num_events: Option<u32>,
     #[clap(flatten)]
     uapi_opts: UapiOpts,

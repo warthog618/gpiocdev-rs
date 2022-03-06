@@ -50,18 +50,18 @@ struct Opts {
 
 #[derive(Parser)]
 enum Command {
-    /// Get info for the GPIO chips present on the system.
+    /// Get info about the GPIO chips present on the system.
     Detect(detect::Opts),
     /// Find a line by name.
     Find(find::Opts),
-    /// Read the values of a set of lines.
+    /// Read the values of lines.
     Get(get::Opts),
     /// Get information for lines.
     Info(info::Opts),
-    /// Monitor changes in line values.
+    /// Monitor lines for changes in value.
     Monitor(monitor::Opts),
-    /// Set the value of a set of lines.
+    /// Set the value of lines.
     Set(set::Opts),
-    /// Watch changes to line request and configuration state.
+    /// Watch lines for requests and changes to configuration state.
     Watch(watch::Opts),
 }

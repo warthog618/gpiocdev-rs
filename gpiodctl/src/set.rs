@@ -21,10 +21,17 @@ use std::time::Duration;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// The line values in name=value format or optionally offset=value
+    /// The line values.
+    ///
+    /// The values are specified in name=value format or optionally in offset=value
     /// format if the --chip option is provided.
-    #[clap(required = true, parse(try_from_str = parse_key_val))]
-    values: Vec<(String, LineValue)>,
+    ///
+    /// Values may be inactive/off/false/0 or active/on/true/1.
+    /// e.g.
+    ///     GPIO17=on GPIO22=inactive
+    ///     --chip gpiochip0 17=1 22=0
+    #[clap(name = "line=value", required = true, parse(try_from_str = parse_key_val), verbatim_doc_comment)]
+    line_values: Vec<(String, LineValue)>,
     #[clap(flatten)]
     line_opts: LineOpts,
     #[clap(flatten)]
@@ -33,15 +40,30 @@ pub struct Opts {
     bias_opts: BiasOpts,
     #[clap(flatten)]
     drive_opts: DriveOpts,
-    /// Set the lines then wait for additional set commands on the requested lines.
+    /// Set the lines then wait for additional set commands for the requested lines.
+    ///
+    /// Use the "help" or "?" command at the interactive prompt to get help for
+    /// the supported commands.
     #[clap(short, long, group = "mode")]
     interactive: bool,
-    /// The minimum period to hold lines at the requested values.
-    #[clap(short = 'p', long, parse(try_from_str = parse_duration), group="seq")]
+    /// The minimum time period to hold lines at the requested values.
+    #[clap(short = 'p', long, name = "period", parse(try_from_str = parse_duration), group="seq")]
     hold_period: Option<Duration>,
-    /// Toggle the lines at the specified period.
-    #[clap(short = 'B', long, parse(try_from_str = parse_duration), group = "mode", group = "seq")]
-    blink: Option<Duration>,
+    /// Toggle the lines after the specified time period(s).
+    ///
+    /// The time periods are a comma separated list.
+    /// The lines are toggled after the period elapses, so the initial time period
+    /// applies to the initial line value.
+    /// If the final period is not zero, then the sequence repeats.
+    ///
+    ///  e.g.
+    ///      -t 10ms
+    ///      -t 100us,200us,100us,150us
+    ///      -t 1s,2s,1s,0s
+    ///
+    /// The first two examples repeat, the third exits after 4s.
+    #[clap(short = 't', long, name="period(s)", parse(try_from_str = parse_duration), group = "mode", group = "seq", verbatim_doc_comment)]
+    toggle: Option<Duration>,
     #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -61,8 +83,8 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     setter.hold();
     if opts.interactive {
         return setter.interact();
-    } else if let Some(period) = opts.blink {
-        return setter.blink(period);
+    } else if let Some(period) = opts.toggle {
+        return setter.toggle(period);
     }
     Ok(())
 }
@@ -86,12 +108,16 @@ impl Setter {
     fn request(&mut self, opts: &Opts) -> Result<()> {
         self.hold_period = opts.hold_period;
 
-        let line_names: Vec<String> = opts.values.iter().map(|(l, _v)| l.to_owned()).collect();
+        let line_names: Vec<String> = opts
+            .line_values
+            .iter()
+            .map(|(l, _v)| l.to_owned())
+            .collect();
         let (lines, chips) = find_lines(&line_names, &opts.line_opts, opts.uapi_opts.abiv)?;
         self.chips = chips;
 
         // find set of lines for each chip
-        for (line_id, v) in &opts.values {
+        for (line_id, v) in &opts.line_values {
             let co = lines.get(line_id).unwrap();
             self.lines.insert(
                 line_id.to_owned(),
@@ -122,15 +148,6 @@ impl Setter {
             self.requests.push(req);
         }
         Ok(())
-    }
-
-    fn blink(&mut self, period: Duration) -> Result<()> {
-        loop {
-            self.toggle_all();
-            self.update()?;
-            self.clean();
-            sleep(period);
-        }
     }
 
     fn interact(&mut self) -> Result<()> {
@@ -221,7 +238,7 @@ impl Setter {
         }
         if !have_lines {
             // no lines specified, so toggle all lines
-            self.toggle_all();
+            self.toggle_values();
         }
         self.update()
     }
@@ -232,7 +249,16 @@ impl Setter {
         }
     }
 
-    fn toggle_all(&mut self) {
+    fn toggle(&mut self, period: Duration) -> Result<()> {
+        loop {
+            self.toggle_values();
+            self.update()?;
+            self.clean();
+            sleep(period);
+        }
+    }
+
+    fn toggle_values(&mut self) {
         for line in self.lines.values_mut() {
             line.value = line.value.toggle();
             line.dirty = true;

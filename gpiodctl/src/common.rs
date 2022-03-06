@@ -181,13 +181,31 @@ pub fn string_or_default<'a, 'b: 'a>(s: &'a str, def: &'b str) -> &'a str {
 #[derive(Debug, Parser)]
 /// Options to control the selection of lines.
 pub struct LineOpts {
-    /// Only operate on the lines on this chip.
-    #[clap(short, long, parse(from_os_str = parse_chip_path))]
+    /// Restrict scope to the lines on this chip.
+    ///
+    /// If specified then lines may be identified by either name or offset.
+    ///
+    /// If not specified then the named lines are searched for on all chips in the system.
+    ///
+    /// The chip may be identified by number, name, or path.
+    /// e.g. the following all select the same chip:
+    ///     --chip 0
+    ///     --chip gpiochip0
+    ///     --chip /dev/gpiochip0
+    #[clap(short, long, name="chip", parse(from_os_str = parse_chip_path), verbatim_doc_comment)]
     pub chip: Option<PathBuf>,
-    /// Line names must be unique or the command will abort.
-    #[clap(short = 'X', long)]
+    /// Provided line names must be unique or the command will abort.
+    ///
+    /// If --chip is also specified then provided line names must only be unique to the
+    /// lines on that chip.
+    #[clap(short = 'x', long)]
     pub exhaustive: bool,
-    /// Lines are strictly identified by name, even if that name looks like an offset.
+    /// Lines are strictly identified by name.
+    ///
+    /// If --chip is provided then lines are initially assumed to be offsets, and only
+    /// fallback to names if the line does not parse as an offset.
+    ///
+    /// With --by-name set the lines are never assumed to be identified by offsets, only names.
     #[clap(short = 'N', long)]
     pub by_name: bool,
 }
@@ -196,7 +214,7 @@ pub struct LineOpts {
 pub struct UapiOpts {
     /// The uAPI ABI version to use to perform the operation.
     ///
-    /// The auto option detects the uAPI versions supported by the kernel and uses the latest.
+    /// The default option detects the uAPI versions supported by the kernel and uses the latest.
     // This is primarily aimed at debugging and so is a hidden option.
     #[clap(long, default_value = "0", hide = true, env = "GPIOD_ABI_VERSION")]
     pub abiv: u8,
@@ -237,7 +255,7 @@ impl From<BiasFlags> for gpiod::line::Bias {
 #[derive(Copy, Clone, Debug, Parser)]
 pub struct BiasOpts {
     /// The bias to be applied to the lines.
-    #[clap(short, long, possible_values = BiasFlags::VARIANTS, ignore_case = true)]
+    #[clap(short, long, name = "bias", possible_values = BiasFlags::VARIANTS, ignore_case = true)]
     pub bias: Option<BiasFlags>,
 }
 impl BiasOpts {
@@ -268,7 +286,7 @@ impl From<DriveFlags> for gpiod::line::Drive {
 #[derive(Copy, Clone, Debug, Parser)]
 pub struct DriveOpts {
     /// How the lines should be driven.
-    #[clap(short, long, possible_values = DriveFlags::VARIANTS, ignore_case = true)]
+    #[clap(short, long, name = "drive", possible_values = DriveFlags::VARIANTS, ignore_case = true)]
     pub drive: Option<DriveFlags>,
 }
 impl DriveOpts {
@@ -299,7 +317,7 @@ impl From<EdgeFlags> for gpiod::line::EdgeDetection {
 #[derive(Copy, Clone, Debug, Parser)]
 pub struct EdgeOpts {
     /// Which edges should be detected and reported.
-    #[clap(short, long, possible_values = EdgeFlags::VARIANTS, default_value="both-edges", ignore_case = true)]
+    #[clap(short, long, name = "edge", possible_values = EdgeFlags::VARIANTS, default_value="both-edges", ignore_case = true)]
     pub edge: EdgeFlags,
 }
 impl EdgeOpts {

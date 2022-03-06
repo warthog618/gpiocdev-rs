@@ -11,9 +11,11 @@ use std::io::Read;
 pub struct Opts {
     #[clap(flatten)]
     line_opts: LineOpts,
-    /// The lines to watch, identified by name or optionally by
+    /// The lines to watch.
+    ///
+    /// The lines are identified by name or optionally by
     /// offset if the --chip option is specified.
-    #[clap(min_values = 1, required = true)]
+    #[clap(name = "line", min_values = 1, required = true)]
     lines: Vec<String>,
     #[clap(flatten)]
     uapi_opts: UapiOpts,

@@ -10,8 +10,16 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    /// The chips to interrogate.  If not specified then all chips are searched.
-    #[clap(parse(from_os_str = parse_chip_path))]
+    /// The chips to detect.
+    ///
+    /// If not specified then all chips are returned.
+    ///
+    /// Chips may be identified by number, name, or path.
+    /// e.g. the following all select the same chip:
+    ///     0
+    ///     gpiochip0
+    ///     /dev/gpiochip0
+    #[clap(name="chip", parse(from_os_str = parse_chip_path), verbatim_doc_comment)]
     chips: Vec<PathBuf>,
 }
 
