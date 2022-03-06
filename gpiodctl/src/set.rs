@@ -6,7 +6,7 @@ use super::common::{
     abi_version_from_opts, find_lines, parse_duration, ActiveLowOpts, BiasOpts, DriveOpts,
     LineOpts, UapiOpts,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use gpiod::line::{Offset, Value, Values};
 use gpiod::request::{Builder, Config, Request};
@@ -34,11 +34,14 @@ pub struct Opts {
     #[clap(flatten)]
     drive_opts: DriveOpts,
     /// Set the lines then wait for additional set commands on the requested lines.
-    #[clap(short, long)]
+    #[clap(short, long, group = "mode")]
     interactive: bool,
     /// The minimum period to hold lines at the requested values.
-    #[clap(short = 'p', long, default_value = "0", parse(try_from_str = parse_duration))]
-    hold_period: Duration,
+    #[clap(short = 'p', long, parse(try_from_str = parse_duration), group="seq")]
+    hold_period: Option<Duration>,
+    /// Toggle the lines at the specified period.
+    #[clap(short = 'B', long, parse(try_from_str = parse_duration), group = "mode", group = "seq")]
+    blink: Option<Duration>,
     #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -58,6 +61,8 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     setter.hold();
     if opts.interactive {
         return setter.interact();
+    } else if let Some(period) = opts.blink {
+        return setter.blink(period);
     }
     Ok(())
 }
@@ -72,7 +77,7 @@ struct Setter {
     // The request on each chip
     requests: Vec<Request>,
     // The minimum period to hold set values before applying the subsequent set.
-    hold_period: Duration,
+    hold_period: Option<Duration>,
     // Flag indicating if last operation resulted in a hold
     last_held: bool,
 }
@@ -122,6 +127,15 @@ impl Setter {
         Ok(())
     }
 
+    fn blink(&mut self, period: Duration) -> Result<()> {
+        loop {
+            self.toggle_all();
+            self.update()?;
+            self.clean();
+            sleep(period);
+        }
+    }
+
     fn interact(&mut self) -> Result<()> {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
@@ -134,92 +148,85 @@ impl Setter {
                 return Ok(());
             }
             let mut words = buffer.trim().split_ascii_whitespace();
-            match words.next() {
+            if let Err(err) = match words.next() {
                 None => continue,
                 Some("exit") => return Ok(()),
                 Some("set") => self.do_set(words),
                 Some("sleep") => self.do_sleep(words.next()),
                 Some("toggle") => self.do_toggle(words),
-                Some(x) => {
-                    println!("Unknown command: {:?}", x);
-                }
+                Some(x) => Err(anyhow!("Unknown command: {:?}", x)),
+            } {
+                println!("{}", err);
             }
             self.clean();
         }
     }
 
     fn hold(&mut self) {
-        if !self.hold_period.is_zero() {
+        if let Some(period) = self.hold_period {
             self.last_held = true;
-            sleep(self.hold_period);
+            sleep(period);
         }
     }
 
-    fn do_set(&mut self, changes: std::str::SplitAsciiWhitespace) {
+    fn do_set(&mut self, changes: std::str::SplitAsciiWhitespace) -> Result<()> {
         for lv in changes {
             match parse_key_val::<String, LineValue>(lv) {
                 Err(e) => {
-                    println!("Invalid value: {}", e);
-                    return;
+                    return Err(anyhow!("Invalid value: {}", e));
                 }
                 Ok((line_id, value)) => match self.lines.get_mut(&line_id) {
                     Some(line) => {
                         line.value = value.0;
                         line.dirty = true;
                     }
-                    None => {
-                        println!("Unknown line: {:?}", line_id);
-                        return;
-                    }
+                    None => return Err(anyhow!("Not a requested line: {:?}", line_id)),
                 },
             }
         }
-        self.update();
+        self.update()
     }
 
-    fn do_sleep(&mut self, duration: Option<&str>) {
+    fn do_sleep(&mut self, duration: Option<&str>) -> Result<()> {
         match duration {
             Some(period) => match parse_duration(period) {
                 Ok(mut d) => {
                     if self.last_held {
                         self.last_held = false;
-                        if d < self.hold_period {
-                            // slept longer than that already
-                            return;
+                        if let Some(period) = self.hold_period {
+                            if d < period {
+                                // slept longer than that already
+                                return Ok(());
+                            }
+                            d -= period;
                         }
-                        d -= self.hold_period;
                     }
                     sleep(d);
                 }
-                Err(e) => println!("Invalid duration: {}", e),
+                Err(e) => return Err(anyhow!("Invalid duration: {}", e)),
             },
-            None => println!("Invalid command: require duration"),
+            None => return Err(anyhow!("Invalid command: require duration")),
         }
+        Ok(())
     }
 
-    fn do_toggle(&mut self, lines: std::str::SplitAsciiWhitespace) {
-        let mut total = true;
+    fn do_toggle(&mut self, lines: std::str::SplitAsciiWhitespace) -> Result<()> {
+        let mut have_lines = false;
         for line_id in lines {
             match self.lines.get_mut(line_id) {
                 Some(line) => {
                     line.value = line.value.toggle();
                     line.dirty = true;
-                    total = false;
+                    have_lines = true;
                 }
-                None => {
-                    println!("Unknown line: {:?}", line_id);
-                    return;
-                }
+                None => return Err(anyhow!("Not a requested line: {:?}", line_id)),
             }
         }
-        if total {
+        if !have_lines {
             // no lines specified, so toggle all lines
-            for line in self.lines.values_mut() {
-                line.value = line.value.toggle();
-                line.dirty = true;
-            }
+            self.toggle_all();
         }
-        self.update();
+        self.update()
     }
 
     fn clean(&mut self) {
@@ -228,7 +235,14 @@ impl Setter {
         }
     }
 
-    fn update(&mut self) {
+    fn toggle_all(&mut self) {
+        for line in self.lines.values_mut() {
+            line.value = line.value.toggle();
+            line.dirty = true;
+        }
+    }
+
+    fn update(&mut self) -> Result<()> {
         for idx in 0..self.chips.len() {
             let chip = &self.chips[idx];
             let mut values = Values::default();
@@ -238,12 +252,13 @@ impl Setter {
                 }
             }
             if !values.is_empty() {
-                if let Err(err) = self.requests[idx].set_values(&values) {
-                    println!("set failed: {}", err);
-                    return;
-                }
+                self.requests[idx]
+                    .set_values(&values)
+                    .with_context(|| "set failed:")?;
+                self.hold();
             }
         }
+        Ok(())
     }
 }
 
@@ -280,8 +295,8 @@ impl FromStr for LineValue {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let lower_s = s.to_lowercase();
         let v = match lower_s.as_str() {
-            "0" | "inactive" | "off" => Value::Inactive,
-            "1" | "active" | "on" => Value::Active,
+            "0" | "inactive" | "off" | "false" => Value::Inactive,
+            "1" | "active" | "on" | "true" => Value::Active,
             _ => {
                 return Err(InvalidLineValue::new(s));
             }

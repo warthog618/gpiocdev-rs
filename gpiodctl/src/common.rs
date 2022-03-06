@@ -140,7 +140,9 @@ pub fn find_lines(
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseDurationError {
-    #[error("Unknown units '{0}'. Use \"s\", \"ms\", \"us\" or \"ns\".")]
+    #[error("'{0}' missing units - add \"s\", \"ms\", \"us\" or \"ns\".")]
+    NoUnits(String),
+    #[error("'{0}' unknown units - use \"s\", \"ms\", \"us\" or \"ns\".")]
     Units(String),
     #[error(transparent)]
     Digits(std::num::ParseIntError),
@@ -157,11 +159,11 @@ pub fn parse_duration(s: &str) -> std::result::Result<Duration, ParseDurationErr
                 "us" => multiplier = 1000,
                 "ms" => multiplier = 1000000,
                 "s" => multiplier = 1000000000,
-                _ => return Err(ParseDurationError::Units(units.to_string())),
+                _ => return Err(ParseDurationError::Units(s.to_string())),
             }
             t * multiplier
         }
-        None => s.parse::<u64>().map_err(ParseDurationError::Digits)?,
+        None => return Err(ParseDurationError::NoUnits(s.to_string())),
     };
     Ok(Duration::from_nanos(t))
 }

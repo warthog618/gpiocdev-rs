@@ -28,8 +28,8 @@ pub struct Opts {
     #[clap(flatten)]
     edge_opts: EdgeOpts,
     /// The debounce period for the monitored lines.
-    #[clap(short, long, default_value = "0", parse(try_from_str = parse_duration))]
-    debounce_period: Duration,
+    #[clap(short, long, parse(try_from_str = parse_duration))]
+    debounce_period: Option<Duration>,
     /// Exit after n events.
     #[clap(short, long)]
     num_events: Option<u32>,
@@ -40,8 +40,8 @@ pub struct Opts {
 impl Opts {
     // mutate the config to match the configuration
     fn apply<'b>(&self, config: &'b mut Config) -> &'b mut Config {
-        if !self.debounce_period.is_zero() {
-            config.with_debounce_period(self.debounce_period);
+        if let Some(period) = self.debounce_period {
+            config.with_debounce_period(period);
         }
         self.active_low_opts.apply(config);
         self.bias_opts.apply(config);
