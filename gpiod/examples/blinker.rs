@@ -2,30 +2,28 @@
 //
 // SPDX-License-Identifier: MIT
 
+use anyhow::Context;
 use gpiod::line::Value;
 use gpiod::request::Builder;
+use std::result::Result;
 use std::thread::sleep;
 use std::time::Duration;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut value = Value::Active;
 
-    match Builder::new()
+    let mut req = Builder::new()
         .on_chip("/dev/gpiochip0")
         .with_consumer("blinker")
         .with_line(22)
         .as_output(value)
         .request()
-    {
-        Ok(mut req) => loop {
-            value = value.toggle();
-            println!("{:?}", value);
-            if let Err(e) = req.set_value(22, value) {
-                eprintln!("Failed to toggle value: {}", e);
-                std::process::exit(1);
-            }
-            sleep(Duration::from_millis(500));
-        },
-        Err(e) => eprintln!("Failed to request line: {}", e),
+        .context("Failed to request line")?;
+
+    loop {
+        sleep(Duration::from_millis(500));
+        value = value.toggle();
+        println!("{:?}", value);
+        req.set_value(22, value).context("Failed to toggle value")?;
     }
 }

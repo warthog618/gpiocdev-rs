@@ -2,29 +2,22 @@
 //
 // SPDX-License-Identifier: MIT
 
+use anyhow::Context;
 use gpiod::line::EdgeDetection;
 use gpiod::request::Builder;
+use std::result::Result;
 
-fn main() {
-    match Builder::new()
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut req = Builder::new()
         .on_chip("/dev/gpiochip0")
         .with_consumer("watcher")
         .with_line(23)
         .with_edge_detection(EdgeDetection::BothEdges)
         .request()
-    {
-        Ok(mut req) => {
-            let mut buf = req.new_edge_event_buffer(4);
-            loop {
-                match buf.read_event(&mut req) {
-                    Ok(edge) => println!("{:?}", edge),
-                    Err(e) => {
-                        eprintln!("Failed to read edge event: {}", e);
-                        std::process::exit(1);
-                    }
-                }
-            }
-        }
-        Err(e) => eprintln!("Failed to request line: {}", e),
+        .context("Failed to request line")?;
+
+    let mut buf = req.new_edge_event_buffer(4);
+    loop {
+        println!("{:?}", buf.read_event(&mut req)?);
     }
 }

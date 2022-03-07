@@ -15,6 +15,9 @@ gpiod-uapi = {version = "0.1.0", path = "../uapi", features = ["uapi_v1", "uapi_
 nohash-hasher = "0.2.0"
 thiserror = "1.0"
 
+[dev-dependencies]
+anyhow = "1.0"
+
 [features]
 default = ["uapi_v2"]
 uapi_v1 = ["gpiod-uapi/uapi_v1"]
