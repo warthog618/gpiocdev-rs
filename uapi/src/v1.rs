@@ -466,7 +466,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn  size_of_line_info() {
+    fn size_of_line_info() {
         assert_eq!(
             size_of::<LineInfo>(),
             72usize,
@@ -474,7 +474,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_info_changed() {
+    fn size_of_line_info_changed() {
         assert_eq!(
             size_of::<LineInfoChangeEvent>(),
             104usize,
@@ -482,7 +482,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_handle_request() {
+    fn size_of_handle_request() {
         assert_eq!(
             size_of::<HandleRequest>(),
             364usize,
@@ -490,7 +490,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_handle_config() {
+    fn size_of_handle_config() {
         assert_eq!(
             size_of::<HandleConfig>(),
             84usize,
@@ -498,7 +498,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_values() {
+    fn size_of_values() {
         assert_eq!(
             size_of::<LineValues>(),
             64usize,
@@ -506,7 +506,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_event_request() {
+    fn size_of_event_request() {
         assert_eq!(
             size_of::<EventRequest>(),
             48usize,
@@ -514,7 +514,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_event() {
+    fn size_of_line_event() {
         assert_eq!(
             size_of::<LineEdgeEvent>(),
             16usize,

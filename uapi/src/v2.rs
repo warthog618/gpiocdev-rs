@@ -664,7 +664,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn  size_of_line_values() {
+    fn size_of_line_values() {
         assert_eq!(
             size_of::<LineValues>(),
             16usize,
@@ -672,7 +672,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_attribute() {
+    fn size_of_line_attribute() {
         assert_eq!(
             size_of::<LineAttribute>(),
             16usize,
@@ -680,7 +680,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_attribute_value() {
+    fn size_of_line_attribute_value() {
         assert_eq!(
             size_of::<LineAttributeValueUnion>(),
             8usize,
@@ -688,7 +688,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_config_attribute() {
+    fn size_of_line_config_attribute() {
         assert_eq!(
             size_of::<LineConfigAttribute>(),
             24usize,
@@ -696,7 +696,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_config() {
+    fn size_of_line_config() {
         assert_eq!(
             size_of::<LineConfig>(),
             272usize,
@@ -704,7 +704,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_request() {
+    fn size_of_line_request() {
         assert_eq!(
             size_of::<LineRequest>(),
             592usize,
@@ -712,7 +712,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_info() {
+    fn size_of_line_info() {
         assert_eq!(
             size_of::<LineInfo>(),
             256usize,
@@ -720,7 +720,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_info_changed() {
+    fn size_of_line_info_changed() {
         assert_eq!(
             size_of::<LineInfoChangeEvent>(),
             288usize,
@@ -728,7 +728,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_line_event() {
+    fn size_of_line_event() {
         assert_eq!(
             size_of::<LineEdgeEvent>(),
             48usize,

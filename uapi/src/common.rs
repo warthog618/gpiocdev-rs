@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-use core::ptr::null;
 use libc::{c_long, ioctl, pollfd, ppoll, sigset_t, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
 use std::fs::File;
@@ -10,6 +9,7 @@ use std::io::Error as IoError;
 use std::mem::{size_of, MaybeUninit};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::AsRawFd;
+use std::ptr::null;
 use std::slice;
 use std::time::Duration;
 
@@ -317,7 +317,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn  size_of_chip_info() {
+    fn size_of_chip_info() {
         assert_eq!(
             size_of::<ChipInfo>(),
             68usize,
@@ -439,7 +439,7 @@ mod tests {
         assert!(!padding.is_zeroed());
     }
     #[test]
-    fn  size_of_name() {
+    fn size_of_name() {
         assert_eq!(
             size_of::<Name>(),
             NAME_LEN_MAX,
@@ -447,7 +447,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_offsets() {
+    fn size_of_offsets() {
         assert_eq!(
             size_of::<Offsets>(),
             256usize,
@@ -455,7 +455,7 @@ mod tests {
         );
     }
     #[test]
-    fn  size_of_padding() {
+    fn size_of_padding() {
         assert_eq!(
             size_of::<Padding<1>>(),
             4usize,
