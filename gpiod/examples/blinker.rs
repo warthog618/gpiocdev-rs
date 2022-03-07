@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         sleep(Duration::from_millis(500));
-        value = value.toggle();
+        value = value.not();
         println!("{:?}", value);
         req.set_value(22, value).context("Failed to toggle value")?;
     }

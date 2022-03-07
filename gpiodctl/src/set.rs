@@ -239,7 +239,7 @@ impl Setter {
         for line_id in lines {
             match self.lines.get_mut(line_id) {
                 Some(line) => {
-                    line.value = line.value.toggle();
+                    line.value = line.value.not();
                     line.dirty = true;
                     have_lines = true;
                 }
@@ -281,7 +281,7 @@ impl Setter {
 
     fn toggle_all_lines(&mut self) {
         for line in self.lines.values_mut() {
-            line.value = line.value.toggle();
+            line.value = line.value.not();
             line.dirty = true;
         }
     }

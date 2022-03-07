@@ -284,7 +284,7 @@ pub enum Value {
     Active,
 }
 impl Value {
-    pub fn toggle(&self) -> Value {
+    pub fn not(&self) -> Value {
         match self {
             Value::Active => Value::Inactive,
             Value::Inactive => Value::Active,
@@ -412,7 +412,7 @@ impl Values {
     #[inline]
     pub fn toggle(&mut self, offset: Offset) {
         let val = self.0.get(&offset).copied().unwrap_or(Value::Inactive);
-        self.0.insert(offset, val.toggle());
+        self.0.insert(offset, val.not());
     }
 
     /// Remove any value setting for a line.
