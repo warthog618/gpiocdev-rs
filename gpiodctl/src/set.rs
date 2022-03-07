@@ -4,12 +4,13 @@
 
 use super::common::{
     abi_version_from_opts, find_lines, parse_duration, ActiveLowOpts, BiasOpts, DriveOpts,
-    LineOpts, UapiOpts,
+    LineOpts, ParseDurationError, UapiOpts,
 };
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use gpiod::line::{Offset, Value, Values};
 use gpiod::request::{Builder, Config, Request};
+use std::cmp::max;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
@@ -47,9 +48,9 @@ pub struct Opts {
     #[clap(short, long, group = "mode")]
     interactive: bool,
     /// The minimum time period to hold lines at the requested values.
-    #[clap(short = 'p', long, name = "period", parse(try_from_str = parse_duration), group="seq")]
+    #[clap(short = 'p', long, name = "period", parse(try_from_str = parse_duration))]
     hold_period: Option<Duration>,
-    /// Toggle the lines after the specified time period(s).
+    /// Toggle the lines after the specified time periods.
     ///
     /// The time periods are a comma separated list.
     /// The lines are toggled after the period elapses, so the initial time period
@@ -62,8 +63,11 @@ pub struct Opts {
     ///      -t 1s,2s,1s,0s
     ///
     /// The first two examples repeat, the third exits after 4s.
-    #[clap(short = 't', long, name="period(s)", parse(try_from_str = parse_duration), group = "mode", group = "seq", verbatim_doc_comment)]
-    toggle: Option<Duration>,
+    ///
+    /// A 0s period elsewhere in the sequence is toggled as fast as possible,
+    /// allowing for any specified --hold-period.
+    #[clap(short = 't', long, name="periods", parse(try_from_str = parse_time_sequence), group = "mode", verbatim_doc_comment)]
+    toggle: Option<TimeSequence>,
     #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -78,13 +82,17 @@ impl Opts {
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
-    let mut setter = Setter::default();
+    let mut setter = Setter {
+        hold_period: opts.hold_period,
+        ..Default::default()
+    };
     setter.request(opts)?;
+    if let Some(ts) = &opts.toggle {
+        return setter.toggle(ts);
+    }
     setter.hold();
     if opts.interactive {
         return setter.interact();
-    } else if let Some(period) = opts.toggle {
-        return setter.toggle(period);
     }
     Ok(())
 }
@@ -106,8 +114,6 @@ struct Setter {
 
 impl Setter {
     fn request(&mut self, opts: &Opts) -> Result<()> {
-        self.hold_period = opts.hold_period;
-
         let line_names: Vec<String> = opts
             .line_values
             .iter()
@@ -171,8 +177,9 @@ impl Setter {
                 Some(x) => Err(anyhow!("Unknown command: {:?}", x)),
             } {
                 println!("{}", err);
+                // clean in case the error leaves dirty lines.
+                self.clean();
             }
-            self.clean();
         }
     }
 
@@ -198,7 +205,10 @@ impl Setter {
                 },
             }
         }
-        self.update()
+        if self.update()? {
+            self.hold();
+        }
+        Ok(())
     }
 
     fn do_sleep(&mut self, duration: Option<&str>) -> Result<()> {
@@ -238,9 +248,12 @@ impl Setter {
         }
         if !have_lines {
             // no lines specified, so toggle all lines
-            self.toggle_values();
+            self.toggle_all_lines();
         }
-        self.update()
+        if self.update()? {
+            self.hold();
+        }
+        Ok(())
     }
 
     fn clean(&mut self) {
@@ -249,39 +262,49 @@ impl Setter {
         }
     }
 
-    fn toggle(&mut self, period: Duration) -> Result<()> {
+    fn toggle(&mut self, ts: &TimeSequence) -> Result<()> {
+        let mut count = 0;
+        let hold_period = self.hold_period.unwrap_or(Duration::ZERO);
         loop {
-            self.toggle_values();
+            sleep(max(ts.0[count], hold_period));
+            count += 1;
+            if count == ts.0.len() - 1 && ts.0[count].is_zero() {
+                return Ok(());
+            }
+            if count == ts.0.len() {
+                count = 0;
+            }
+            self.toggle_all_lines();
             self.update()?;
-            self.clean();
-            sleep(period);
         }
     }
 
-    fn toggle_values(&mut self) {
+    fn toggle_all_lines(&mut self) {
         for line in self.lines.values_mut() {
             line.value = line.value.toggle();
             line.dirty = true;
         }
     }
 
-    fn update(&mut self) -> Result<()> {
+    fn update(&mut self) -> Result<bool> {
+        let mut updated = false;
         for idx in 0..self.chips.len() {
             let chip = &self.chips[idx];
             let mut values = Values::default();
-            for line in self.lines.values() {
+            for line in self.lines.values_mut() {
                 if line.dirty && &line.chip == chip {
                     values.set(line.offset, line.value);
+                    line.dirty = false;
                 }
             }
             if !values.is_empty() {
                 self.requests[idx]
                     .set_values(&values)
                     .context("set failed:")?;
-                self.hold();
+                updated = true;
             }
         }
-        Ok(())
+        Ok(updated)
     }
 }
 
@@ -307,6 +330,17 @@ where
         .find('=')
         .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{}`.", s))?;
     Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
+}
+
+#[derive(Debug)]
+struct TimeSequence(Vec<Duration>);
+
+fn parse_time_sequence(s: &str) -> std::result::Result<TimeSequence, ParseDurationError> {
+    let mut ts = TimeSequence(Vec::new());
+    for period in s.split(',') {
+        ts.0.push(parse_duration(period)?);
+    }
+    Ok(ts)
 }
 
 #[derive(Debug)]
