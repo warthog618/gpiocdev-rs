@@ -76,10 +76,9 @@ Setting multiple lines:
 
 ```rust
     // request multiple output lines
-    let offsets = &[17,22];
     let mut req = Builder::new()
         .on_chip("/dev/gpiochip0")
-        .with_lines(offsets)
+        .with_lines(&[17,22])
         .as_output(Value::Active)
         .request()?;
     // set multiple line values at once
