@@ -20,7 +20,7 @@ Getting a line value:
         .as_input()
         .request()?;
     // get the value
-    let value = req.get_value(23)?;
+    let value = req.value(23)?;
 ```
 
 Setting a line:
@@ -102,7 +102,7 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
         .with_bias(Bias::PullUp)
         .request()?;
     // get the value
-    let value = req.get_value(23)?;
+    let value = req.value(23)?;
 ```
 
 A good starting point to learn more is the [gpiod::request::Builder](https://warthog618.github.io/gpiod-rs/gpiod/request/struct.Builder.html).
