@@ -113,27 +113,26 @@ gpiodctl provides a command line tool to access and control GPIO lines.
 
 This is equivalent to the tools provided by libgpiod, combined into a single tool.
 
-```shell
+```text
 gpiodctl 0.1.0
 A utility to control GPIO lines on Linux GPIO character devices.
 
 USAGE:
-    gpiodctl [FLAGS] <SUBCOMMAND>
+    gpiodctl [OPTIONS] <SUBCOMMAND>
 
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+OPTIONS:
+    -h, --help       Print help information
     -v, --verbose    Provide more detailed error messages
 
 SUBCOMMANDS:
-    detect     Get info for the GPIO chips present on the system
+    detect     Get info about the GPIO chips present on the system
     find       Find a line by name
-    get        Read the values of a set of lines on a chip
-    help       Prints this message or the help of the given subcommand(s)
-    info       Get info for the lines on a chip
-    monitor    Monitor changes in line values
-    set        Set the value of a set of lines on a chip
-    watch      Watch changes to line request and configuration state
+    get        Read the values of lines
+    help       Print this message or the help of the given subcommand(s)
+    info       Get information for lines
+    monitor    Monitor lines for changes in value
+    set        Set the value of lines
+    watch      Watch lines for requests and changes to configuration state
 ```
 
 ## uapi
