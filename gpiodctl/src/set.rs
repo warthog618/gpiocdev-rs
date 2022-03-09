@@ -311,13 +311,15 @@ impl Setter {
 }
 
 fn print_interactive_help() -> Result<()> {
-    let help = "Interactive commands:
+    let help = "COMMANDS:
 
         set <line=value>...
             Update the values of the given requested lines
 
         toggle [line]...
-            Toggle the values of the given lines, or all requested lines if no lines are specified
+            Toggle the values of the given requested lines.
+
+            If no lines are specified then all requested lines are toggled
 
         sleep <period>
             Sleep for the specified period
