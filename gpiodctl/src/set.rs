@@ -170,10 +170,12 @@ impl Setter {
             let mut words = buffer.trim().split_ascii_whitespace();
             if let Err(err) = match words.next() {
                 None => continue,
-                Some("exit") => return Ok(()),
                 Some("set") => self.do_set(words),
                 Some("sleep") => self.do_sleep(words.next()),
                 Some("toggle") => self.do_toggle(words),
+                Some("exit") => return Ok(()),
+                Some("help") => print_interactive_help(),
+                Some("?") => print_interactive_help(),
                 Some(x) => Err(anyhow!("Unknown command: {:?}", x)),
             } {
                 println!("{}", err);
@@ -306,6 +308,28 @@ impl Setter {
         }
         Ok(updated)
     }
+}
+
+fn print_interactive_help() -> Result<()> {
+    let help = "Interactive commands:
+
+        set <line=value>...
+            Update the values of the given requested lines
+
+        toggle [line]...
+            Toggle the values of the given lines, or all requested lines if no lines are specified
+
+        sleep <period>
+            Sleep for the specified period
+
+        help
+            Print this help
+
+        exit
+            Exit the program
+        ";
+    println!("{}", help);
+    Ok(())
 }
 
 #[derive(Debug, Default)]
