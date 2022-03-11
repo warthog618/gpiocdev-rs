@@ -10,11 +10,12 @@ use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use gpiod::line::{Offset, Value, Values};
 use gpiod::request::{Builder, Config, Request};
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 use std::cmp::max;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::thread::sleep;
@@ -157,30 +158,31 @@ impl Setter {
     }
 
     fn interact(&mut self) -> Result<()> {
-        let stdin = io::stdin();
-        let mut handle = stdin.lock();
+        let mut rl = Editor::<()>::new();
         loop {
-            let mut buffer = String::new();
-            print!("gpiodctl-set> ");
-            std::io::stdout().flush().unwrap();
-            if handle.read_line(&mut buffer)? == 0 {
-                // EOF
-                return Ok(());
-            }
-            let mut words = buffer.trim().split_ascii_whitespace();
-            if let Err(err) = match words.next() {
-                None => continue,
-                Some("set") => self.do_set(words),
-                Some("sleep") => self.do_sleep(words.next()),
-                Some("toggle") => self.do_toggle(words),
-                Some("exit") => return Ok(()),
-                Some("help") => print_interactive_help(),
-                Some("?") => print_interactive_help(),
-                Some(x) => Err(anyhow!("Unknown command: {:?}", x)),
-            } {
-                println!("{}", err);
-                // clean in case the error leaves dirty lines.
-                self.clean();
+            let readline = rl.readline("gpiodctl-set> ");
+            match readline {
+                Ok(line) => {
+                    rl.add_history_entry(line.as_str());
+                    let mut words = line.trim().split_ascii_whitespace();
+                    if let Err(err) = match words.next() {
+                        None => continue,
+                        Some("set") => self.do_set(words),
+                        Some("sleep") => self.do_sleep(words.next()),
+                        Some("toggle") => self.do_toggle(words),
+                        Some("exit") => return Ok(()),
+                        Some("help") => print_interactive_help(),
+                        Some("?") => print_interactive_help(),
+                        Some(x) => Err(anyhow!("Unknown command: {:?}", x)),
+                    } {
+                        println!("{}", err);
+                        // clean in case the error leaves dirty lines.
+                        self.clean();
+                    }
+                }
+                Err(ReadlineError::Interrupted) => return Ok(()),
+                Err(ReadlineError::Eof) => return Ok(()),
+                Err(err) => return Err(anyhow!(err)),
             }
         }
     }

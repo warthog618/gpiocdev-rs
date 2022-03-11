@@ -205,7 +205,7 @@ pub struct LineOpts {
     /// If --chip is provided then lines are initially assumed to be offsets, and only
     /// fallback to names if the line does not parse as an offset.
     ///
-    /// With --by-name set the lines are never assumed to be identified by offsets, only names.
+    /// With --by-name set the lines are always identified by name, never as offsets.
     #[clap(short = 'N', long)]
     pub by_name: bool,
 }
