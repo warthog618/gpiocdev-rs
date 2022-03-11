@@ -8,6 +8,7 @@ use super::common::{
 };
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
+use colored::*;
 use gpiod::line::{Offset, Value, Values};
 use gpiod::request::{Builder, Config, Request};
 use rustyline::error::ReadlineError;
@@ -313,26 +314,27 @@ impl Setter {
 }
 
 fn print_interactive_help() -> Result<()> {
-    let help = "COMMANDS:
-
-        set <line=value>...
-            Update the values of the given requested lines
-
-        toggle [line]...
-            Toggle the values of the given requested lines.
-
-            If no lines are specified then all requested lines are toggled
-
-        sleep <period>
-            Sleep for the specified period
-
-        help
-            Print this help
-
-        exit
-            Exit the program
-        ";
-    println!("{}", help);
+    let cmds = [
+        (
+            "set <line=value>...",
+            "Update the values of the given requested lines",
+        ),
+        (
+            "toggle [line]...",
+            "Toggle the values of the given requested lines.\n\
+            If no lines are specified then all requested lines are toggled",
+        ),
+        ("sleep <period>", "Sleep for the specified period"),
+        ("help", "Print this help"),
+        ("exit", "Exit the program"),
+    ];
+    println!("{}", "COMMANDS:".yellow());
+    for (cmd, help) in cmds {
+        print!("\n    {}", cmd.green());
+        for line in help.split('\n') {
+            println!("\n            {}", line);
+        }
+    }
     Ok(())
 }
 
