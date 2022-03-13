@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use gpiod::line::Bias;
-use gpiod::request::Builder;
+use gpiod::request::Request;
 use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request the line as an input
-    let mut req = Builder::new()
+    let mut req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_consumer("set_one")
         .with_line(22)

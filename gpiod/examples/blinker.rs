@@ -4,7 +4,7 @@
 
 use anyhow::Context;
 use gpiod::line::Value;
-use gpiod::request::Builder;
+use gpiod::request::Request;
 use std::result::Result;
 use std::thread::sleep;
 use std::time::Duration;
@@ -12,7 +12,7 @@ use std::time::Duration;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut value = Value::Active;
 
-    let mut req = Builder::new()
+    let mut req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_consumer("blinker")
         .with_line(22)

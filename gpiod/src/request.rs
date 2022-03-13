@@ -1005,6 +1005,11 @@ pub struct Request {
 }
 
 impl Request {
+    /// Start building a new request.
+    pub fn builder() -> Builder {
+        Builder::default()
+    }
+
     /// Get the values for a subset of the requested lines.
     ///
     /// The keys indicate the lines to get.
@@ -1286,6 +1291,7 @@ mod tests {
     use EdgeDetection::*;
     use EventClock::*;
     use Value::*;
+
     #[test]
     fn builder_new() {
         let b = Builder::new();
@@ -2251,5 +2257,16 @@ mod tests {
             // (line 10 has debounce in common with line 4)
             "uAPI ABI v2 supports 10 attrs, configuration requires 13."
         );
+    }
+
+    #[test]
+    fn request_builder() {
+        let b = Request::builder();
+        assert_eq!(b.chip.as_os_str(), "");
+        assert_eq!(b.cfg.num_lines(), 0);
+        assert_eq!(b.consumer.as_os_str(), "");
+        assert_eq!(b.event_buffer_size, 0);
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        assert_eq!(b.cfg.abiv, AbiVersion::V2);
     }
 }
