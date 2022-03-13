@@ -11,17 +11,19 @@ use clap::Parser;
 use colored::*;
 use gpiod::line::{Offset, Value, Values};
 use gpiod::request::{Builder, Config, Request};
+use rustyline::completion::Completer;
+use rustyline::config::CompletionType;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use rustyline_derive::{Helper, Highlighter, Hinter, Validator};
 use std::cmp::max;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
-use std::str::FromStr;
+use std::str::{FromStr, SplitWhitespace};
 use std::thread::sleep;
 use std::time::Duration;
-
 #[derive(Debug, Parser)]
 pub struct Opts {
     /// The line values.
@@ -45,7 +47,7 @@ pub struct Opts {
     drive_opts: DriveOpts,
     /// Set the lines then wait for additional set commands for the requested lines.
     ///
-    /// Use the "help" or "?" command at the interactive prompt to get help for
+    /// Use the "help" command at the interactive prompt to get help for
     /// the supported commands.
     #[clap(short, long, group = "mode")]
     interactive: bool,
@@ -94,7 +96,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     }
     setter.hold();
     if opts.interactive {
-        return setter.interact();
+        setter.interact(opts)?;
     }
     Ok(())
 }
@@ -158,13 +160,26 @@ impl Setter {
         Ok(())
     }
 
-    fn interact(&mut self) -> Result<()> {
-        let mut rl = Editor::<()>::new();
+    fn interact(&mut self, opts: &Opts) -> Result<()> {
+        let helper = InteractiveHelper {
+            line_names: opts
+                .line_values
+                .iter()
+                .map(|(l, _v)| l.to_owned())
+                .collect(),
+        };
+        let config = rustyline::Config::builder()
+            .completion_type(CompletionType::Circular)
+            .auto_add_history(true)
+            .max_history_size(20)
+            .history_ignore_space(true)
+            .build();
+        let mut rl = Editor::with_config(config);
+        rl.set_helper(Some(helper));
         loop {
             let readline = rl.readline("gpiodctl-set> ");
             match readline {
                 Ok(line) => {
-                    rl.add_history_entry(line.as_str());
                     let mut words = line.trim().split_ascii_whitespace();
                     if let Err(err) = match words.next() {
                         None => continue,
@@ -411,3 +426,161 @@ impl fmt::Display for InvalidLineValue {
     }
 }
 impl Error for InvalidLineValue {}
+
+#[derive(Helper, Validator, Hinter, Highlighter)]
+struct InteractiveHelper {
+    line_names: Vec<String>,
+}
+
+impl InteractiveHelper {
+    fn complete_set(&self, line: &str, pos: usize, words: SplitWhitespace) -> (usize, Vec<String>) {
+        let line_values: Vec<&'_ str> = words.collect();
+        if line_values.is_empty() {
+            return (pos, self.line_names.iter().map(|l| l.to_owned()).collect());
+        }
+        let selected: Vec<&'_ str> = line_values
+            .iter()
+            .filter(|lv| lv.contains('='))
+            .map(|lv| &lv[..lv.find('=').unwrap()])
+            .collect();
+        let unselected: Vec<String> = self
+            .line_names
+            .iter()
+            .filter(|l| !selected.contains(&l.as_str()))
+            .map(|l| l.to_owned())
+            .collect();
+        if line.len() != line.trim_end().len() {
+            return (pos, unselected.iter().map(|l| l.to_owned()).collect());
+        }
+        let line_value = line_values.last().unwrap();
+        match line_value.split_once("=") {
+            Some((_, value)) => {
+                const VALUES: [&str; 8] =
+                    ["active", "inactive", "on", "off", "true", "false", "1", "0"];
+                (
+                    pos - value.len(),
+                    VALUES
+                        .iter()
+                        .filter(|v| v.starts_with(value))
+                        .map(|v| String::from(*v))
+                        .collect(),
+                )
+            }
+            None => {
+                let part_name = line_value;
+                (
+                    pos - part_name.len(),
+                    unselected
+                        .iter()
+                        .filter(|l| l.starts_with(part_name))
+                        .map(|l| l.to_owned())
+                        .collect(),
+                )
+            }
+        }
+    }
+
+    fn complete_sleep(
+        &self,
+        line: &str,
+        pos: usize,
+        words: SplitWhitespace,
+    ) -> (usize, Vec<String>) {
+        const MULTIPLIERS: [&str; 4] = ["", "m", "u", "n"];
+        let times: Vec<&'_ str> = words.collect();
+        let candidates = match times.len() {
+            0 => MULTIPLIERS.iter().map(|u| format!("1{}s", u)).collect(),
+            1 => {
+                let t = times[0];
+                match t.find(|c: char| !c.is_ascii_digit()) {
+                    Some(n) => {
+                        let (_num, units) = t.split_at(n);
+                        MULTIPLIERS
+                            .iter()
+                            .filter(|u| units == **u)
+                            .map(|_| String::from("s"))
+                            .collect()
+                    }
+                    None => {
+                        if line.len() > pos && line[pos..].starts_with('s') {
+                            MULTIPLIERS
+                                .iter()
+                                .filter(|u| !u.is_empty())
+                                .map(|u| String::from(*u))
+                                .collect()
+                        } else {
+                            MULTIPLIERS.iter().map(|u| format!("{}s", u)).collect()
+                        }
+                    }
+                }
+            }
+            _ => vec![],
+        };
+        (pos, candidates)
+    }
+
+    fn complete_toggle(
+        &self,
+        line: &str,
+        pos: usize,
+        words: SplitWhitespace,
+    ) -> (usize, Vec<String>) {
+        let selected: Vec<&'_ str> = words.collect();
+        let unselected = self
+            .line_names
+            .iter()
+            .filter(|l| !selected.contains(&l.as_str()))
+            .map(|l| l.to_owned())
+            .collect();
+        if line.len() != line.trim_end().len() {
+            (pos, unselected)
+        } else {
+            let part_word = selected.last().unwrap();
+            (
+                pos - part_word.len(),
+                unselected
+                    .iter()
+                    .filter(|l| l.starts_with(part_word))
+                    .map(|l| l.to_owned())
+                    .collect(),
+            )
+        }
+    }
+}
+
+impl Completer for InteractiveHelper {
+    type Candidate = String;
+
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        _ctx: &rustyline::Context<'_>,
+    ) -> Result<(usize, Vec<String>), ReadlineError> {
+        const CMD_SET: [&str; 5] = ["set", "toggle", "sleep", "help", "exit"];
+        let cmd_pos = line.len() - line.trim_start().len();
+        let mut words = line[..pos].trim_start().split_whitespace();
+        Ok(match words.next() {
+            Some(cmd) => {
+                if line.len() > cmd.len() + cmd_pos {
+                    match cmd {
+                        "set" => self.complete_set(line, pos, words),
+                        "sleep" => self.complete_sleep(line, pos, words),
+                        "toggle" => self.complete_toggle(line, pos, words),
+                        _ => (cmd_pos, vec![]),
+                    }
+                } else {
+                    (
+                        cmd_pos,
+                        CMD_SET
+                            .iter()
+                            .filter(|x| x.starts_with(cmd))
+                            .map(|c| String::from(*c))
+                            .collect(),
+                    )
+                }
+            }
+            None => (cmd_pos, CMD_SET.iter().map(|c| String::from(*c)).collect()),
+        })
+    }
+}
