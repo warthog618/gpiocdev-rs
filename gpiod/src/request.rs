@@ -19,6 +19,7 @@ use gpiod_uapi::NUM_LINES_MAX;
 #[cfg(feature = "uapi_v2")]
 use gpiod_uapi::{v2, v2 as uapi};
 use nohash_hasher::IntMap;
+use std::cmp::max;
 #[cfg(feature = "uapi_v2")]
 use std::collections::HashMap;
 use std::fs::File;
@@ -90,7 +91,8 @@ pub struct Builder {
     chip: PathBuf,
     cfg: Config,
     consumer: Name,
-    event_buffer_size: u32,
+    kernel_event_buffer_size: u32,
+    user_event_buffer_size: usize,
 }
 
 fn default_consumer() -> Name {
@@ -157,6 +159,7 @@ impl Builder {
         Request {
             f,
             cfg: self.cfg.clone(),
+            user_event_buffer_size: max(self.user_event_buffer_size, 1),
         }
     }
 
@@ -197,8 +200,28 @@ impl Builder {
     /// The default size is 16 times the number of lines in the request.  The kernel
     /// The default size is typically sufficient unless the hardware may generate bursts of events
     /// faster than the application can deal with them.
-    pub fn with_event_buffer_size(&mut self, event_buffer_size: u32) -> &mut Self {
-        self.event_buffer_size = event_buffer_size;
+    ///
+    /// Altering the buffer size does NOT effect latency.
+    /// Buffering is provided to reduce the chance of event loss if user space is slow
+    /// servicing events.
+    /// In all cases the events are provided to user space as fast as user space allows.
+    pub fn with_kernel_event_buffer_size(&mut self, event_buffer_size: u32) -> &mut Self {
+        self.kernel_event_buffer_size = event_buffer_size;
+        self
+    }
+
+    /// Set the event buffer size for edge events buffered in user space.
+    ///
+    /// This method is only required in unusual circumstances.
+    ///
+    /// The size defines the number of events that may be buffered in user space by the events()
+    /// iterator.  The user space buffer is a performance optimisation to reduve the number of
+    /// kernel calls required to read events.
+    ///
+    /// Altering the buffer size does NOT effect latency.
+    /// In all cases the events are provided to user space as fast as user space allows.
+    pub fn with_user_event_buffer_size(&mut self, event_buffer_size: usize) -> &mut Self {
+        self.user_event_buffer_size = event_buffer_size;
         self
     }
 
@@ -392,7 +415,7 @@ impl Builder {
 
     #[cfg(feature = "uapi_v1")]
     fn to_v1(&self) -> Result<UapiRequest> {
-        if self.event_buffer_size != 0 {
+        if self.kernel_event_buffer_size != 0 {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
                 "does not support setting event buffer size".to_string(),
@@ -452,7 +475,7 @@ impl Builder {
         Ok(UapiRequest::Line(v2::LineRequest {
             offsets: v2::Offsets::from_slice(&self.cfg.offsets),
             consumer,
-            event_buffer_size: self.event_buffer_size,
+            event_buffer_size: self.kernel_event_buffer_size,
             num_lines: self.cfg.offsets.len() as u32,
             config: self.cfg.to_v2()?,
             ..Default::default()
@@ -956,7 +979,7 @@ impl Config {
 type LineSet = Bitmap<64>;
 
 /// An iterator over the currently selected lines in a Config.
-// This is strictly internal as external usage could invalidate the satefy contract.
+// This is strictly internal as external usage could invalidate the safety contract.
 struct SelectedIterator<'a> {
     // the config being iterated over.
     cfg: &'a mut Config,
@@ -1002,6 +1025,7 @@ pub struct Request {
     // some reference to the chip??
     f: File,
     cfg: Config,
+    user_event_buffer_size: usize,
 }
 
 impl Request {
@@ -1130,6 +1154,12 @@ impl Request {
             .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
     }
 
+    /// An iterator for events from the request.
+    pub fn events(&mut self) -> Result<EdgeEventIterator> {
+        let buf = self.new_edge_event_buffer(self.user_event_buffer_size);
+        Ok(EdgeEventIterator { req: self, buf })
+    }
+
     /// Returns true when the request has edge events available to read.
     pub fn has_edge_event(&mut self) -> Result<bool> {
         gpiod_uapi::has_event(&mut self.f).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
@@ -1225,6 +1255,20 @@ impl Read for Request {
     }
 }
 
+pub struct EdgeEventIterator<'a> {
+    req: &'a mut Request,
+    buf: EdgeEventBuffer,
+}
+
+impl<'a> Iterator for EdgeEventIterator<'a> {
+    type Item = Result<EdgeEvent>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        println!("iter next");
+        Some(self.buf.read_event(self.req))
+    }
+}
+
 /// A helper for reading edge events from a [`Request`].
 ///
 /// Reads edge events from the kernel in bulk, where possible, while providing them
@@ -1298,7 +1342,8 @@ mod tests {
         assert_eq!(b.chip.as_os_str(), "");
         assert_eq!(b.cfg.num_lines(), 0);
         assert_eq!(b.consumer.as_os_str(), "");
-        assert_eq!(b.event_buffer_size, 0);
+        assert_eq!(b.kernel_event_buffer_size, 0);
+        assert_eq!(b.user_event_buffer_size, 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         assert_eq!(b.cfg.abiv, AbiVersion::V2);
     }
@@ -1341,11 +1386,18 @@ mod tests {
         assert_eq!(b.consumer.as_os_str(), "builder test");
     }
     #[test]
-    fn builder_with_event_buffer_size() {
+    fn builder_with_kernel_event_buffer_size() {
         let mut b = Builder::new();
-        assert_eq!(b.event_buffer_size, 0);
-        b.with_event_buffer_size(42);
-        assert_eq!(b.event_buffer_size, 42);
+        assert_eq!(b.kernel_event_buffer_size, 0);
+        b.with_kernel_event_buffer_size(42);
+        assert_eq!(b.kernel_event_buffer_size, 42);
+    }
+    #[test]
+    fn builder_with_user_event_buffer_size() {
+        let mut b = Builder::new();
+        assert_eq!(b.user_event_buffer_size, 0);
+        b.with_user_event_buffer_size(67);
+        assert_eq!(b.user_event_buffer_size, 67);
     }
     #[test]
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -1622,7 +1674,7 @@ mod tests {
 
         let mut b = Builder::new();
         assert_eq!(
-            b.with_event_buffer_size(42)
+            b.with_kernel_event_buffer_size(42)
                 .with_lines(&[1, 8, 4])
                 .as_input()
                 .to_v1()
@@ -1680,7 +1732,7 @@ mod tests {
     fn builder_to_v2() {
         let mut b = Builder::new();
         b.with_consumer("test builder")
-            .with_event_buffer_size(42)
+            .with_kernel_event_buffer_size(42)
             .with_lines(&[1, 8, 4])
             .with_edge_detection(RisingEdge)
             .with_event_clock(EventClock::Realtime);
@@ -2265,7 +2317,8 @@ mod tests {
         assert_eq!(b.chip.as_os_str(), "");
         assert_eq!(b.cfg.num_lines(), 0);
         assert_eq!(b.consumer.as_os_str(), "");
-        assert_eq!(b.event_buffer_size, 0);
+        assert_eq!(b.kernel_event_buffer_size, 0);
+        assert_eq!(b.user_event_buffer_size, 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         assert_eq!(b.cfg.abiv, AbiVersion::V2);
     }
