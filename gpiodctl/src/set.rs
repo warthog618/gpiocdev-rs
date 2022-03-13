@@ -11,7 +11,7 @@ use clap::Parser;
 use colored::*;
 use gpiod::line::{Offset, Value, Values};
 use gpiod::request::{Builder, Config, Request};
-use rustyline::completion::Completer;
+use rustyline::completion::{Completer, Pair};
 use rustyline::config::CompletionType;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -169,7 +169,7 @@ impl Setter {
                 .collect(),
         };
         let config = rustyline::Config::builder()
-            .completion_type(CompletionType::Circular)
+            .completion_type(CompletionType::List)
             .auto_add_history(true)
             .max_history_size(20)
             .history_ignore_space(true)
@@ -433,90 +433,80 @@ struct InteractiveHelper {
 }
 
 impl InteractiveHelper {
-    fn complete_set(&self, line: &str, pos: usize, words: SplitWhitespace) -> (usize, Vec<String>) {
+    fn complete_set(&self, line: &str, pos: usize, words: SplitWhitespace) -> (usize, Vec<Pair>) {
+        let mut candidates = Vec::new();
         let line_values: Vec<&'_ str> = words.collect();
         if line_values.is_empty() {
-            return (pos, self.line_names.iter().map(|l| l.to_owned()).collect());
+            for display in self.line_names.iter() {
+                candidates.push(line_value_pair(display))
+            }
+            return (pos, candidates);
         }
         let selected: Vec<&'_ str> = line_values
             .iter()
             .filter(|lv| lv.contains('='))
             .map(|lv| &lv[..lv.find('=').unwrap()])
             .collect();
-        let unselected: Vec<String> = self
+        let unselected = self
             .line_names
             .iter()
-            .filter(|l| !selected.contains(&l.as_str()))
-            .map(|l| l.to_owned())
-            .collect();
+            .filter(|l| !selected.contains(&l.as_str()));
         if line.len() != line.trim_end().len() {
-            return (pos, unselected.iter().map(|l| l.to_owned()).collect());
+            for display in unselected {
+                candidates.push(line_value_pair(display));
+            }
+            return (pos, candidates);
         }
         let line_value = line_values.last().unwrap();
+        let mut vpos = pos;
         match line_value.split_once("=") {
             Some((_, value)) => {
                 const VALUES: [&str; 8] =
                     ["active", "inactive", "on", "off", "true", "false", "1", "0"];
-                (
-                    pos - value.len(),
-                    VALUES
-                        .iter()
-                        .filter(|v| v.starts_with(value))
-                        .map(|v| String::from(*v))
-                        .collect(),
-                )
+                vpos -= value.len();
+                for display in VALUES.iter().filter(|v| v.starts_with(value)) {
+                    candidates.push(word_pair(display))
+                }
             }
             None => {
                 let part_name = line_value;
-                (
-                    pos - part_name.len(),
-                    unselected
-                        .iter()
-                        .filter(|l| l.starts_with(part_name))
-                        .map(|l| l.to_owned())
-                        .collect(),
-                )
+                vpos -= part_name.len();
+                for display in unselected.filter(|l| l.starts_with(part_name)) {
+                    candidates.push(line_value_pair(display))
+                }
             }
         }
+        (vpos, candidates)
     }
 
     fn complete_sleep(
         &self,
-        line: &str,
+        _line: &str,
         pos: usize,
         words: SplitWhitespace,
-    ) -> (usize, Vec<String>) {
-        const MULTIPLIERS: [&str; 4] = ["", "m", "u", "n"];
+    ) -> (usize, Vec<Pair>) {
+        const UNITS: [&str; 4] = ["s", "ms", "us", "ns"];
+        let mut candidates = Vec::new();
+        let mut upos = pos;
         let times: Vec<&'_ str> = words.collect();
-        let candidates = match times.len() {
-            0 => MULTIPLIERS.iter().map(|u| format!("1{}s", u)).collect(),
-            1 => {
-                let t = times[0];
-                match t.find(|c: char| !c.is_ascii_digit()) {
-                    Some(n) => {
-                        let (_num, units) = t.split_at(n);
-                        MULTIPLIERS
-                            .iter()
-                            .filter(|u| units == **u)
-                            .map(|_| String::from("s"))
-                            .collect()
+        if times.len() == 1 {
+            let t = times[0];
+            match t.find(|c: char| !c.is_ascii_digit()) {
+                Some(n) => {
+                    let (_num, units) = t.split_at(n);
+                    upos -= units.len();
+                    for display in UNITS.iter().filter(|u| u.starts_with(units)) {
+                        candidates.push(bare_pair(display))
                     }
-                    None => {
-                        if line.len() > pos && line[pos..].starts_with('s') {
-                            MULTIPLIERS
-                                .iter()
-                                .filter(|u| !u.is_empty())
-                                .map(|u| String::from(*u))
-                                .collect()
-                        } else {
-                            MULTIPLIERS.iter().map(|u| format!("{}s", u)).collect()
-                        }
+                }
+                None => {
+                    for display in UNITS.iter() {
+                        candidates.push(bare_pair(display))
                     }
                 }
             }
-            _ => vec![],
-        };
-        (pos, candidates)
+        }
+        (upos, candidates)
     }
 
     fn complete_toggle(
@@ -524,63 +514,117 @@ impl InteractiveHelper {
         line: &str,
         pos: usize,
         words: SplitWhitespace,
-    ) -> (usize, Vec<String>) {
+    ) -> (usize, Vec<Pair>) {
+        let mut candidates = Vec::new();
         let selected: Vec<&'_ str> = words.collect();
         let unselected = self
             .line_names
             .iter()
-            .filter(|l| !selected.contains(&l.as_str()))
-            .map(|l| l.to_owned())
-            .collect();
+            .filter(|l| !selected.contains(&l.as_str()));
+        let mut lpos = pos;
         if line.len() != line.trim_end().len() {
-            (pos, unselected)
+            for display in unselected {
+                candidates.push(word_pair(display))
+            }
         } else {
-            let part_word = selected.last().unwrap();
-            (
-                pos - part_word.len(),
-                unselected
-                    .iter()
-                    .filter(|l| l.starts_with(part_word))
-                    .map(|l| l.to_owned())
-                    .collect(),
-            )
+            let part_word = String::from(*selected.last().unwrap());
+            if self.line_names.contains(&part_word) {
+                for display in unselected {
+                    candidates.push(prespace_word_pair(display))
+                }
+            } else {
+                lpos -= part_word.len();
+                for display in unselected.filter(|l| l.starts_with(&part_word)) {
+                    candidates.push(word_pair(display))
+                }
+            }
         }
+        (lpos, candidates)
     }
 }
 
 impl Completer for InteractiveHelper {
-    type Candidate = String;
+    type Candidate = Pair;
 
     fn complete(
         &self,
         line: &str,
         pos: usize,
         _ctx: &rustyline::Context<'_>,
-    ) -> Result<(usize, Vec<String>), ReadlineError> {
-        const CMD_SET: [&str; 5] = ["set", "toggle", "sleep", "help", "exit"];
+    ) -> Result<(usize, Vec<Pair>), ReadlineError> {
+        const CMD_SET: [&str; 5] = ["exit", "help", "set ", "sleep ", "toggle "];
         let cmd_pos = line.len() - line.trim_start().len();
         let mut words = line[..pos].trim_start().split_whitespace();
-        Ok(match words.next() {
+        let mut candidates = Vec::new();
+        match words.next() {
             Some(cmd) => {
                 if line.len() > cmd.len() + cmd_pos {
-                    match cmd {
+                    return Ok(match cmd {
                         "set" => self.complete_set(line, pos, words),
                         "sleep" => self.complete_sleep(line, pos, words),
                         "toggle" => self.complete_toggle(line, pos, words),
                         _ => (cmd_pos, vec![]),
-                    }
+                    });
                 } else {
-                    (
-                        cmd_pos,
-                        CMD_SET
-                            .iter()
-                            .filter(|x| x.starts_with(cmd))
-                            .map(|c| String::from(*c))
-                            .collect(),
-                    )
+                    for display in CMD_SET.iter().filter(|x| x.starts_with(cmd)) {
+                        candidates.push(cmd_pair(display))
+                    }
                 }
             }
-            None => (cmd_pos, CMD_SET.iter().map(|c| String::from(*c)).collect()),
-        })
+            None => {
+                for display in CMD_SET.iter() {
+                    candidates.push(cmd_pair(display))
+                }
+            }
+        }
+        Ok((0, candidates))
+    }
+}
+
+fn cmd_pair(candidate: &str) -> Pair {
+    let replacement = String::from(candidate);
+    let display = String::from(candidate.trim_end());
+    Pair {
+        display,
+        replacement,
+    }
+}
+
+fn prespace_word_pair(candidate: &str) -> Pair {
+    let display = String::from(candidate);
+    let mut replacement = String::from(' ');
+    replacement.push_str(candidate);
+    Pair {
+        display,
+        replacement,
+    }
+}
+
+fn word_pair(candidate: &str) -> Pair {
+    let display = String::from(candidate);
+    let mut replacement = display.clone();
+    replacement.push(' ');
+    Pair {
+        display,
+        replacement,
+    }
+}
+
+fn line_value_pair(candidate: &str) -> Pair {
+    let display = String::from(candidate);
+    let mut replacement = display.clone();
+    replacement.push('=');
+    Pair {
+        display,
+        replacement,
+    }
+}
+
+fn bare_pair(candidate: &str) -> Pair {
+    let display = String::from(candidate);
+    let replacement = display.clone();
+    Pair {
+        display,
+        replacement,
     }
 }
