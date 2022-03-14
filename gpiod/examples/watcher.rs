@@ -20,8 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         println!("{:?}", buf.read_event()?);
     }
-    /*
-    for event in req.events()? {
+    /* iterator version
+    for event in req.edge_events()? {
         println!("{:?}", event?);
     }
     Ok(())

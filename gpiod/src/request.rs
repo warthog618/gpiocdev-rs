@@ -1168,7 +1168,7 @@ impl Request {
     }
 
     /// An iterator for events from the request.
-    pub fn events(&self) -> Result<EdgeEventBuffer> {
+    pub fn edge_events(&self) -> Result<EdgeEventBuffer> {
         Ok(self.new_edge_event_buffer(self.user_event_buffer_size))
     }
 
@@ -1187,6 +1187,16 @@ impl Request {
     pub fn wait_edge_event(&self, timeout: Duration) -> Result<bool> {
         gpiod_uapi::wait_event(self.fd, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
+    }
+
+    /// Read a single edge event from the request.
+    ///
+    /// Will block until an edge event is available.
+    pub fn read_edge_event(&self) -> Result<EdgeEvent> {
+        let mut buf = Vec::with_capacity(self.edge_event_size());
+        buf.resize(buf.capacity(), 0);
+        self.read_event(&mut buf)?;
+        self.do_edge_event_from_buf(&buf)
     }
 
     /// Read an edge event from a buffer.
@@ -1266,14 +1276,6 @@ impl Request {
         }
     }
 }
-impl Read for Request {
-    // This will read in v1:LineEdgeEvent or v2::LineEdgeEvent sized chunks so buf must be at least
-    // as large as one event.
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.f.lock().unwrap().read(buf)
-    }
-}
-
 /// A helper for reading edge events from a [`Request`].
 ///
 /// Reads edge events from the kernel in bulk, where possible, while providing them
