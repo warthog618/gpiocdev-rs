@@ -5,7 +5,6 @@
 use super::common::{chip_from_opts, find_lines, LineOpts, UapiOpts};
 use anyhow::{Context, Result};
 use clap::Parser;
-use std::io::Read;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
@@ -28,7 +27,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     }
     // needs multi-threading or async - so will come back to this...
     //    for chip in &chips { ...
-    let mut chip = chip_from_opts(&chips[0], opts.uapi_opts.abiv)?;
+    let chip = chip_from_opts(&chips[0], opts.uapi_opts.abiv)?;
 
     for offset in lines
         .values()
@@ -39,14 +38,8 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             .context("Failed to watch lines.")?;
     }
 
-    let mut buf = Vec::with_capacity(chip.line_info_change_event_size());
-    buf.resize(buf.capacity(), 0);
-    loop {
-        let n = chip.read(&mut buf)?;
-        assert_eq!(n, chip.line_info_change_event_size());
-        let change = chip
-            .line_info_change_event_from_buf(&buf)
-            .context("Failed to read event.")?;
-        println!("{:?}", change);
+    for change in chip.info_change_events()? {
+        println!("{:?}", change?);
     }
+    Ok(())
 }

@@ -15,10 +15,12 @@ use gpiod_uapi::v2 as uapi;
 use gpiod_uapi::{v1, v2};
 use std::fmt;
 use std::fs;
+use std::io::Read;
 use std::mem::size_of;
 use std::os::linux::fs::MetadataExt;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 const CHARDEV_MODE: u32 = 0x2000;
@@ -67,7 +69,7 @@ pub fn chips() -> Result<Vec<PathBuf>> {
 pub struct Chip {
     /// The resolved path of the GPIO character device.
     path: PathBuf,
-    pub(crate) f: fs::File,
+    pub(crate) f: Arc<Mutex<fs::File>>,
     pub(crate) fd: RawFd,
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     abiv: AbiVersion,
@@ -83,7 +85,7 @@ impl Chip {
         let fd = f.as_raw_fd();
         Ok(Chip {
             path,
-            f,
+            f: Arc::new(Mutex::new(f)),
             fd,
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             abiv: V2,
@@ -183,6 +185,28 @@ impl Chip {
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
     }
 
+    /// Read a single line info change event from the chip.
+    ///
+    /// Will block until an edge event is available.
+    pub fn read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
+        let mut buf = Vec::with_capacity(self.line_info_change_event_size());
+        buf.resize(buf.capacity(), 0);
+        let n = self.f.lock().unwrap().read(&mut buf)?;
+        assert_eq!(n, self.line_info_change_event_size());
+        self.line_info_change_event_from_buf(&buf)
+    }
+
+    /// An iterator for info change events from the chip.
+    pub fn info_change_events(&self) -> Result<InfoChangeIterator> {
+        let event_size = self.line_info_change_event_size();
+        let mut buf = Vec::with_capacity(event_size);
+        buf.resize(buf.capacity(), 0);
+        Ok(InfoChangeIterator {
+            chip: self,
+            event_size,
+            buf,
+        })
+    }
     /// Detect the most recent uAPI ABI supported by the library for the chip.
     pub fn detect_abi_version(&self) -> Result<AbiVersion> {
         // check in preferred order
@@ -240,14 +264,8 @@ impl Chip {
         self
     }
 
-    /// Read an InfoChangeEvent from a buffer.
-    ///
-    /// Assumes the buffer has been previously populated by a call to read on the request.
-    pub fn line_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
-        self.do_line_info_change_event_from_buf(d)
-    }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_line_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
+    fn line_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
         match self.abiv {
             V1 => Ok(InfoChangeEvent::from(
                 v1::LineInfoChangeEvent::from_buf(d)
@@ -260,40 +278,25 @@ impl Chip {
         }
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    fn do_line_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
+    fn line_info_change_event_from_buf(&self, d: &[u8]) -> Result<InfoChangeEvent> {
         Ok(InfoChangeEvent::from(
             uapi::LineInfoChangeEvent::from_buf(d)
                 .map_err(|e| Error::UapiError(UapiCall::LICEFromBuf, e))?,
         ))
     }
 
-    /// The number of bytes required to buffer a single event read from the chip.
-    ///
-    /// This can be used to size a [u8] buffer to read events into - the buffer size
-    /// should be a multiple of this size.
-    pub fn line_info_change_event_size(&self) -> usize {
-        self.do_line_info_change_event_size()
-    }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_line_info_change_event_size(&self) -> usize {
+    fn line_info_change_event_size(&self) -> usize {
         match self.abiv {
             V1 => size_of::<v1::LineInfoChangeEvent>(),
             V2 => size_of::<v2::LineInfoChangeEvent>(),
         }
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    fn do_line_info_change_event_size(&self) -> usize {
+    fn line_info_change_event_size(&self) -> usize {
         size_of::<uapi::LineInfoChangeEvent>()
     }
 }
-impl std::io::Read for Chip {
-    // This will read in v1::LineChangedEvent or v2:LineChangedEvent sized chunks
-    // so buf must be at least as large as one event.
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.f.read(buf)
-    }
-}
-
 /// The publicly available information for a GPIO chip.
 pub struct Info {
     /// The system name for the chip, such as "*gpiochip0*".
@@ -312,6 +315,33 @@ impl From<uapi::ChipInfo> for Info {
             label: Name::from(&ci.label),
             num_lines: ci.num_lines,
         }
+    }
+}
+
+/// An iterator for reading info change events from a [`Chip`].
+///
+/// Blocks until events are available.
+pub struct InfoChangeIterator<'a> {
+    chip: &'a Chip,
+    /// The size of an individual edge event stored in the buffer.
+    event_size: usize,
+    /// The buffer for uAPI edge events, sized by event size and capacity
+    buf: Vec<u8>,
+}
+
+impl<'a> InfoChangeIterator<'a> {
+    fn read_event(&mut self) -> Result<InfoChangeEvent> {
+        let n = self.chip.f.lock().unwrap().read(&mut self.buf)?;
+        assert!(n == self.event_size);
+        self.chip.line_info_change_event_from_buf(&self.buf)
+    }
+}
+
+impl<'a> Iterator for InfoChangeIterator<'a> {
+    type Item = Result<InfoChangeEvent>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.read_event())
     }
 }
 
