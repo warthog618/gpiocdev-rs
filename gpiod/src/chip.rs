@@ -174,12 +174,12 @@ impl Chip {
 
     /// Check if the request has at least one info change event available to read.
     pub fn has_line_info_change_event(&self) -> Result<bool> {
-        gpiod_uapi::has_event(&self.f).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
+        gpiod_uapi::has_event(self.fd).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
     }
 
     /// Wait for an info change event to be available.
     pub fn wait_line_info_change_event(&self, timeout: Duration) -> Result<bool> {
-        gpiod_uapi::wait_event(&self.f, timeout)
+        gpiod_uapi::wait_event(self.fd, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
     }
 

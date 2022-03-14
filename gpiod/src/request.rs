@@ -27,7 +27,9 @@ use std::io::Read;
 use std::mem::size_of;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
 /// A builder of line requests.
 ///
 /// Most mutators operate on the request configuration as per the [`Config`].
@@ -161,7 +163,7 @@ impl Builder {
     fn to_request(&self, f: File) -> Request {
         let fd = f.as_raw_fd();
         Request {
-            f,
+            f: Arc::new(Mutex::new(f)),
             fd,
             offsets: self.cfg.offsets.clone(),
             cfg: self.cfg.clone(),
@@ -842,6 +844,7 @@ impl Config {
     fn overlay(&self, top: &Config) -> Config {
         let mut cfg = Config {
             base: top.base.clone(),
+            offsets: self.offsets.clone(),
             ..Default::default()
         };
         for offset in &self.offsets {
@@ -1026,8 +1029,9 @@ impl<'a> Iterator for SelectedIterator<'a> {
 
 /// An active request of a set of lines.
 pub struct Request {
-    f: File,
-    // Cached copy of f.as_raw_fd() for ioctl calls, to avoid Arc<RWLock<>> overheads for most ops.
+    /// The request file, as returned by chip.get_line.
+    f: Arc<Mutex<File>>,
+    /// Cached copy of f.as_raw_fd() for ioctl calls, to avoid Arc<Mutex<>> overheads for most ops.
     fd: RawFd,
     offsets: Vec<Offset>,
     cfg: Config,
@@ -1164,19 +1168,24 @@ impl Request {
     }
 
     /// An iterator for events from the request.
-    pub fn events(&mut self) -> Result<EdgeEventIterator> {
-        let buf = self.new_edge_event_buffer(self.user_event_buffer_size);
-        Ok(EdgeEventIterator { req: self, buf })
+    pub fn events(&self) -> Result<EdgeEventBuffer> {
+        Ok(self.new_edge_event_buffer(self.user_event_buffer_size))
+    }
+
+    // This will read in v1:LineEdgeEvent or v2::LineEdgeEvent sized chunks so buf must be at least
+    // as large as one event.
+    fn read_event(&self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.f.lock().unwrap().read(buf)
     }
 
     /// Returns true when the request has edge events available to read.
     pub fn has_edge_event(&self) -> Result<bool> {
-        gpiod_uapi::has_event(&self.f).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
+        gpiod_uapi::has_event(self.fd).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
     }
 
     /// Wait for an edge event to be available.
     pub fn wait_edge_event(&self, timeout: Duration) -> Result<bool> {
-        gpiod_uapi::wait_event(&self.f, timeout)
+        gpiod_uapi::wait_event(self.fd, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
     }
 
@@ -1249,6 +1258,7 @@ impl Request {
         let mut buf = Vec::with_capacity(capacity * event_size);
         buf.resize(buf.capacity(), 0);
         EdgeEventBuffer {
+            req: self,
             event_size,
             filled: 0,
             read: 0,
@@ -1260,21 +1270,7 @@ impl Read for Request {
     // This will read in v1:LineEdgeEvent or v2::LineEdgeEvent sized chunks so buf must be at least
     // as large as one event.
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.f.read(buf)
-    }
-}
-
-pub struct EdgeEventIterator<'a> {
-    req: &'a mut Request,
-    buf: EdgeEventBuffer,
-}
-
-impl<'a> Iterator for EdgeEventIterator<'a> {
-    type Item = Result<EdgeEvent>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        println!("iter next");
-        Some(self.buf.read_event(self.req))
+        self.f.lock().unwrap().read(buf)
     }
 }
 
@@ -1282,7 +1278,8 @@ impl<'a> Iterator for EdgeEventIterator<'a> {
 ///
 /// Reads edge events from the kernel in bulk, where possible, while providing them
 /// serially to the caller.
-pub struct EdgeEventBuffer {
+pub struct EdgeEventBuffer<'a> {
+    req: &'a Request,
     /// The size of an individual edge event stored in the buffer.
     event_size: usize,
     /// The number of bytes currently written into the buffer
@@ -1293,13 +1290,13 @@ pub struct EdgeEventBuffer {
     buf: Vec<u8>,
 }
 
-impl EdgeEventBuffer {
+impl<'a> EdgeEventBuffer<'a> {
     /// Returns true when either the buffer, or the request, has edge events available to read.
-    pub fn has_event(&mut self, req: &mut Request) -> Result<bool> {
+    pub fn has_event(&mut self) -> Result<bool> {
         if self.read < self.filled {
             return Ok(true);
         }
-        req.has_edge_event()
+        self.req.has_edge_event()
     }
     /// Returns the next event from the buffer.
     ///
@@ -1309,32 +1306,41 @@ impl EdgeEventBuffer {
     ///
     /// [`has_event`]: #method.has_event
     /// [`wait_event`]: #method.wait_event
-    pub fn read_event(&mut self, req: &mut Request) -> Result<EdgeEvent> {
+    pub fn read_event(&mut self) -> Result<EdgeEvent> {
         if self.read < self.filled {
             let evt_end = self.read + self.event_size;
             let evt = &self.buf[self.read..evt_end];
             self.read = evt_end;
-            return req.edge_event_from_buf(evt);
+            return self.req.edge_event_from_buf(evt);
         }
         self.read = 0;
         self.filled = 0;
-        let n = req.read(&mut self.buf)?;
+        let n = self.req.read_event(&mut self.buf)?;
         // Could turn these into run-time errors, but they should never happen
         // so make them asserts to keep it simple.
         assert!(n > 0);
         assert_eq!(n % self.event_size, 0);
         self.filled = n;
         self.read = self.event_size;
-        req.edge_event_from_buf(&self.buf[0..self.event_size])
+        self.req.edge_event_from_buf(&self.buf[0..self.event_size])
     }
     /// Wait for an edge event from the request.
     ///
     /// * `timeout` - The maximum time to wait for an event.
-    pub fn wait_event(&mut self, req: &mut Request, timeout: Duration) -> Result<EdgeEvent> {
-        req.wait_edge_event(timeout)?;
-        self.read_event(req)
+    pub fn wait_event(&mut self, timeout: Duration) -> Result<EdgeEvent> {
+        self.req.wait_edge_event(timeout)?;
+        self.read_event()
     }
 }
+
+impl<'a> Iterator for EdgeEventBuffer<'a> {
+    type Item = Result<EdgeEvent>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.read_event())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

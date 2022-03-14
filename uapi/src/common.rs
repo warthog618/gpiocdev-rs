@@ -4,23 +4,22 @@
 
 use libc::{c_long, ioctl, pollfd, ppoll, sigset_t, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
-use std::fs::File;
 use std::io::Error as IoError;
 use std::mem::{size_of, MaybeUninit};
-use std::os::unix::prelude::{AsRawFd, OsStrExt, RawFd};
+use std::os::unix::prelude::{OsStrExt, RawFd};
 use std::ptr::null;
 use std::slice;
 use std::time::Duration;
 
 /// Check if the file has an event available to read.
-pub fn has_event(f: &File) -> Result<bool> {
-    wait_event(f, Duration::ZERO)
+pub fn has_event(fd: RawFd) -> Result<bool> {
+    wait_event(fd, Duration::ZERO)
 }
 
 /// Wait for the file to have an event available to read.
-pub fn wait_event(f: &File, d: Duration) -> Result<bool> {
+pub fn wait_event(fd: RawFd, d: Duration) -> Result<bool> {
     let mut pfd = pollfd {
-        fd: f.as_raw_fd(),
+        fd,
         events: POLLIN,
         revents: 0,
     };

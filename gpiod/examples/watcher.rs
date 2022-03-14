@@ -8,7 +8,7 @@ use gpiod::request::Builder;
 use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut req = Builder::new()
+    let req = Builder::new()
         .on_chip("/dev/gpiochip0")
         .with_consumer("watcher")
         .with_line(23)
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut buf = req.new_edge_event_buffer(4);
     loop {
-        println!("{:?}", buf.read_event(&mut req)?);
+        println!("{:?}", buf.read_event()?);
     }
     /*
     for event in req.events()? {

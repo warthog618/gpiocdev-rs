@@ -69,7 +69,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         .map(|co| co.offset)
         .collect();
     cfg.with_lines(&offsets);
-    let mut req = Builder::from_config(cfg)
+    let req = Builder::from_config(cfg)
         .on_chip(&chip)
         .with_consumer("gpiodctl-monitor")
         .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)
@@ -79,7 +79,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     let mut count = 0;
     let mut buf = req.new_edge_event_buffer(1);
     loop {
-        let edge = buf.read_event(&mut req).context("Failed to read event.")?;
+        let edge = buf.read_event().context("Failed to read event.")?;
         println!("{:?}", edge);
         if let Some(limit) = opts.num_events {
             count += 1;
