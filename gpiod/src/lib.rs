@@ -19,7 +19,7 @@ compile_error!("Either feature \"uapi_v1\" or \"uapi_v2\" must be enabled for th
 use gpiod_uapi as uapi;
 use std::borrow::Cow;
 use std::fmt;
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::prelude::OsStrExt;
 use std::path::PathBuf;
 
 /// Types and functions specific to chips.

@@ -7,7 +7,7 @@ use libc::ioctl;
 use std::fs::File;
 use std::io::Error as IoError;
 use std::mem::size_of;
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::unix::prelude::{FromRawFd, RawFd};
 
 use super::common::{ValidationResult, IOCTL_MAGIC};
 
@@ -80,16 +80,16 @@ bitflags! {
 /// This does not include the line value.
 /// The line must be requested to access the value.
 ///
-/// * `cf` - The open chip File.
+/// * 'cfd' - The fd of the open chip.
 /// * `offset` - The offset of the line.
-pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
+pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
         ..Default::default()
     };
     match unsafe {
         ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::GetLineInfo, size_of::<LineInfo>()),
             &li,
         )
@@ -105,16 +105,16 @@ pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
 /// This does not include the line value.
 /// The line must be requested to access the value.
 ///
-/// * `cf` - The open chip File.
+/// * 'cfd' - The fd of the open chip.
 /// * `offset` - The offset of the line to watch.
-pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
+pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
         ..Default::default()
     };
     match unsafe {
         ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::WatchLineInfo, size_of::<LineInfo>()),
             &li,
         )
@@ -219,12 +219,12 @@ bitflags! {
 
 /// Request a line or set of lines for exclusive access.
 ///
-/// * `cf` - The open chip File.
+/// * 'cfd' - The fd of the open chip.
 /// * `hr` - The line handle request.
-pub fn get_line_handle(cf: &File, hr: HandleRequest) -> Result<File> {
+pub fn get_line_handle(cfd: RawFd, hr: HandleRequest) -> Result<File> {
     unsafe {
         match ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::GetLineHandle,
@@ -260,10 +260,10 @@ pub struct HandleConfig {
 ///
 /// * `lf` - The file returned by [`get_line_handle`].
 /// * `hc` - The configuration to be applied.
-pub fn set_line_config(cf: &File, hc: HandleConfig) -> Result<()> {
+pub fn set_line_config(cfd: RawFd, hc: HandleConfig) -> Result<()> {
     unsafe {
         match ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::SetConfig, size_of::<HandleConfig>()),
             &hc,
         ) {
@@ -337,10 +337,10 @@ impl Default for LineValues {
 ///
 /// * `lf` - The file returned by [`get_line_handle`] or [`get_line_event`].
 /// * `vals` - The line values to be populated.
-pub fn get_line_values(lf: &File, vals: &mut LineValues) -> Result<()> {
+pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
     match unsafe {
         ioctl(
-            lf.as_raw_fd(),
+            lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::GetLineValues,
@@ -358,10 +358,10 @@ pub fn get_line_values(lf: &File, vals: &mut LineValues) -> Result<()> {
 ///
 /// * `lf` - The file returned by [`get_line_handle`].
 /// * `vals` - The line values to be set.
-pub fn set_line_values(lf: &File, vals: &LineValues) -> Result<()> {
+pub fn set_line_values(lfd: RawFd, vals: &LineValues) -> Result<()> {
     match unsafe {
         ioctl(
-            lf.as_raw_fd(),
+            lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::SetLineValues,
@@ -414,12 +414,12 @@ bitflags! {
 ///
 /// Detected events can be read from the returned file.
 ///
-/// * `cf` - The open chip File.
+/// * 'cfd' - The fd of the open chip.
 /// * `er` - The line event request.
-pub fn get_line_event(cf: &File, er: EventRequest) -> Result<File> {
+pub fn get_line_event(cfd: RawFd, er: EventRequest) -> Result<File> {
     unsafe {
         match ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::GetLineEvent,

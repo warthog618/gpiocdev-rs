@@ -10,7 +10,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::Error as IoError;
 use std::mem::size_of;
-use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::unix::prelude::{FromRawFd, RawFd};
 use std::time::Duration;
 
 use super::common::{ValidationResult, IOCTL_MAGIC};
@@ -134,12 +134,12 @@ impl LineValues {
 
 /// Read values of requested lines.
 ///
-/// * `lf` - The file returned by [`get_line`].
+/// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lv` - The line values to be populated.
-pub fn get_line_values(lf: &File, lv: &mut LineValues) -> Result<()> {
+pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
     match unsafe {
         ioctl(
-            lf.as_raw_fd(),
+            lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::GetLineValues,
@@ -157,12 +157,12 @@ pub fn get_line_values(lf: &File, lv: &mut LineValues) -> Result<()> {
 ///
 /// Note that requesting a set on an input line is an error.
 ///
-/// * `lf` - The file returned by [`get_line`].
+/// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lv` - The line values to be set.
-pub fn set_line_values(lf: &File, lv: &LineValues) -> Result<()> {
+pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
     match unsafe {
         ioctl(
-            lf.as_raw_fd(),
+            lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::SetLineValues,
@@ -405,12 +405,12 @@ impl LineConfig {
 
 /// Update the configuration of an existing line request.
 ///
-/// * `lf` - The file returned by [`get_line`].
+/// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lc` - The configuration to be applied.
-pub fn set_line_config(lf: &File, lc: LineConfig) -> Result<()> {
+pub fn set_line_config(lfd: RawFd, lc: LineConfig) -> Result<()> {
     unsafe {
         match ioctl(
-            lf.as_raw_fd(),
+            lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::SetLineConfig,
@@ -458,12 +458,12 @@ pub struct LineRequest {
 
 /// Request a line or set of lines for exclusive access.
 ///
-/// * `cf` - The open chip fd.
+/// * `cfd` - The fd of the open chip.
 /// * `lr` - The line request.
-pub fn get_line(cf: &File, lr: LineRequest) -> Result<File> {
+pub fn get_line(cfd: RawFd, lr: LineRequest) -> Result<File> {
     unsafe {
         match ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::GetLine, size_of::<LineRequest>()),
             &lr,
         ) {
@@ -541,16 +541,16 @@ impl LineInfo {
 /// This does not include the line value.
 /// The line must be requested to access the value.
 ///
-/// * `cf` - The open chip File.
+/// * `cfd` - The fd of the open chip.
 /// * `offset` - The offset of the line.
-pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
+pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
         ..Default::default()
     };
     match unsafe {
         ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::GetLineInfo, size_of::<LineInfo>()),
             &li,
         )
@@ -567,16 +567,16 @@ pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
 /// This does not include the line value.
 /// The line must be requested to access the value.
 ///
-/// * `cf` - The open chip fd.
+/// * `cfd` - The fd of the open chip.
 /// * `offset` - The offset of the line to watch.
-pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
+pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
         ..Default::default()
     };
     match unsafe {
         ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::WatchLineInfo, size_of::<LineInfo>()),
             &li,
         )

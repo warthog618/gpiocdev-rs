@@ -7,8 +7,7 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::io::Error as IoError;
 use std::mem::{size_of, MaybeUninit};
-use std::os::unix::ffi::OsStrExt;
-use std::os::unix::io::AsRawFd;
+use std::os::unix::prelude::{AsRawFd, OsStrExt, RawFd};
 use std::ptr::null;
 use std::slice;
 use std::time::Duration;
@@ -68,11 +67,11 @@ pub struct ChipInfo {
 /// Get the publicly available information for a chip.
 ///
 /// * `cf` - The open chip File.
-pub fn get_chip_info(cf: &File) -> Result<ChipInfo> {
+pub fn get_chip_info(cfd: RawFd) -> Result<ChipInfo> {
     let mut chip = MaybeUninit::<ChipInfo>::uninit();
     unsafe {
         match ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_read!(IOCTL_MAGIC, Ioctl::GetChipInfo, size_of::<ChipInfo>()),
             chip.as_mut_ptr(),
         ) {
@@ -84,14 +83,14 @@ pub fn get_chip_info(cf: &File) -> Result<ChipInfo> {
 
 /// Remove any watch on changes to the [`LineInfo`] for a line.
 ///
-/// * `cf` - The open chip File.
+/// * `cfd` - The fd of the open chip.
 /// * `offset` - The offset of the line to unwatch.
 ///
 /// [`LineInfo`]: struct.LineInfo.html
-pub fn unwatch_line_info(cf: &File, offset: Offset) -> Result<()> {
+pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
     match unsafe {
         ioctl(
-            cf.as_raw_fd(),
+            cfd,
             nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::UnwatchLineInfo, size_of::<u32>()),
             offset,
         )

@@ -17,6 +17,7 @@ use std::fmt;
 use std::fs;
 use std::mem::size_of;
 use std::os::linux::fs::MetadataExt;
+use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -67,6 +68,7 @@ pub struct Chip {
     /// The resolved path of the GPIO character device.
     path: PathBuf,
     pub(crate) f: fs::File,
+    pub(crate) fd: RawFd,
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     abiv: AbiVersion,
 }
@@ -78,9 +80,11 @@ impl Chip {
     pub fn from_path<P: AsRef<Path>>(p: P) -> Result<Chip> {
         let path = is_chip(p.as_ref())?;
         let f = fs::File::open(&path)?;
+        let fd = f.as_raw_fd();
         Ok(Chip {
             path,
             f,
+            fd,
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             abiv: V2,
         })
@@ -88,7 +92,7 @@ impl Chip {
     /// Get the information for the chip.
     pub fn info(&self) -> Result<Info> {
         Ok(Info::from(
-            uapi::get_chip_info(&self.f).map_err(|e| Error::UapiError(UapiCall::GetChipInfo, e))?,
+            uapi::get_chip_info(self.fd).map_err(|e| Error::UapiError(UapiCall::GetChipInfo, e))?,
         ))
     }
 
@@ -128,8 +132,8 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn line_info(&self, offset: u32) -> Result<line::Info> {
         let res = match self.abiv {
-            V1 => v1::get_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
-            V2 => v2::get_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
+            V1 => v1::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
+            V2 => v2::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
         };
         res.map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))
     }
@@ -149,8 +153,8 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_watch_line_info(&self, offset: u32) -> Result<line::Info> {
         let res = match self.abiv {
-            V1 => v1::watch_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
-            V2 => v2::watch_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
+            V1 => v1::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
+            V2 => v2::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
         };
         res.map_err(|e| Error::UapiError(UapiCall::WatchLineInfo, e))
     }
@@ -164,7 +168,7 @@ impl Chip {
     ///
     /// This is a null operation if there is no existing watch on the line.
     pub fn unwatch_line_info(&self, offset: u32) -> Result<()> {
-        uapi::unwatch_line_info(&self.f, offset)
+        uapi::unwatch_line_info(self.fd, offset)
             .map_err(|e| Error::UapiError(UapiCall::UnwatchLineInfo, e))
     }
 
@@ -199,8 +203,8 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         let res = match abiv {
-            V1 => v1::get_line_info(&self.f, 0).map(|_| ()),
-            V2 => v2::get_line_info(&self.f, 0).map(|_| ()),
+            V1 => v1::get_line_info(self.fd, 0).map(|_| ()),
+            V2 => v2::get_line_info(self.fd, 0).map(|_| ()),
         };
         res.map_err(|_| Error::UnsupportedAbi(abiv, AbiSupportKind::Platform))
     }
