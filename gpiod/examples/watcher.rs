@@ -20,4 +20,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         println!("{:?}", buf.read_event(&mut req)?);
     }
+    /*
+    for event in req.events()? {
+        println!("{:?}", event?);
+    }
+    Ok(())
+    */
 }

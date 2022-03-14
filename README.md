@@ -14,7 +14,7 @@ Getting a line value:
 
 ```rust
     // request the line
-    let mut req = Builder::new()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_line(23)
         .as_input()
@@ -27,7 +27,7 @@ Setting a line:
 
 ```rust
     // request the line and set its value
-    let mut req = Builder::new()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_line(22)
         .as_output(Value.Active)
@@ -43,16 +43,15 @@ Waiting for events on a line:
 
 ```rust
     // request the line
-    let mut req = Builder::new()
+    let mut req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_line(23)
         .with_edge_detection(EdgeDetection::BothEdges)
         .request()?;
 
     // wait for line edge events
-    let mut buf = req.new_edge_event_buffer(4);
-    loop {
-        println!("{:?}", buf.read_event(&mut req)?);
+    for event in req.events()? {
+        println!("{:?}", event?);
     }
 ```
 
@@ -62,7 +61,7 @@ Getting multiple lines:
 
 ```rust
     // request multiple input lines
-    let mut req = Builder::new()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_lines(&[18,23])
         .as_input()
@@ -76,7 +75,7 @@ Setting multiple lines:
 
 ```rust
     // request multiple output lines
-    let mut req = Builder::new()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_lines(&[17,22])
         .as_output(Value::Active)
@@ -92,7 +91,7 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
 
 ```rust
     // request the line
-    let mut req = Builder::new()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_consumer("myapp")
         .with_line(23)

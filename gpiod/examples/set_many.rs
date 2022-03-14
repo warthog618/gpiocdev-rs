@@ -10,7 +10,7 @@ use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request multiple output lines
-    let mut req = Builder::new()
+    let req = Builder::new()
         .on_chip("/dev/gpiochip0")
         .with_lines(&[17, 22])
         .as_output(Value::Active)

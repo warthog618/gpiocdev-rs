@@ -93,6 +93,9 @@ pub struct Builder {
     consumer: Name,
     kernel_event_buffer_size: u32,
     user_event_buffer_size: usize,
+    /// The ABI version used to create the request, and so determines how to decode events.
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    abiv: AbiVersion,
 }
 
 fn default_consumer() -> Name {
@@ -158,8 +161,11 @@ impl Builder {
     fn to_request(&self, f: File) -> Request {
         Request {
             f,
+            offsets: self.cfg.offsets.clone(),
             cfg: self.cfg.clone(),
             user_event_buffer_size: max(self.user_event_buffer_size, 1),
+            #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+            abiv: self.abiv,
         }
     }
 
@@ -235,7 +241,7 @@ impl Builder {
     /// [`detect_abi_version`]: fn@crate::detect_abi_version
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn using_abi_version(&mut self, abiv: AbiVersion) -> &mut Self {
-        self.cfg.abiv = abiv;
+        self.abiv = abiv;
         self
     }
 
@@ -399,7 +405,7 @@ impl Builder {
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_to_uapi(&self) -> Result<UapiRequest> {
-        match self.cfg.abiv {
+        match self.abiv {
             AbiVersion::V1 => self.to_v1(),
             AbiVersion::V2 => self.to_v2(),
         }
@@ -541,10 +547,6 @@ pub struct Config {
     ///
     /// If empty then the base config is selected.
     selected: Vec<Offset>,
-
-    /// The ABI version used to create the request, and so determines how to decode events.
-    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    abiv: AbiVersion,
 }
 impl Config {
     pub fn new() -> Config {
@@ -1022,10 +1024,13 @@ impl<'a> Iterator for SelectedIterator<'a> {
 
 /// An active request of a set of lines.
 pub struct Request {
-    // some reference to the chip??
     f: File,
+    offsets: Vec<Offset>,
     cfg: Config,
     user_event_buffer_size: usize,
+    /// The ABI version used to create the request, and so determines how to decode events.
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    abiv: AbiVersion,
 }
 
 impl Request {
@@ -1039,9 +1044,9 @@ impl Request {
     /// The keys indicate the lines to get.
     /// If no keys are set then all requested lines are returned.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    pub fn values(&mut self, values: &mut Values) -> Result<()> {
-        let offsets = &self.cfg.offsets;
-        let res = match self.cfg.abiv {
+    pub fn values(&self, values: &mut Values) -> Result<()> {
+        let offsets = &self.offsets;
+        let res = match self.abiv {
             AbiVersion::V1 => {
                 let mut vals = values.to_v1(offsets);
                 v1::get_line_values(&self.f, &mut vals).map(|_| values.from_v1(offsets, &vals))
@@ -1054,15 +1059,15 @@ impl Request {
         res.map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    pub fn values(&mut self, values: &mut Values) -> Result<()> {
-        let mut vals = values.to_uapi(&self.cfg.offsets);
+    pub fn values(&self, values: &mut Values) -> Result<()> {
+        let mut vals = values.to_uapi(&self.offsets);
         uapi::get_line_values(&self.f, &mut vals)
-            .map(|_| values.from_uapi(&self.cfg.offsets, &vals))
+            .map(|_| values.from_uapi(&self.offsets, &vals))
             .map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))
     }
 
     /// Get the value for one line in the request.
-    pub fn value(&mut self, offset: Offset) -> Result<Value> {
+    pub fn value(&self, offset: Offset) -> Result<Value> {
         let mut values = Values::default();
         values.set(offset, Value::Inactive);
         self.values(&mut values)?;
@@ -1073,11 +1078,11 @@ impl Request {
 
     /// Set the values for a subset of the requested lines.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    pub fn set_values(&mut self, values: &Values) -> Result<()> {
-        let res = match self.cfg.abiv {
-            AbiVersion::V1 => v1::set_line_values(&self.f, &values.to_v1(&self.cfg.offsets)),
+    pub fn set_values(&self, values: &Values) -> Result<()> {
+        let res = match self.abiv {
+            AbiVersion::V1 => v1::set_line_values(&self.f, &values.to_v1(&self.offsets)),
             AbiVersion::V2 => {
-                let lv = &values.to_v2(&self.cfg.offsets);
+                let lv = &values.to_v2(&self.offsets);
                 if lv.mask.is_empty() {
                     return Err(Error::InvalidArgument(
                         "No requested lines in set values.".to_string(),
@@ -1089,13 +1094,13 @@ impl Request {
         res.map_err(|e| Error::UapiError(UapiCall::SetLineValues, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    pub fn set_values(&mut self, values: &Values) -> Result<()> {
-        uapi::set_line_values(&self.f, &values.to_uapi(&self.cfg.offsets))
+    pub fn set_values(&self, values: &Values) -> Result<()> {
+        uapi::set_line_values(&self.f, &values.to_uapi(&self.offsets))
             .map_err(|e| Error::UapiError(UapiCall::SetLineValues, e))
     }
 
     /// Set the value for one line in the request.
-    pub fn set_value(&mut self, offset: Offset, value: Value) -> Result<()> {
+    pub fn set_value(&self, offset: Offset, value: Value) -> Result<()> {
         let mut values = Values::default();
         values.set(offset, value);
         self.set_values(&values)
@@ -1122,7 +1127,7 @@ impl Request {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_reconfigure(&mut self, cfg: &Config) -> Result<()> {
-        match self.cfg.abiv {
+        match self.abiv {
             AbiVersion::V1 => {
                 if self.cfg.unique()?.edge_detection.is_some() {
                     return Err(Error::AbiLimitation(
@@ -1161,13 +1166,13 @@ impl Request {
     }
 
     /// Returns true when the request has edge events available to read.
-    pub fn has_edge_event(&mut self) -> Result<bool> {
-        gpiod_uapi::has_event(&mut self.f).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
+    pub fn has_edge_event(&self) -> Result<bool> {
+        gpiod_uapi::has_event(&self.f).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
     }
 
     /// Wait for an edge event to be available.
-    pub fn wait_edge_event(&mut self, timeout: Duration) -> Result<bool> {
-        gpiod_uapi::wait_event(&mut self.f, timeout)
+    pub fn wait_edge_event(&self, timeout: Duration) -> Result<bool> {
+        gpiod_uapi::wait_event(&self.f, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
     }
 
@@ -1179,14 +1184,14 @@ impl Request {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_edge_event_from_buf(&self, buf: &[u8]) -> Result<EdgeEvent> {
-        match self.cfg.abiv {
+        match self.abiv {
             AbiVersion::V1 => {
                 let mut ee = EdgeEvent::from(
                     uapi::LineEdgeEvent::from_buf(buf)
                         .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
                 );
                 // populate offset for v1
-                ee.offset = self.cfg.offsets[0];
+                ee.offset = self.offsets[0];
                 Ok(ee)
             }
             AbiVersion::V2 => Ok(EdgeEvent::from(
@@ -1202,7 +1207,7 @@ impl Request {
                 .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
         );
         // populate offset for v1
-        ee.offset = self.cfg.offsets[0]; // there can be only one
+        ee.offset = self.offsets[0]; // there can be only one
         Ok(ee)
     }
     #[cfg(not(feature = "uapi_v1"))]
@@ -1222,7 +1227,7 @@ impl Request {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_edge_event_size(&self) -> usize {
-        match self.cfg.abiv {
+        match self.abiv {
             AbiVersion::V1 => size_of::<v1::LineEdgeEvent>(),
             AbiVersion::V2 => size_of::<v2::LineEdgeEvent>(),
         }
@@ -1345,7 +1350,7 @@ mod tests {
         assert_eq!(b.kernel_event_buffer_size, 0);
         assert_eq!(b.user_event_buffer_size, 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        assert_eq!(b.cfg.abiv, AbiVersion::V2);
+        assert_eq!(b.abiv, AbiVersion::V2);
     }
     #[test]
     fn builder_from_config() {
@@ -1403,11 +1408,11 @@ mod tests {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn builder_using_abi_version() {
         let mut b = Builder::new();
-        assert_eq!(b.cfg.abiv, AbiVersion::V2);
+        assert_eq!(b.abiv, AbiVersion::V2);
         b.using_abi_version(AbiVersion::V1);
-        assert_eq!(b.cfg.abiv, AbiVersion::V1);
+        assert_eq!(b.abiv, AbiVersion::V1);
         b.using_abi_version(AbiVersion::V2);
-        assert_eq!(b.cfg.abiv, AbiVersion::V2);
+        assert_eq!(b.abiv, AbiVersion::V2);
     }
     #[test]
     fn builder_on_chip() {
@@ -1824,7 +1829,6 @@ mod tests {
         assert_eq!(cfg.lcfg.len(), 0);
         assert_eq!(cfg.selected.len(), 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        assert_eq!(cfg.abiv, AbiVersion::V2);
         assert_eq!(cfg.base.direction, None);
         assert!(!cfg.base.active_low);
         assert_eq!(cfg.base.drive, None);
@@ -2320,6 +2324,6 @@ mod tests {
         assert_eq!(b.kernel_event_buffer_size, 0);
         assert_eq!(b.user_event_buffer_size, 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        assert_eq!(b.cfg.abiv, AbiVersion::V2);
+        assert_eq!(b.abiv, AbiVersion::V2);
     }
 }

@@ -12,7 +12,7 @@ use std::time::Duration;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut value = Value::Active;
 
-    let mut req = Request::builder()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_consumer("blinker")
         .with_line(22)

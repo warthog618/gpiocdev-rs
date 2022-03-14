@@ -8,7 +8,7 @@ use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request the line as an input
-    let mut req = Request::builder()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_consumer("set_one")
         .with_line(22)

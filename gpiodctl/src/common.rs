@@ -98,7 +98,7 @@ pub fn find_lines(
     }
 
     for path in &chips {
-        let mut chip = chip_from_opts(path, abiv)?;
+        let chip = chip_from_opts(path, abiv)?;
         let ci = chip
             .info()
             .with_context(|| format!("Failed to info from chip {:?}.", path))?;

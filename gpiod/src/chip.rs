@@ -86,7 +86,7 @@ impl Chip {
         })
     }
     /// Get the information for the chip.
-    pub fn info(&mut self) -> Result<Info> {
+    pub fn info(&self) -> Result<Info> {
         Ok(Info::from(
             uapi::get_chip_info(&self.f).map_err(|e| Error::UapiError(UapiCall::GetChipInfo, e))?,
         ))
@@ -111,7 +111,7 @@ impl Chip {
     /// Find the offset of the named line.
     ///
     /// Returns the first matching line.
-    pub fn find_line(&mut self, line: &str) -> Option<Offset> {
+    pub fn find_line(&self, line: &str) -> Option<Offset> {
         if let Ok(ci) = self.info() {
             for offset in 0..ci.num_lines {
                 if let Ok(li) = self.line_info(offset) {
@@ -126,7 +126,7 @@ impl Chip {
 
     /// Get the information for a line on the chip.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    pub fn line_info(&mut self, offset: u32) -> Result<line::Info> {
+    pub fn line_info(&self, offset: u32) -> Result<line::Info> {
         let res = match self.abiv {
             V1 => v1::get_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
             V2 => v2::get_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
@@ -134,7 +134,7 @@ impl Chip {
         res.map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    pub fn line_info(&mut self, offset: u32) -> Result<line::Info> {
+    pub fn line_info(&self, offset: u32) -> Result<line::Info> {
         uapi::get_line_info(&self.f, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))
@@ -143,11 +143,11 @@ impl Chip {
     /// Add a watch for changes to the publicly available information on a line.
     ///
     /// This is a null operation if there is already a watch on the line.
-    pub fn watch_line_info(&mut self, offset: u32) -> Result<line::Info> {
+    pub fn watch_line_info(&self, offset: u32) -> Result<line::Info> {
         self.do_watch_line_info(offset)
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_watch_line_info(&mut self, offset: u32) -> Result<line::Info> {
+    fn do_watch_line_info(&self, offset: u32) -> Result<line::Info> {
         let res = match self.abiv {
             V1 => v1::watch_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
             V2 => v2::watch_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
@@ -155,7 +155,7 @@ impl Chip {
         res.map_err(|e| Error::UapiError(UapiCall::WatchLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    fn do_watch_line_info(&mut self, offset: u32) -> Result<line::Info> {
+    fn do_watch_line_info(&self, offset: u32) -> Result<line::Info> {
         uapi::watch_line_info(&self.f, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::WatchLineInfo, e))
@@ -163,19 +163,19 @@ impl Chip {
     /// Remove a watch for changes to the publicly available information on a line.
     ///
     /// This is a null operation if there is no existing watch on the line.
-    pub fn unwatch_line_info(&mut self, offset: u32) -> Result<()> {
+    pub fn unwatch_line_info(&self, offset: u32) -> Result<()> {
         uapi::unwatch_line_info(&self.f, offset)
             .map_err(|e| Error::UapiError(UapiCall::UnwatchLineInfo, e))
     }
 
     /// Check if the request has at least one info change event available to read.
-    pub fn has_line_info_change_event(&mut self) -> Result<bool> {
-        gpiod_uapi::has_event(&mut self.f).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
+    pub fn has_line_info_change_event(&self) -> Result<bool> {
+        gpiod_uapi::has_event(&self.f).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
     }
 
     /// Wait for an info change event to be available.
-    pub fn wait_line_info_change_event(&mut self, timeout: Duration) -> Result<bool> {
-        gpiod_uapi::wait_event(&mut self.f, timeout)
+    pub fn wait_line_info_change_event(&self, timeout: Duration) -> Result<bool> {
+        gpiod_uapi::wait_event(&self.f, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
     }
 

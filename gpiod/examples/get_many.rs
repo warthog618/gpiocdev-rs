@@ -8,7 +8,7 @@ use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request multiple input lines
-    let mut req = Builder::new()
+    let req = Builder::new()
         .on_chip("/dev/gpiochip0")
         .with_lines(&[18, 23])
         .as_input()

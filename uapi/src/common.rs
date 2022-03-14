@@ -14,12 +14,12 @@ use std::slice;
 use std::time::Duration;
 
 /// Check if the file has an event available to read.
-pub fn has_event(f: &mut File) -> Result<bool> {
+pub fn has_event(f: &File) -> Result<bool> {
     wait_event(f, Duration::ZERO)
 }
 
 /// Wait for the file to have an event available to read.
-pub fn wait_event(f: &mut File, d: Duration) -> Result<bool> {
+pub fn wait_event(f: &File, d: Duration) -> Result<bool> {
     let mut pfd = pollfd {
         fd: f.as_raw_fd(),
         events: POLLIN,

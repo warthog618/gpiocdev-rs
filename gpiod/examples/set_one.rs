@@ -10,7 +10,7 @@ use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request the line and set its value
-    let mut req = Builder::new()
+    let req = Builder::new()
         .on_chip("/dev/gpiochip0")
         .with_consumer("set_one")
         .with_line(22)
