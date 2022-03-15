@@ -143,7 +143,10 @@ impl From<Name> for OsString {
 pub struct Timestamp(DateTime<Utc>);
 
 impl Timestamp {
-    fn from_nanos(t: u64) -> Self {
+    /// Create a Timestamp from the numner of nanoseconds.
+    ///
+    /// Suitable for  **CLOCK_REALTIME** clock sources.
+    pub fn from_nanos(t: u64) -> Self {
         let sec = (t / 1000000000) as i64;
         let nsec = (t as u32) % 1000000000;
         Timestamp(Utc.timestamp(sec, nsec))

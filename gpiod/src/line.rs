@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use crate::{Name, Timestamp};
+use crate::Name;
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
 use gpiod_uapi::v1 as uapi;
 #[cfg(feature = "uapi_v1")]
@@ -648,9 +648,9 @@ pub struct EdgeEvent {
     /// The interpretation of this field depends on line [`EventClock`] configuration
     /// and uAPI ABI version, and so is left raw here.
     ///
-    /// **CLOCK_MONOTONIC** can be converted to [`Timestamp`].
+    /// **CLOCK_REALTIME** can be converted to [`Timestamp`](super::Timestamp).
     ///
-    /// **CLOCK_REALTIME** is intended for comparing times between events and
+    /// **CLOCK_MONOTONIC** is intended for comparing times between events and
     /// should be converted to [`Duration`].
     pub timestamp_ns: u64,
     /// The event trigger identifier.
@@ -713,7 +713,9 @@ pub struct InfoChangeEvent {
     /// The updated line info.
     pub info: Info,
     /// The best estimate of time of event occurrence.
-    pub timestamp: Timestamp,
+    ///
+    /// The **CLOCK_MONOTONIC** is used as the source for info change timestamps.
+    pub timestamp_ns: u64,
     /// The trigger for the change.
     pub kind: InfoChangeKind,
 }
@@ -722,7 +724,7 @@ impl From<&v1::LineInfoChangeEvent> for InfoChangeEvent {
     fn from(ice: &v1::LineInfoChangeEvent) -> Self {
         InfoChangeEvent {
             info: Info::from(&ice.info),
-            timestamp: Timestamp::from_nanos(ice.timestamp_ns),
+            timestamp_ns: ice.timestamp_ns,
             kind: InfoChangeKind::from(ice.kind),
         }
     }
@@ -732,7 +734,7 @@ impl From<&v2::LineInfoChangeEvent> for InfoChangeEvent {
     fn from(ice: &v2::LineInfoChangeEvent) -> Self {
         InfoChangeEvent {
             info: Info::from(&ice.info),
-            timestamp: Timestamp::from_nanos(ice.timestamp_ns),
+            timestamp_ns: ice.timestamp_ns,
             kind: InfoChangeKind::from(ice.kind),
         }
     }
@@ -1375,7 +1377,7 @@ mod tests {
             padding: Default::default(),
         };
         let ee = InfoChangeEvent::from(&v1event);
-        assert_eq!(ee.timestamp, Timestamp::from_nanos(1234));
+        assert_eq!(ee.timestamp_ns, 1234);
         assert_eq!(ee.kind, InfoChangeKind::Reconfigured);
         assert_eq!(ee.info.offset, 32);
         assert_eq!(ee.info.drive, Some(Drive::OpenDrain));
@@ -1398,7 +1400,7 @@ mod tests {
             padding: Default::default(),
         };
         let ee = InfoChangeEvent::from(&v2event);
-        assert_eq!(ee.timestamp, Timestamp::from_nanos(1234));
+        assert_eq!(ee.timestamp_ns, 1234);
         assert_eq!(ee.kind, InfoChangeKind::Reconfigured);
         assert_eq!(ee.info.offset, 32);
         assert_eq!(ee.info.drive, Some(Drive::OpenDrain));

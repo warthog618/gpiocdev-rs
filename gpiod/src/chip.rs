@@ -49,6 +49,9 @@ pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
 }
 
 /// Returns an iterator over the paths of all the GPIO character devices on the system.
+///
+/// The returned paths are confirmed to be GPIO character devices, so there is no need
+/// to check them with [`is_chip`].
 pub fn chips() -> Result<ChipIterator> {
     Ok(ChipIterator {
         rd: std::fs::read_dir("/dev")?,
