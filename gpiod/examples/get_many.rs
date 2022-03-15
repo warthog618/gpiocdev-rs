@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use gpiod::line::Values;
-use gpiod::request::Builder;
+use gpiod::request::Request;
 use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request multiple input lines
-    let req = Builder::new()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_lines(&[18, 23])
         .as_input()

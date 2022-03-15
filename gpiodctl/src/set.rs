@@ -10,7 +10,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use colored::*;
 use gpiod::line::{Offset, Value, Values};
-use gpiod::request::{Builder, Config, Request};
+use gpiod::request::{Config, Request};
 use rustyline::completion::{Completer, Pair};
 use rustyline::config::CompletionType;
 use rustyline::error::ReadlineError;
@@ -142,14 +142,14 @@ impl Setter {
 
         // request the lines
         for chip in &self.chips {
-            let mut cfg = Config::new();
+            let mut cfg = Config::default();
             opts.apply(&mut cfg);
             for line in self.lines.values() {
                 if &line.chip == chip {
                     cfg.with_line(line.offset).as_output(line.value);
                 }
             }
-            let req = Builder::from_config(cfg)
+            let req = Request::from_config(cfg)
                 .on_chip(&chip)
                 .with_consumer("gpiodctl-set")
                 .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)

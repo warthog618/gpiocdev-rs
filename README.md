@@ -43,7 +43,7 @@ Waiting for events on a line:
 
 ```rust
     // request the line
-    let mut req = Request::builder()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_line(23)
         .with_edge_detection(EdgeDetection::BothEdges)
@@ -103,7 +103,7 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
     let value = req.value(23)?;
 ```
 
-A good starting point to learn more is the [gpiod::request::Builder](https://warthog618.github.io/gpiod-rs/gpiod/request/struct.Builder.html).
+A good starting point to learn more is the [gpiod::request::Request](https://warthog618.github.io/gpiod-rs/gpiod/request/struct.Request.html).
 
 ## gpiodctl
 

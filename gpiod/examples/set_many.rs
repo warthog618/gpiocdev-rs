@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 use gpiod::line::{Value, Values};
-use gpiod::request::Builder;
+use gpiod::request::Request;
 use std::result::Result;
 use std::thread::sleep;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request multiple output lines
-    let req = Builder::new()
+    let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_lines(&[17, 22])
         .as_output(Value::Active)

@@ -9,7 +9,7 @@ use super::common::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use gpiod::line::Offset;
-use gpiod::request::{Builder, Config};
+use gpiod::request::{Config, Request};
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
@@ -61,7 +61,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     // needs multi-threading or async - so will come back to this...
     //    for chip in &chips { ...
     let chip = &chips[0];
-    let mut cfg = Config::new();
+    let mut cfg = Config::default();
     opts.apply(&mut cfg);
     let offsets: Vec<Offset> = lines
         .values()
@@ -69,7 +69,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         .map(|co| co.offset)
         .collect();
     cfg.with_lines(&offsets);
-    let req = Builder::from_config(cfg)
+    let req = Request::from_config(cfg)
         .on_chip(&chip)
         .with_consumer("gpiodctl-monitor")
         .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)

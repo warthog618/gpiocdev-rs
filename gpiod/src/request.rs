@@ -73,16 +73,16 @@ use std::time::Duration;
 ///
 /// ```no_run
 /// # use gpiod::Result;
-/// use gpiod::request::{Config, Builder};
-/// use gpiod::line::Value::*;
+/// use gpiod::request::{Config, Request};
+/// use gpiod::line::Value;
 ///
 /// # fn main() -> Result<()> {
-/// let mut cfg = Config::new();
-/// cfg.with_line(5).as_output(Active);
-/// let mut l5 = Builder::from_config(cfg)
+/// let mut cfg = Config::default();
+/// cfg.with_line(5).as_output(Value::Active);
+/// let l5 = Request::from_config(cfg)
 ///     .on_chip("/dev/gpiochip0")
 ///     .request()?;
-/// l5.set_value(5,Inactive)?;
+/// l5.set_value(5,Value::Inactive)?;
 /// # Ok(())
 /// # }
 ///
@@ -105,13 +105,8 @@ fn default_consumer() -> Name {
 }
 
 impl Builder {
-    /// Start building a new request.
-    pub fn new() -> Self {
-        Builder::default()
-    }
-
     /// Start building a new request using the provided config.
-    pub fn from_config(cfg: Config) -> Self {
+    fn from_config(cfg: Config) -> Self {
         Builder {
             cfg,
             ..Default::default()
@@ -123,6 +118,9 @@ impl Builder {
     /// Sends the request to the kernel using the appropriate uAPI call.
     ///
     /// On success returns the [`Request`] that provides access to the requested lines.
+    ///
+    /// This is the terminal operation for the Builder.
+    ///
     pub fn request(&self) -> Result<Request> {
         if self.chip.as_os_str().is_empty() {
             return Err(Error::InvalidArgument("No chip specified.".to_string()));
@@ -173,27 +171,28 @@ impl Builder {
         }
     }
 
-    /// Replace the configuration.
+    /// Replace the request configuration with the new one provided.
     pub fn with_config(&mut self, cfg: Config) -> &mut Self {
         self.cfg = cfg;
         self
     }
 
-    /// The current request configuration.
+    /// A snapshot of the current request configuration.
     ///
     /// Can be applied to other requests with [`with_config`].
     ///
     /// [`with_config`]: #method.with_config
-    pub fn config(&self) -> &Config {
-        &self.cfg
+    pub fn config(&self) -> Config {
+        self.cfg.clone()
     }
 
     // mutators for attributes that cannot be changed after the request is made.
 
-    /// Specify the consumer label to be applied to the request, and so to all lines in the request.
+    /// Specify the consumer label to be applied to the request, and so to all lines
+    /// in the request.
     ///
-    /// If not specified, a label *"gpiod-p**pid**"*, where **pid** is the process id
-    /// of the application, is applied by [`request`].
+    /// If not specified, a label *"gpiod-p**PID**"* is applied by [`request`],
+    /// where **PID** is the process id of the application.
     ///
     /// [`request`]: #method.request
     pub fn with_consumer<N: Into<Name>>(&mut self, consumer: N) -> &mut Self {
@@ -205,15 +204,15 @@ impl Builder {
     ///
     /// This method is only required in unusual circumstances.
     ///
-    /// The size provides a hint to the kernel as to the size of the buffer to store edge events
-    /// until they are read from the Request.
-    /// The default size is 16 times the number of lines in the request.  The kernel
-    /// The default size is typically sufficient unless the hardware may generate bursts of events
-    /// faster than the application can deal with them.
+    /// The size provides a hint to the kernel as to the size of the buffer to store edge
+    /// events until they are read from the Request.
+    /// The default size is 16 times the number of lines in the request.
+    /// The default size is typically sufficient unless the hardware may generate bursts
+    /// of events faster than the application can service them.
     ///
     /// Altering the buffer size does NOT effect latency.
-    /// Buffering is provided to reduce the chance of event loss if user space is slow
-    /// servicing events.
+    /// Buffering is provided in the kernel to reduce the likelyhood of event loss when
+    /// user space is slow servicing events.
     /// In all cases the events are provided to user space as fast as user space allows.
     pub fn with_kernel_event_buffer_size(&mut self, event_buffer_size: u32) -> &mut Self {
         self.kernel_event_buffer_size = event_buffer_size;
@@ -225,8 +224,8 @@ impl Builder {
     /// This method is only required in unusual circumstances.
     ///
     /// The size defines the number of events that may be buffered in user space by the events()
-    /// iterator.  The user space buffer is a performance optimisation to reduve the number of
-    /// kernel calls required to read events.
+    /// iterator.  The user space buffer is a performance optimisation to reduce the number of
+    /// system calls required to read events.
     ///
     /// Altering the buffer size does NOT effect latency.
     /// In all cases the events are provided to user space as fast as user space allows.
@@ -515,7 +514,7 @@ enum UapiRequest {
 ///    use gpiod::line::{Bias::*, Value::*};
 ///    use gpiod::request::Config;
 ///
-///    let cfg = Config::new()
+///    let cfg = Config::default()
 ///        .as_input()
 ///        .with_bias(PullUp)
 ///        // -- base config ends here - just before lines are added.
@@ -553,10 +552,6 @@ pub struct Config {
     selected: Vec<Offset>,
 }
 impl Config {
-    pub fn new() -> Config {
-        Config::default()
-    }
-
     /// Update the line configs using the updated config.
     ///
     /// Other fields are not updated as they are effectively immutable for the
@@ -1054,14 +1049,75 @@ pub struct Request {
 
 impl Request {
     /// Start building a new request.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use gpiod::Result;
+    /// use gpiod::request::Request;
+    /// use gpiod::line::Values;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let ll = Request::builder()
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .with_lines(&[3,5])
+    ///     .request()?;
+    /// let mut values = Values::default();
+    /// ll.values(&mut values)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn builder() -> Builder {
         Builder::default()
+    }
+
+    /// Start building a new request using the provided config.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use gpiod::Result;
+    /// use gpiod::line::Value;
+    /// use gpiod::request::{Config, Request};
+    ///
+    /// # fn main() -> Result<()> {
+    /// let mut cfg = Config::default();
+    /// cfg.with_line(5).as_output(Value::Active);
+    /// let l5 = Request::from_config(cfg)
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .request()?;
+    /// # l5.set_value(5,Value::Inactive)?;
+    /// # Ok(())
+    /// # }
+    pub fn from_config(config: Config) -> Builder {
+        Builder::from_config(config)
     }
 
     /// Get the values for a subset of the requested lines.
     ///
     /// The keys indicate the lines to get.
     /// If no keys are set then all requested lines are returned.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use gpiod::Result;
+    /// use gpiod::request::Request;
+    /// use gpiod::line::Values;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let ll = Request::builder()
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .with_lines(&[3,5,6,8])
+    ///     .request()?;
+    /// // subset of lines
+    /// let mut values = Values::from_lines(&[3,8]);
+    /// ll.values(&mut values)?;
+    /// // all requested lines
+    /// let mut values = Values::default();
+    /// ll.values(&mut values)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn values(&self, values: &mut Values) -> Result<()> {
         let offsets = &self.offsets;
@@ -1086,6 +1142,22 @@ impl Request {
     }
 
     /// Get the value for one line in the request.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use gpiod::Result;
+    /// use gpiod::request::Request;
+    /// use gpiod::line::Values;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let ll = Request::builder()
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .with_lines(&[3,5])
+    ///     .request()?;
+    /// let v5 = ll.value(5)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn value(&self, offset: Offset) -> Result<Value> {
         let mut values = Values::default();
         values.set(offset, Value::Inactive);
@@ -1096,6 +1168,25 @@ impl Request {
     }
 
     /// Set the values for a subset of the requested lines.
+    /// # Examples
+    /// ```no_run
+    /// # use gpiod::Result;
+    /// use gpiod::line::Value::{Active, Inactive};
+    /// use gpiod::line::Values;
+    /// use gpiod::request::Request;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let ll = Request::builder()
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .with_lines(&[3,5,6,8])
+    ///     .as_output(Active)
+    ///     .request()?;
+    /// let mut values = Values::default();
+    /// values.set(5, Inactive);
+    /// values.set(6, Inactive);
+    /// ll.set_values(&values)?;
+    /// # Ok(())
+    /// # }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn set_values(&self, values: &Values) -> Result<()> {
         let res = match self.abiv {
@@ -1119,6 +1210,22 @@ impl Request {
     }
 
     /// Set the value for one line in the request.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use gpiod::Result;
+    /// use gpiod::line::Value;
+    /// use gpiod::request::{Config, Request};
+    ///
+    /// # fn main() -> Result<()> {
+    /// let mut cfg = Config::default();
+    /// cfg.with_line(5).as_output(Value::Active);
+    /// let l5 = Request::from_config(cfg)
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .request()?;
+    /// l5.set_value(5,Value::Inactive)?;
+    /// # Ok(())
+    /// # }
     pub fn set_value(&self, offset: Offset, value: Value) -> Result<()> {
         let mut values = Values::default();
         values.set(offset, value);
@@ -1400,8 +1507,8 @@ mod tests {
     use Value::*;
 
     #[test]
-    fn builder_new() {
-        let b = Builder::new();
+    fn builder_default() {
+        let b = Builder::default();
         assert_eq!(b.chip.as_os_str(), "");
         assert_eq!(b.cfg.num_lines(), 0);
         assert_eq!(b.consumer.as_os_str(), "");
@@ -1412,7 +1519,7 @@ mod tests {
     }
     #[test]
     fn builder_from_config() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.as_input().with_lines(&[1, 7, 4]);
         let b = Builder::from_config(cfg);
         assert_eq!(b.cfg.offsets, &[1, 7, 4]);
@@ -1420,14 +1527,14 @@ mod tests {
     }
     #[test]
     fn builder_request() {
-        let res = Builder::new().with_line(2).request();
+        let res = Builder::default().with_line(2).request();
         assert!(res.is_err());
         assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
     }
     #[test]
     fn builder_with_config() {
-        let mut b = Builder::new();
-        let mut cfg = Config::new();
+        let mut b = Builder::default();
+        let mut cfg = Config::default();
         cfg.as_input().with_lines(&[1, 7, 4]);
         b.with_config(cfg);
         assert_eq!(b.cfg.offsets, &[1, 7, 4]);
@@ -1435,7 +1542,7 @@ mod tests {
     }
     #[test]
     fn builder_config() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.as_input().with_lines(&[1, 7, 4]);
         let cfg = b.config();
         assert_eq!(cfg.num_lines(), 3);
@@ -1443,21 +1550,21 @@ mod tests {
     }
     #[test]
     fn builder_with_consumer() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.consumer.as_os_str(), "");
         b.with_consumer("builder test");
         assert_eq!(b.consumer.as_os_str(), "builder test");
     }
     #[test]
     fn builder_with_kernel_event_buffer_size() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.kernel_event_buffer_size, 0);
         b.with_kernel_event_buffer_size(42);
         assert_eq!(b.kernel_event_buffer_size, 42);
     }
     #[test]
     fn builder_with_user_event_buffer_size() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.user_event_buffer_size, 0);
         b.with_user_event_buffer_size(67);
         assert_eq!(b.user_event_buffer_size, 67);
@@ -1465,7 +1572,7 @@ mod tests {
     #[test]
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn builder_using_abi_version() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.abiv, AbiVersion::V2);
         b.using_abi_version(AbiVersion::V1);
         assert_eq!(b.abiv, AbiVersion::V1);
@@ -1474,14 +1581,14 @@ mod tests {
     }
     #[test]
     fn builder_on_chip() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.chip.as_os_str(), "");
         b.on_chip("test chip");
         assert_eq!(b.chip.as_os_str(), "test chip");
     }
     #[test]
     fn builder_as_input() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.as_output(Active);
         assert_eq!(b.cfg.base.direction, Some(Output));
         b.as_input();
@@ -1489,7 +1596,7 @@ mod tests {
     }
     #[test]
     fn builder_as_output() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.as_input();
         assert_eq!(b.cfg.base.direction, Some(Input));
         b.as_output(Active);
@@ -1497,14 +1604,14 @@ mod tests {
     }
     #[test]
     fn builder_as_active_low() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert!(!b.cfg.base.active_low);
         b.as_active_low();
         assert!(b.cfg.base.active_low);
     }
     #[test]
     fn builder_as_active_high() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert!(!b.cfg.base.active_low);
         b.as_active_low();
         assert!(b.cfg.base.active_low);
@@ -1513,7 +1620,7 @@ mod tests {
     }
     #[test]
     fn builder_with_bias() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_bias(PullUp);
         assert_eq!(b.cfg.base.bias, Some(PullUp));
         b.with_bias(PullDown);
@@ -1527,7 +1634,7 @@ mod tests {
     fn builder_with_debounce_period() {
         let d_us = Duration::from_micros(1234);
         let d_ns = Duration::from_nanos(234);
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_drive(OpenSource);
         assert_eq!(b.cfg.base.direction, Some(Output));
         b.with_debounce_period(Duration::from_micros(1234));
@@ -1540,7 +1647,7 @@ mod tests {
     }
     #[test]
     fn builder_with_direction() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_direction(Output);
         assert_eq!(b.cfg.base.direction, Some(Output));
         b.with_direction(Input);
@@ -1548,7 +1655,7 @@ mod tests {
     }
     #[test]
     fn builder_with_drive() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_bias(PullUp)
             .with_debounce_period(Duration::from_millis(10))
             .with_edge_detection(RisingEdge);
@@ -1569,7 +1676,7 @@ mod tests {
     }
     #[test]
     fn builder_with_edge_detection() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_drive(OpenSource);
         assert_eq!(b.cfg.base.direction, Some(Output));
         b.with_edge_detection(RisingEdge);
@@ -1583,7 +1690,7 @@ mod tests {
     }
     #[test]
     fn builder_with_event_clock() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.cfg.base.event_clock, None);
         b.with_event_clock(Realtime);
         assert_eq!(b.cfg.base.event_clock, Some(Realtime));
@@ -1592,7 +1699,7 @@ mod tests {
     }
     #[test]
     fn builder_with_line() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.cfg.num_lines(), 0);
         b.with_line(3);
         assert_eq!(b.cfg.num_lines(), 1);
@@ -1603,7 +1710,7 @@ mod tests {
     }
     #[test]
     fn builder_without_line() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_lines(&[3, 1]);
         assert_eq!(b.cfg.num_lines(), 2);
         b.without_line(3);
@@ -1612,7 +1719,7 @@ mod tests {
     }
     #[test]
     fn builder_with_lines() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.cfg.num_lines(), 0);
         b.with_lines(&[3, 1]);
         assert_eq!(b.cfg.num_lines(), 2);
@@ -1623,7 +1730,7 @@ mod tests {
     }
     #[test]
     fn builder_without_lines() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_lines(&[3, 1, 0, 5, 7]);
         assert_eq!(b.cfg.num_lines(), 5);
         b.without_lines(&[3, 5]);
@@ -1632,7 +1739,7 @@ mod tests {
     }
     #[test]
     fn builder_with_value() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(b.cfg.base.value, None);
         b.as_input().with_value(Active);
         assert_eq!(b.cfg.base.value, Some(Active));
@@ -1641,7 +1748,7 @@ mod tests {
     }
     #[test]
     fn builder_from_line_config() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         let d_us = Duration::from_micros(1234);
         let lc = line::Config {
             direction: Some(Output),
@@ -1668,14 +1775,14 @@ mod tests {
     }
     #[test]
     fn builder_to_uapi() {
-        let res = Builder::new().to_uapi();
+        let res = Builder::default().to_uapi();
         assert!(res.is_err());
         assert_eq!(res.err().unwrap().to_string(), "No lines specified.");
     }
     #[test]
     #[cfg(feature = "uapi_v1")]
     fn builder_to_v1() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_consumer("test builder")
             .with_lines(&[1, 8, 4])
             .as_active_low()
@@ -1696,7 +1803,7 @@ mod tests {
             panic!("not a handle request");
         }
 
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_consumer("test builder")
             .with_line(8)
             .with_edge_detection(RisingEdge);
@@ -1709,7 +1816,7 @@ mod tests {
             panic!("not an event request");
         }
 
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_lines(&[2, 6])
             .as_output(Value::Active)
             .with_lines(&[5, 7])
@@ -1735,7 +1842,7 @@ mod tests {
 
         // ABI limitations
 
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(
             b.with_kernel_event_buffer_size(42)
                 .with_lines(&[1, 8, 4])
@@ -1746,7 +1853,7 @@ mod tests {
             "uAPI ABI v1 does not support setting event buffer size."
         );
 
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(
             b.with_lines(&[1, 8, 4])
                 .as_input()
@@ -1758,7 +1865,7 @@ mod tests {
             "uAPI ABI v1 requires all lines to share the same configuration."
         );
 
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(
             b.with_lines(&[1, 8, 4])
                 .with_edge_detection(RisingEdge)
@@ -1768,7 +1875,7 @@ mod tests {
             "uAPI ABI v1 only supports edge detection on single line requests."
         );
 
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(
             b.with_lines(&[1, 8, 4])
                 .with_debounce_period(Duration::from_millis(23))
@@ -1778,7 +1885,7 @@ mod tests {
             "uAPI ABI v1 does not support debounce."
         );
 
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         assert_eq!(
             b.with_line(4)
                 .with_edge_detection(RisingEdge)
@@ -1793,7 +1900,7 @@ mod tests {
     #[allow(irrefutable_let_patterns)]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     fn builder_to_v2() {
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_consumer("test builder")
             .with_kernel_event_buffer_size(42)
             .with_lines(&[1, 8, 4])
@@ -1816,7 +1923,7 @@ mod tests {
             panic!("not a line request");
         }
 
-        let mut b = Builder::new();
+        let mut b = Builder::default();
         b.with_lines(&[1, 8, 4])
             .as_input()
             .as_active_low()
@@ -1883,7 +1990,7 @@ mod tests {
     }
     #[test]
     fn config_default() {
-        let cfg = Config::new();
+        let cfg = Config::default();
         assert_eq!(cfg.lcfg.len(), 0);
         assert_eq!(cfg.selected.len(), 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -1897,7 +2004,7 @@ mod tests {
     }
     #[test]
     fn config_as_input() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.as_output(Active).with_drive(OpenDrain);
         assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.value, Some(Active));
@@ -1909,7 +2016,7 @@ mod tests {
     }
     #[test]
     fn config_as_output() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.as_input().with_edge_detection(RisingEdge);
         assert_eq!(cfg.base.direction, Some(Input));
         assert_eq!(cfg.base.value, None);
@@ -1921,7 +2028,7 @@ mod tests {
     }
     #[test]
     fn config_as_active_low() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.as_active_low();
         assert!(cfg.base.active_low);
         cfg.as_active_high();
@@ -1930,7 +2037,7 @@ mod tests {
 
     #[test]
     fn config_as_active_high() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.as_active_low().with_line(3);
         assert!(cfg.lcfg.get(&3).unwrap().active_low);
         assert!(cfg.base.active_low);
@@ -1940,7 +2047,7 @@ mod tests {
     }
     #[test]
     fn config_with_bias() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_bias(PullUp);
         assert_eq!(cfg.base.bias, Some(PullUp));
         cfg.with_bias(PullDown);
@@ -1954,7 +2061,7 @@ mod tests {
     fn config_with_debounce_period() {
         let d_us = Duration::from_micros(1234);
         let d_ns = Duration::from_nanos(234);
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_drive(OpenSource);
         assert_eq!(cfg.base.direction, Some(Output));
         cfg.with_debounce_period(Duration::from_micros(1234));
@@ -1967,7 +2074,7 @@ mod tests {
     }
     #[test]
     fn config_with_direction() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_direction(Output);
         assert_eq!(cfg.base.direction, Some(Output));
         cfg.with_direction(Input);
@@ -1975,7 +2082,7 @@ mod tests {
     }
     #[test]
     fn config_with_drive() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_bias(PullUp)
             .with_debounce_period(Duration::from_millis(10))
             .with_edge_detection(RisingEdge);
@@ -1996,7 +2103,7 @@ mod tests {
     }
     #[test]
     fn config_with_edge_detection() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_drive(OpenSource);
         assert_eq!(cfg.base.direction, Some(Output));
         cfg.with_edge_detection(RisingEdge);
@@ -2010,7 +2117,7 @@ mod tests {
     }
     #[test]
     fn config_with_event_clock() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         assert_eq!(cfg.base.event_clock, None);
         cfg.with_event_clock(Realtime);
         assert_eq!(cfg.base.event_clock, Some(Realtime));
@@ -2019,7 +2126,7 @@ mod tests {
     }
     #[test]
     fn config_with_line() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         // initial mutator hits base config
         cfg.as_output(Active);
         assert_eq!(cfg.base.direction, Some(Output));
@@ -2055,7 +2162,7 @@ mod tests {
     }
     #[test]
     fn config_without_line() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.as_output(Active);
         assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.value, Some(Active));
@@ -2095,7 +2202,7 @@ mod tests {
     }
     #[test]
     fn config_with_lines() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.as_output(Active);
         assert_eq!(cfg.base.direction, Some(Output));
         assert_eq!(cfg.base.value, Some(Active));
@@ -2131,7 +2238,7 @@ mod tests {
     }
     #[test]
     fn config_without_lines() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_lines(&[1, 2, 3, 4]).with_lines(&[5, 6, 7, 8]);
         // from selected and unselected
         cfg.without_lines(&[1, 4, 6, 7]);
@@ -2148,7 +2255,7 @@ mod tests {
     }
     #[test]
     fn config_with_value() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         assert_eq!(cfg.base.value, None);
         cfg.as_input().with_value(Active);
         assert_eq!(cfg.base.value, Some(Active));
@@ -2169,7 +2276,7 @@ mod tests {
             value: Some(Active),
         };
         // base
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.from_line_config(&lc);
         assert!(cfg.lcfg.is_empty());
         assert!(cfg.selected.is_empty());
@@ -2181,7 +2288,7 @@ mod tests {
         assert_eq!(cfg.base.value, Some(Active));
         assert_eq!(cfg.base.debounce_period, Some(d_us));
         // select
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_line(1).from_line_config(&lc);
         assert_eq!(cfg.selected, &[1]);
         assert_eq!(cfg.lcfg.len(), 1);
@@ -2196,7 +2303,7 @@ mod tests {
     }
     #[test]
     fn config_line_config() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_bias(PullDown);
         // no config
         assert!(cfg.line_config(2).is_none());
@@ -2214,7 +2321,7 @@ mod tests {
     }
     #[test]
     fn config_lines() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_lines(&[1, 2, 4, 6]).with_lines(&[2, 6, 9]);
         // should have 1,4 unselected and 2,6,9 select
         assert_eq!(cfg.lines(), &[1, 2, 4, 6, 9]);
@@ -2223,7 +2330,7 @@ mod tests {
     }
     #[test]
     fn config_num_lines() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_lines(&[1, 2, 4, 6]);
         assert_eq!(cfg.num_lines(), 4);
         cfg.with_lines(&[2, 6, 9]);
@@ -2234,7 +2341,7 @@ mod tests {
     #[test]
     #[cfg(feature = "uapi_v1")]
     fn config_unique() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         // multiple, but unique
         cfg.with_lines(&[1, 2, 4, 6]);
         let lc = cfg.lcfg.get(&1);
@@ -2252,10 +2359,10 @@ mod tests {
     }
     #[test]
     fn config_overlay() {
-        let mut bottom = Config::new();
+        let mut bottom = Config::default();
         bottom.with_lines(&[1, 4, 7]).as_active_low();
         assert_eq!(bottom.num_lines(), 3);
-        let mut top = Config::new();
+        let mut top = Config::default();
         top.with_lines(&[3, 4]).as_active_high();
         let overlay = bottom.overlay(&top);
         assert_eq!(overlay.num_lines(), 3);
@@ -2270,7 +2377,7 @@ mod tests {
     #[test]
     #[cfg(feature = "uapi_v1")]
     fn config_to_v1() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_line(3)
             .as_output(Value::Active)
             .with_line(1)
@@ -2291,7 +2398,7 @@ mod tests {
     #[test]
     #[cfg(feature = "uapi_v1")]
     fn config_to_v1_values() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_line(3)
             .as_output(Value::Active)
             .with_line(2)
@@ -2307,7 +2414,7 @@ mod tests {
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     fn config_to_v2() {
-        let mut cfg = Config::new();
+        let mut cfg = Config::default();
         cfg.with_line(3)
             .as_output(Value::Active)
             .with_line(1)
