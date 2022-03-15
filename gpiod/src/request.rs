@@ -557,6 +557,10 @@ impl Config {
         Config::default()
     }
 
+    /// Update the line configs using the updated config.
+    ///
+    /// Other fields are not updated as they are effectively immutable for the
+    /// lifetime of the associated request.
     fn update(&mut self, cfg: Config) {
         self.lcfg = cfg.lcfg;
     }
