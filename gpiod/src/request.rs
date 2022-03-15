@@ -27,7 +27,7 @@ use std::io::Read;
 use std::mem::size_of;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 /// A builder of line requests.
@@ -37,10 +37,10 @@ use std::time::Duration;
 /// To request and read a basic input line:
 /// ```no_run
 /// # use gpiod::Result;
-/// use gpiod::request::Builder;
+/// use gpiod::request::Request;
 ///
 /// # fn main() -> Result<()> {
-/// let mut l3 = Builder::new()
+/// let l3 = Request::builder()
 ///     .on_chip("/dev/gpiochip0")
 ///     .with_line(3)
 ///     .request()?;
@@ -53,12 +53,12 @@ use std::time::Duration;
 ///
 /// ```no_run
 /// # use gpiod::Result;
-/// use gpiod::request::Builder;
+/// use gpiod::request::Request;
 /// use gpiod::line::Values;
 ///
 /// # fn main() -> Result<()> {
 /// let offsets = &[3,5];
-/// let mut ll = Builder::new()
+/// let ll = Request::builder()
 ///     .on_chip("/dev/gpiochip0")
 ///     .with_lines(offsets)
 ///     .request()?;
@@ -166,7 +166,7 @@ impl Builder {
             f: Arc::new(Mutex::new(f)),
             fd,
             offsets: self.cfg.offsets.clone(),
-            cfg: self.cfg.clone(),
+            cfg: Arc::new(RwLock::new(self.cfg.clone())),
             user_event_buffer_size: max(self.user_event_buffer_size, 1),
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             abiv: self.abiv,
@@ -556,6 +556,11 @@ impl Config {
     pub fn new() -> Config {
         Config::default()
     }
+
+    fn update(&mut self, cfg: Config) {
+        self.lcfg = cfg.lcfg;
+    }
+
     /// Set the selected lines to input.
     ///
     /// This is a short form of [`with_direction(Input)`].
@@ -843,8 +848,9 @@ impl Config {
     // Any lines missing from top retain their existing config.
     fn overlay(&self, top: &Config) -> Config {
         let mut cfg = Config {
-            base: top.base.clone(),
             offsets: self.offsets.clone(),
+            // lcfg populated below
+            // other fields not required for reconfigure
             ..Default::default()
         };
         for offset in &self.offsets {
@@ -1034,7 +1040,8 @@ pub struct Request {
     /// Cached copy of f.as_raw_fd() for ioctl calls, to avoid Arc<Mutex<>> overheads for most ops.
     fd: RawFd,
     offsets: Vec<Offset>,
-    cfg: Config,
+    cfg: Arc<RwLock<Config>>,
+    /// The size of the user buffer created for the edge_events() iterator.
     user_event_buffer_size: usize,
     /// The ABI version used to create the request, and so determines how to decode events.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -1114,11 +1121,25 @@ impl Request {
         self.set_values(&values)
     }
 
-    /// The current request configuration.
+    /// A snapshot of the requested configuration.
     ///
-    /// This is the configuration applied to the hardware.
-    pub fn config(&self) -> &Config {
-        &self.cfg
+    /// This is the configuration currently applied to the hardware.
+    pub fn config(&self) -> Config {
+        self.cfg
+            .read()
+            .expect("failed to acquire read lock on config")
+            .clone()
+    }
+
+    /// Get a snapshot of the requested configuration for a particular line.
+    ///
+    /// This is the configuration currently applied to the line.
+    pub fn line_config(&self, offset: Offset) -> Option<line::Config> {
+        self.cfg
+            .read()
+            .expect("failed to acquire read lock on config")
+            .line_config(offset)
+            .cloned()
     }
 
     /// Reconfigure the request with the an updated configuration.
@@ -1126,18 +1147,32 @@ impl Request {
     /// Note that lines cannot be added or removed from the request.
     /// Any additional lines in new_cfg will be ignored, and any missing
     /// lines will retain their existing configuration.
-    pub fn reconfigure(&mut self, new_cfg: &Config) -> Result<()> {
-        let cfg = self.cfg.overlay(new_cfg);
+    pub fn reconfigure(&self, new_cfg: &Config) -> Result<()> {
+        let cfg = self
+            .cfg
+            .read()
+            .expect("failed to acquire read lock on config")
+            .overlay(new_cfg);
         self.do_reconfigure(&cfg)?;
         // only update request config if reconfigure succeeds.
-        self.cfg = cfg;
+        self.cfg
+            .write()
+            .expect("failed to acquire write lock on config")
+            .update(cfg);
         Ok(())
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_reconfigure(&mut self, cfg: &Config) -> Result<()> {
+    fn do_reconfigure(&self, cfg: &Config) -> Result<()> {
         match self.abiv {
             AbiVersion::V1 => {
-                if self.cfg.unique()?.edge_detection.is_some() {
+                if self
+                    .cfg
+                    .read()
+                    .expect("failed to acquire read lock on config")
+                    .unique()?
+                    .edge_detection
+                    .is_some()
+                {
                     return Err(Error::AbiLimitation(
                         AbiVersion::V1,
                         "cannot reconfigure lines with edge detection".to_string(),
@@ -1151,8 +1186,15 @@ impl Request {
         }
     }
     #[cfg(not(feature = "uapi_v2"))]
-    fn do_reconfigure(&mut self, cfg: &Config) -> Result<()> {
-        if self.cfg.unique()?.edge_detection.is_some() {
+    fn do_reconfigure(&self, cfg: &Config) -> Result<()> {
+        if self
+            .cfg
+            .read()
+            .expect("failed to acquire read lock on config")
+            .unique()?
+            .edge_detection
+            .is_some()
+        {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
                 "cannot reconfigure lines with edge detection".to_string(),
@@ -1162,7 +1204,7 @@ impl Request {
             .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
     }
     #[cfg(not(feature = "uapi_v1"))]
-    fn do_reconfigure(&mut self, cfg: &Config) -> Result<()> {
+    fn do_reconfigure(&self, cfg: &Config) -> Result<()> {
         v2::set_line_config(&self.f, cfg.to_v2()?)
             .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
     }

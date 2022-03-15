@@ -39,10 +39,10 @@ pub mod line;
 /// To request and read a basic input line:
 /// ```no_run
 /// # use gpiod::Result;
-/// use gpiod::request::Builder;
+/// use gpiod::request::Request;
 ///
 /// # fn main() -> Result<()> {
-/// let mut l3 = Builder::new()
+/// let l3 = Request::builder()
 ///     .on_chip("/dev/gpiochip0")
 ///     .with_line(3)
 ///     .request()?;
