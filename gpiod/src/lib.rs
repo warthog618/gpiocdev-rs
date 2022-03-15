@@ -255,11 +255,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Detect the most recent uAPI ABI supported by the platform.
 pub fn detect_abi_version() -> Result<AbiVersion> {
-    if let Ok(cc) = chip::chips() {
-        for p in cc {
-            if let Ok(c) = chip::Chip::from_path(&p) {
-                return c.detect_abi_version();
-            }
+    for p in chip::chips()? {
+        if let Ok(c) = chip::Chip::from_path(&p) {
+            return c.detect_abi_version();
         }
     }
     Err(Error::NoGpioChips())
@@ -267,11 +265,9 @@ pub fn detect_abi_version() -> Result<AbiVersion> {
 
 /// Check if the platform and library support a specific ABI version.
 pub fn supports_abi_version(abiv: AbiVersion) -> Result<()> {
-    if let Ok(cc) = chip::chips() {
-        for p in cc {
-            if let Ok(c) = chip::Chip::from_path(&p) {
-                return c.supports_abi_version(abiv);
-            }
+    for p in chip::chips()? {
+        if let Ok(c) = chip::Chip::from_path(&p) {
+            return c.supports_abi_version(abiv);
         }
     }
     Err(Error::NoGpioChips())

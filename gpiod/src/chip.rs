@@ -13,6 +13,7 @@ use gpiod_uapi::v1 as uapi;
 use gpiod_uapi::v2 as uapi;
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiod_uapi::{v1, v2};
+use std::collections::HashSet;
 use std::fmt;
 use std::fs;
 use std::io::Read;
@@ -47,22 +48,38 @@ pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     Err(Error::GpioChip(pb, ErrorKind::NotGpioDevice))
 }
 
-/// Returns the paths of all the GPIO character devices on the system.
+/// Returns an iterator over the paths of all the GPIO character devices on the system.
+pub fn chips() -> Result<ChipIterator> {
+    Ok(ChipIterator {
+        rd: std::fs::read_dir("/dev")?,
+        paths: HashSet::new(),
+    })
+}
+
+/// An iterator over the paths of all chips in the system.
 ///
-// This is expected to be small, so return a vec, rather than using an iterator.
-pub fn chips() -> Result<Vec<PathBuf>> {
-    let mut chips = Vec::new();
-    let rd = std::fs::read_dir("/dev")?;
-    for de in rd.flatten() {
-        let path = de.path();
-        if let Ok(dp) = is_chip(&path) {
-            if !chips.contains(&dp) {
-                chips.push(dp);
+/// Only returns unique chips, so symlinks to chips will not be returned,
+/// only the underlying chip.
+pub struct ChipIterator {
+    rd: fs::ReadDir,
+    paths: HashSet<PathBuf>,
+}
+
+impl Iterator for ChipIterator {
+    type Item = PathBuf;
+
+    fn next(&mut self) -> Option<PathBuf> {
+        for de in (&mut self.rd).flatten() {
+            let path = de.path();
+            if let Ok(dp) = is_chip(&path) {
+                if !self.paths.contains(&dp) {
+                    self.paths.insert(dp.clone());
+                    return Some(dp);
+                }
             }
         }
+        None
     }
-    chips.sort();
-    Ok(chips)
 }
 
 /// A GPIO character device.

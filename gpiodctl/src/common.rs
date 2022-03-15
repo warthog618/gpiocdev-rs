@@ -22,7 +22,12 @@ use strum::{EnumString, EnumVariantNames, VariantNames};
 // common helper functions
 
 pub fn all_chips() -> Result<Vec<PathBuf>> {
-    chips().context("Failed to find any chips.")
+    let mut cc: Vec<PathBuf> = chips()
+        .context("Failed to find any chips.")?
+        .collect();
+    // sorted for consistent outputs
+    cc.sort();
+    Ok(cc)
 }
 
 pub fn chip_from_opts(p: &Path, abiv: u8) -> Result<Chip> {
