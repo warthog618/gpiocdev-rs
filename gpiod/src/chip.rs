@@ -16,12 +16,10 @@ use gpiod_uapi::{v1, v2};
 use std::collections::HashSet;
 use std::fmt;
 use std::fs;
-use std::io::Read;
 use std::mem::size_of;
 use std::os::linux::fs::MetadataExt;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 const CHARDEV_MODE: u32 = 0x2000;
@@ -89,7 +87,8 @@ impl Iterator for ChipIterator {
 pub struct Chip {
     /// The resolved path of the GPIO character device.
     path: PathBuf,
-    pub(crate) f: Arc<Mutex<fs::File>>,
+    _f: fs::File,
+    /// Cached copy of _f.as_raw_fd() for syscalls, to avoid Arc<Mutex<>> overheads for ops.
     pub(crate) fd: RawFd,
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     abiv: AbiVersion,
@@ -105,7 +104,7 @@ impl Chip {
         let fd = f.as_raw_fd();
         Ok(Chip {
             path,
-            f: Arc::new(Mutex::new(f)),
+            _f: f,
             fd,
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             abiv: V2,
@@ -161,7 +160,7 @@ impl Chip {
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     pub fn line_info(&self, offset: u32) -> Result<line::Info> {
-        uapi::get_line_info(&self.f, offset)
+        uapi::get_line_info(self.fd, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))
     }
@@ -182,7 +181,7 @@ impl Chip {
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_watch_line_info(&self, offset: u32) -> Result<line::Info> {
-        uapi::watch_line_info(&self.f, offset)
+        uapi::watch_line_info(self.fd, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::WatchLineInfo, e))
     }
@@ -211,7 +210,8 @@ impl Chip {
     pub fn read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
         let mut buf = Vec::with_capacity(self.line_info_change_event_size());
         buf.resize(buf.capacity(), 0);
-        let n = self.f.lock().unwrap().read(&mut buf)?;
+        let n = gpiod_uapi::read_event(self.fd, &mut buf)
+            .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))?;
         assert_eq!(n, self.line_info_change_event_size());
         self.line_info_change_event_from_buf(&buf)
     }
@@ -255,7 +255,7 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         match abiv {
-            V1 => uapi::get_line_info(&self.f, 0)
+            V1 => uapi::get_line_info(self.fd, 0)
                 .map(|_| ())
                 .map_err(|_| Error::UnsupportedAbi(abiv, AbiSupportKind::Platform)),
             V2 => Err(Error::UnsupportedAbi(
@@ -267,7 +267,7 @@ impl Chip {
     #[cfg(not(feature = "uapi_v1"))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         match abiv {
-            V2 => uapi::get_line_info(&self.f, 0)
+            V2 => uapi::get_line_info(self.fd, 0)
                 .map(|_| ())
                 .map_err(|_| Error::UnsupportedAbi(abiv, AbiSupportKind::Platform)),
             V1 => Err(Error::UnsupportedAbi(
@@ -351,7 +351,8 @@ pub struct InfoChangeIterator<'a> {
 
 impl<'a> InfoChangeIterator<'a> {
     fn read_event(&mut self) -> Result<InfoChangeEvent> {
-        let n = self.chip.f.lock().unwrap().read(&mut self.buf)?;
+        let n = gpiod_uapi::read_event(self.chip.fd, &mut self.buf)
+            .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))?;
         assert!(n == self.event_size);
         self.chip.line_info_change_event_from_buf(&self.buf)
     }

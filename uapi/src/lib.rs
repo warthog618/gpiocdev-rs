@@ -7,7 +7,8 @@
 pub(crate) mod common;
 
 pub use common::{
-    has_event, wait_event, Error, Name, Result, ValidationError, NAME_LEN_MAX, NUM_LINES_MAX,
+    has_event, read_event, wait_event, Error, Name, Result, ValidationError, NAME_LEN_MAX,
+    NUM_LINES_MAX,
 };
 
 /// This module implements GPIO ABI v1 which was released in Linux v4.8.

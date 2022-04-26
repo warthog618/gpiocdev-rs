@@ -337,23 +337,23 @@ pub struct Values(IntMap<Offset, Value>);
 impl Values {
     /// overlays the values from src over the values in the dst.
     #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-    pub(crate) fn from_uapi(&mut self, offsets: &[Offset], src: &uapi::LineValues) {
-        self.from_v1(offsets, src)
+    pub(crate) fn overlay_from_uapi(&mut self, offsets: &[Offset], src: &uapi::LineValues) {
+        self.overlay_from_v1(offsets, src)
     }
     #[cfg(not(feature = "uapi_v1"))]
-    pub(crate) fn from_uapi(&mut self, offsets: &[Offset], src: &uapi::LineValues) {
-        self.from_v2(offsets, src)
+    pub(crate) fn overlay_from_uapi(&mut self, offsets: &[Offset], src: &uapi::LineValues) {
+        self.overlay_from_v2(offsets, src)
     }
     /// overlays the values from src over the values in the dst.
     #[cfg(feature = "uapi_v1")]
-    pub(crate) fn from_v1(&mut self, offsets: &[Offset], src: &v1::LineValues) {
+    pub(crate) fn overlay_from_v1(&mut self, offsets: &[Offset], src: &v1::LineValues) {
         for (idx, offset) in offsets.iter().enumerate() {
             self.0.insert(*offset, src.get(idx).into());
         }
     }
     /// overlays the values from src over the values in the dst.
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    pub(crate) fn from_v2(&mut self, offsets: &[Offset], src: &v2::LineValues) {
+    pub(crate) fn overlay_from_v2(&mut self, offsets: &[Offset], src: &v2::LineValues) {
         for (idx, offset) in offsets.iter().enumerate() {
             if let Some(val) = src.get(idx) {
                 self.0.insert(*offset, val.into());
@@ -1139,7 +1139,7 @@ mod tests {
         let mut dst = Values::default();
         dst.set(4, Value::Active);
         dst.set(7, Value::Inactive);
-        dst.from_v1(&offsets, &src);
+        dst.overlay_from_v1(&offsets, &src);
         assert_eq!(dst.get(1), Some(Value::Active));
         assert_eq!(dst.get(2), None);
         assert_eq!(dst.get(3), Some(Value::Inactive));
@@ -1161,7 +1161,7 @@ mod tests {
         let mut dst = Values::default();
         dst.set(4, Value::Active);
         dst.set(7, Value::Inactive);
-        dst.from_v2(&offsets, &src);
+        dst.overlay_from_v2(&offsets, &src);
         assert_eq!(dst.get(1), Some(Value::Active));
         assert_eq!(dst.get(2), None);
         assert_eq!(dst.get(3), Some(Value::Inactive));

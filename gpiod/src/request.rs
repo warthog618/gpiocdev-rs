@@ -23,11 +23,10 @@ use std::cmp::max;
 #[cfg(feature = "uapi_v2")]
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Read;
 use std::mem::size_of;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 /// A builder of line requests.
@@ -143,9 +142,9 @@ impl Builder {
     #[cfg(not(feature = "uapi_v2"))]
     fn do_request(&self, chip: &Chip) -> Result<File> {
         match self.to_uapi()? {
-            UapiRequest::Handle(hr) => v1::get_line_handle(&chip.f, hr)
+            UapiRequest::Handle(hr) => v1::get_line_handle(chip.fd, hr)
                 .map_err(|e| Error::UapiError(UapiCall::GetLineHandle, e)),
-            UapiRequest::Event(er) => v1::get_line_event(&chip.f, er)
+            UapiRequest::Event(er) => v1::get_line_event(chip.fd, er)
                 .map_err(|e| Error::UapiError(UapiCall::GetLineEvent, e)),
         }
     }
@@ -153,7 +152,7 @@ impl Builder {
     fn do_request(&self, chip: &Chip) -> Result<File> {
         match self.to_uapi()? {
             UapiRequest::Line(lr) => {
-                v2::get_line(&chip.f, lr).map_err(|e| Error::UapiError(UapiCall::GetLine, e))
+                v2::get_line(chip.fd, lr).map_err(|e| Error::UapiError(UapiCall::GetLine, e))
             }
         }
     }
@@ -161,7 +160,7 @@ impl Builder {
     fn to_request(&self, f: File) -> Request {
         let fd = f.as_raw_fd();
         Request {
-            f: Arc::new(Mutex::new(f)),
+            _f: f,
             fd,
             offsets: self.cfg.offsets.clone(),
             cfg: Arc::new(RwLock::new(self.cfg.clone())),
@@ -1035,8 +1034,8 @@ impl<'a> Iterator for SelectedIterator<'a> {
 /// An active request of a set of lines.
 pub struct Request {
     /// The request file, as returned by chip.get_line.
-    f: Arc<Mutex<File>>,
-    /// Cached copy of f.as_raw_fd() for ioctl calls, to avoid Arc<Mutex<>> overheads for most ops.
+    _f: File,
+    /// Cached copy of _f.as_raw_fd() for syscalls, to avoid Arc<Mutex<>> overheads for ops.
     fd: RawFd,
     offsets: Vec<Offset>,
     cfg: Arc<RwLock<Config>>,
@@ -1124,11 +1123,13 @@ impl Request {
         let res = match self.abiv {
             AbiVersion::V1 => {
                 let mut vals = values.to_v1(offsets);
-                v1::get_line_values(self.fd, &mut vals).map(|_| values.from_v1(offsets, &vals))
+                v1::get_line_values(self.fd, &mut vals)
+                    .map(|_| values.overlay_from_v1(offsets, &vals))
             }
             AbiVersion::V2 => {
                 let mut vals = values.to_v2(offsets);
-                v2::get_line_values(self.fd, &mut vals).map(|_| values.from_v2(offsets, &vals))
+                v2::get_line_values(self.fd, &mut vals)
+                    .map(|_| values.overlay_from_v2(offsets, &vals))
             }
         };
         res.map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))
@@ -1136,8 +1137,8 @@ impl Request {
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     pub fn values(&self, values: &mut Values) -> Result<()> {
         let mut vals = values.to_uapi(&self.offsets);
-        uapi::get_line_values(&self.f, &mut vals)
-            .map(|_| values.from_uapi(&self.offsets, &vals))
+        uapi::get_line_values(self.fd, &mut vals)
+            .map(|_| values.overlay_from_uapi(&self.offsets, &vals))
             .map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))
     }
 
@@ -1205,7 +1206,7 @@ impl Request {
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     pub fn set_values(&self, values: &Values) -> Result<()> {
-        uapi::set_line_values(&self.f, &values.to_uapi(&self.offsets))
+        uapi::set_line_values(self.fd, &values.to_uapi(&self.offsets))
             .map_err(|e| Error::UapiError(UapiCall::SetLineValues, e))
     }
 
@@ -1311,12 +1312,12 @@ impl Request {
                 "cannot reconfigure lines with edge detection".to_string(),
             ));
         }
-        v1::set_line_config(&self.f, cfg.to_v1()?)
+        v1::set_line_config(self.fd, cfg.to_v1()?)
             .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
     }
     #[cfg(not(feature = "uapi_v1"))]
     fn do_reconfigure(&self, cfg: &Config) -> Result<()> {
-        v2::set_line_config(&self.f, cfg.to_v2()?)
+        v2::set_line_config(self.fd, cfg.to_v2()?)
             .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
     }
 
@@ -1327,8 +1328,8 @@ impl Request {
 
     // This will read in v1:LineEdgeEvent or v2::LineEdgeEvent sized chunks so buf must be at least
     // as large as one event.
-    fn read_event(&self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.f.lock().unwrap().read(buf)
+    fn read_event(&self, buf: &mut [u8]) -> Result<usize> {
+        gpiod_uapi::read_event(self.fd, buf).map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))
     }
 
     /// Returns true when the request has edge events available to read.

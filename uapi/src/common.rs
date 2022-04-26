@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use libc::{c_long, ioctl, pollfd, ppoll, sigset_t, time_t, timespec, POLLIN};
+use libc::{c_long, ioctl, pollfd, ppoll, read, sigset_t, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
 use std::io::Error as IoError;
 use std::mem::{size_of, MaybeUninit};
@@ -14,6 +14,18 @@ use std::time::Duration;
 /// Check if the file has an event available to read.
 pub fn has_event(fd: RawFd) -> Result<bool> {
     wait_event(fd, Duration::ZERO)
+}
+
+/// Read an event from a chip or request file descriptor.
+pub fn read_event(fd: RawFd, buf: &mut [u8]) -> Result<usize> {
+    unsafe {
+        let bufptr: *mut libc::c_void = std::ptr::addr_of_mut!(*buf) as *mut libc::c_void;
+        match read(fd, bufptr, buf.len()) {
+            -1 => Err(Error::from(IoError::last_os_error())),
+            x => Ok(x.try_into().unwrap()),
+
+        }
+    }
 }
 
 /// Wait for the file to have an event available to read.
