@@ -459,7 +459,7 @@ impl InteractiveHelper {
         }
         let line_value = line_values.last().unwrap();
         let mut vpos = pos;
-        match line_value.split_once("=") {
+        match line_value.split_once('=') {
             Some((_, value)) => {
                 const VALUES: [&str; 8] =
                     ["active", "inactive", "on", "off", "true", "false", "1", "0"];

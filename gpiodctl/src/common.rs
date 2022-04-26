@@ -22,9 +22,7 @@ use strum::{EnumString, EnumVariantNames, VariantNames};
 // common helper functions
 
 pub fn all_chips() -> Result<Vec<PathBuf>> {
-    let mut cc: Vec<PathBuf> = chips()
-        .context("Failed to find any chips.")?
-        .collect();
+    let mut cc: Vec<PathBuf> = chips().context("Failed to find any chips.")?.collect();
     // sorted for consistent outputs
     cc.sort();
     Ok(cc)
@@ -158,15 +156,13 @@ pub fn parse_duration(s: &str) -> std::result::Result<Duration, ParseDurationErr
         Some(n) => {
             let (num, units) = s.split_at(n);
             let t = num.parse::<u64>().map_err(ParseDurationError::Digits)?;
-            let multiplier;
-            match units {
-                "ns" => multiplier = 1,
-                "us" => multiplier = 1000,
-                "ms" => multiplier = 1000000,
-                "s" => multiplier = 1000000000,
+            t * match units {
+                "ns" => 1,
+                "us" => 1000,
+                "ms" => 1000000,
+                "s" => 1000000000,
                 _ => return Err(ParseDurationError::Units(s.to_string())),
             }
-            t * multiplier
         }
         None => return Err(ParseDurationError::NoUnits(s.to_string())),
     };
