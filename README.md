@@ -50,7 +50,7 @@ Waiting for events on a line:
         .request()?;
 
     // wait for line edge events
-    for event in req.events()? {
+    for event in req.edge_events()? {
         println!("{:?}", event?);
     }
 ```
