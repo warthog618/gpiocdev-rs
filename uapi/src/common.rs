@@ -111,17 +111,17 @@ pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
     }
 }
 
-/// The result returned by [`gpiod_uapi`] functions.
+/// The result returned by [`gpiocdev_uapi`] functions.
 ///
-/// [`gpiod_uapi`]: crate
+/// [`gpiocdev_uapi`]: crate
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Result returned by struct validators.
 pub type ValidationResult = std::result::Result<(), ValidationError>;
 
-/// Errors returned by [`gpiod_uapi`] functions.
+/// Errors returned by [`gpiocdev_uapi`] functions.
 ///
-/// [`gpiod_uapi`]: crate
+/// [`gpiocdev_uapi`]: crate
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// An error returned from an underlying system call.
