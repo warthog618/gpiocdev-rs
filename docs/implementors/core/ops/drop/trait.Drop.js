@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["gpiosim"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.62.1/core/ops/drop/trait.Drop.html\" title=\"trait core::ops::drop::Drop\">Drop</a> for <a class=\"struct\" href=\"gpiosim/struct.Sim.html\" title=\"struct gpiosim::Sim\">Sim</a>","synthetic":false,"types":["gpiosim::Sim"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

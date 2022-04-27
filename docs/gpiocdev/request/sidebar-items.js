@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Builder","A builder of line requests."],["Config","The configuration for a request for one or more lines."],["EdgeEventBuffer","A user space buffer for reading edge events in bulk from a [`Request`]."],["Request","An active request of a set of lines."]]});

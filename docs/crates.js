@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["gpiocdev","gpiocdev_uapi","gpiosim"];
