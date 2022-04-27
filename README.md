@@ -8,7 +8,7 @@ The crates are still a work in progress.  They are functionally complete, but ha
 
 ## gpiocdev
 
-The [gpiocdev](https://warthog618.github.io/gpiocdev-rs/lib/) crate provides an API for accessing and controlling GPIO lines from Rust applications.
+The [gpiocdev](https://warthog618.github.io/gpiocdev-rs/gpiocdev/) crate provides an API for accessing and controlling GPIO lines from Rust applications.
 
 Getting a line value:
 
@@ -105,9 +105,9 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
 
 A good starting point to learn more is the [gpiocdev::request::Request](https://warthog618.github.io/gpiocdev-rs/gpiocdev/request/struct.Request.html).
 
-## cli
+## gpiocdev-cli
 
-The [gpiocdev-cli](https://warthog618.github.io/gpiocdev-rs/cli/) crate provides a command line tool to access and control GPIO lines.
+The gpiocdev-cli crate provides a command line tool to access and control GPIO lines.
 
 This is equivalent to the tools provided by libgpiod, combined into a single tool.
 
@@ -133,8 +133,8 @@ SUBCOMMANDS:
     watch      Watch lines for requests and changes to configuration state
 ```
 
-## uapi
+## gpiocdev-uapi
 
-The [gpiocdev-uapi](https://warthog618.github.io/gpiocdev-rs/uapi/) crate provides a minimal safe Rust wrapper around the character device ioctls.
+The [gpiocdev-uapi](https://warthog618.github.io/gpiocdev-rs/gpiocdev_uapi/) crate provides a minimal safe Rust wrapper around the character device ioctls.
 
 The gpiocdev crate provides a higher level abstraction, so you should use that unless you have some particular interest in calling the ioctls directly.
