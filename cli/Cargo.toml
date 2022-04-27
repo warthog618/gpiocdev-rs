@@ -5,14 +5,18 @@ description = "A tool to access GPIO lines on Linux using the GPIO character dev
 edition = "2021"
 keywords = ["linux", "gpio", "cli", "embedded"]
 license = "MIT"
-name = "gpiodctl"
+name = "gpiocdev-cli"
 version = "0.1.0"
+
+[[bin]]
+name="gpiocdev"
+path="src/main.rs"
 
 [dependencies]
 anyhow = "1.0"
 clap = {version = "3.1", features = ["derive", "env"]}
 colored = "2"
-gpiod = {path = "../gpiod", features = ["uapi_v1", "uapi_v2"]}
+gpiocdev = {path = "../lib", features = ["uapi_v1", "uapi_v2"]}
 rustyline = "9.1.0"
 rustyline-derive = "0.6.0"
 strum = {version = "0.24", features = ["derive"]}

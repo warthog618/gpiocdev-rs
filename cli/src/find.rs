@@ -7,7 +7,7 @@ use super::common::{
 };
 use anyhow::{Context, Result};
 use clap::Parser;
-use gpiod::chip::Chip;
+use gpiocdev::chip::Chip;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]

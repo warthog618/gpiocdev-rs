@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
-use gpiod::line::{Value, Values};
-use gpiod::request::Request;
+use gpiocdev::line::{Value, Values};
+use gpiocdev::request::Request;
 use std::result::Result;
 use std::thread::sleep;
 use std::time::Duration;

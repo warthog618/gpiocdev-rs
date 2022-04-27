@@ -36,8 +36,8 @@ fn main() {
 
 #[derive(Parser)]
 #[clap(
-    name = "gpiodctl",
-    about = "A utility to control GPIO lines on Linux GPIO character devices."
+    name = "gpiocdev",
+    about = "A utility to control GPIO lines on Linux using GPIO character devices."
 )]
 struct Opts {
     /// Provide more detailed error messages.

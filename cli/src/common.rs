@@ -4,10 +4,10 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use gpiod::chip::{chips, is_chip, Chip};
-use gpiod::line::Offset;
-use gpiod::request::Config;
-use gpiod::{
+use gpiocdev::chip::{chips, is_chip, Chip};
+use gpiocdev::line::Offset;
+use gpiocdev::request::Config;
+use gpiocdev::{
     detect_abi_version,
     AbiVersion::{self, *},
 };
@@ -243,12 +243,12 @@ pub enum BiasFlags {
     PullDown,
     Disabled,
 }
-impl From<BiasFlags> for gpiod::line::Bias {
+impl From<BiasFlags> for gpiocdev::line::Bias {
     fn from(b: BiasFlags) -> Self {
         match b {
-            BiasFlags::PullUp => gpiod::line::Bias::PullUp,
-            BiasFlags::PullDown => gpiod::line::Bias::PullDown,
-            BiasFlags::Disabled => gpiod::line::Bias::Disabled,
+            BiasFlags::PullUp => gpiocdev::line::Bias::PullUp,
+            BiasFlags::PullDown => gpiocdev::line::Bias::PullDown,
+            BiasFlags::Disabled => gpiocdev::line::Bias::Disabled,
         }
     }
 }
@@ -275,12 +275,12 @@ pub enum DriveFlags {
     OpenDrain,
     OpenSource,
 }
-impl From<DriveFlags> for gpiod::line::Drive {
+impl From<DriveFlags> for gpiocdev::line::Drive {
     fn from(b: DriveFlags) -> Self {
         match b {
-            DriveFlags::PushPull => gpiod::line::Drive::PushPull,
-            DriveFlags::OpenDrain => gpiod::line::Drive::OpenDrain,
-            DriveFlags::OpenSource => gpiod::line::Drive::OpenSource,
+            DriveFlags::PushPull => gpiocdev::line::Drive::PushPull,
+            DriveFlags::OpenDrain => gpiocdev::line::Drive::OpenDrain,
+            DriveFlags::OpenSource => gpiocdev::line::Drive::OpenSource,
         }
     }
 }
@@ -306,12 +306,12 @@ pub enum EdgeFlags {
     FallingEdge,
     BothEdges,
 }
-impl From<EdgeFlags> for gpiod::line::EdgeDetection {
+impl From<EdgeFlags> for gpiocdev::line::EdgeDetection {
     fn from(b: EdgeFlags) -> Self {
         match b {
-            EdgeFlags::RisingEdge => gpiod::line::EdgeDetection::RisingEdge,
-            EdgeFlags::FallingEdge => gpiod::line::EdgeDetection::FallingEdge,
-            EdgeFlags::BothEdges => gpiod::line::EdgeDetection::BothEdges,
+            EdgeFlags::RisingEdge => gpiocdev::line::EdgeDetection::RisingEdge,
+            EdgeFlags::FallingEdge => gpiocdev::line::EdgeDetection::FallingEdge,
+            EdgeFlags::BothEdges => gpiocdev::line::EdgeDetection::BothEdges,
         }
     }
 }
@@ -330,12 +330,12 @@ impl EdgeOpts {
 #[derive(Clone, Debug, Parser)]
 pub struct LinesOpts {}
 
-pub fn stringify_attrs(li: &gpiod::line::Info) -> String {
-    use gpiod::line::{Bias, Direction, Drive, EdgeDetection, EventClock};
+pub fn stringify_attrs(li: &gpiocdev::line::Info) -> String {
+    use gpiocdev::line::{Bias, Direction, Drive, EdgeDetection, EventClock};
 
     let mut attrs = Vec::new();
     match li.direction {
-        gpiod::line::Direction::Input => attrs.push("input"),
+        gpiocdev::line::Direction::Input => attrs.push("input"),
         Direction::Output => attrs.push("output"),
     }
     if li.used {

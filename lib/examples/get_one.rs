@@ -2,22 +2,22 @@
 //
 // SPDX-License-Identifier: MIT
 
-use gpiod::line::Values;
-use gpiod::request::Request;
+use gpiocdev::line::Bias;
+use gpiocdev::request::Request;
 use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // request multiple input lines
+    // request the line as an input
     let req = Request::builder()
         .on_chip("/dev/gpiochip0")
-        .with_lines(&[18, 23])
+        .with_consumer("set_one")
+        .with_line(22)
         .as_input()
+        .with_bias(Bias::PullUp) // optionally set a pull-up or other attribute
         .request()?;
 
-    // get multiple line values at once
-    let mut values = Values::default();
-    req.values(&mut values)?;
-    println!("values = {:?}", values);
+    let value = req.value(22)?;
+    println!("value = {:?}", value);
 
     Ok(())
 }

@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
-use gpiod::line::EdgeDetection;
-use gpiod::request::Request;
+use gpiocdev::line::EdgeDetection;
+use gpiocdev::request::Request;
 use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

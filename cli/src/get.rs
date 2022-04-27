@@ -8,8 +8,8 @@ use super::common::{
 };
 use anyhow::{Context, Result};
 use clap::Parser;
-use gpiod::line::{Offset, Value, Values};
-use gpiod::request::{Config, Request};
+use gpiocdev::line::{Offset, Value, Values};
+use gpiocdev::request::{Config, Request};
 use std::collections::HashMap;
 use std::thread::sleep;
 use std::time::Duration;
@@ -72,7 +72,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 
         let req = Request::from_config(cfg)
             .on_chip(&chip)
-            .with_consumer("gpiodctl-get")
+            .with_consumer("gpiocdev-get")
             .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)
             .request()
             .context(format!("Failed to request lines from chip {:?}.", chip))?;

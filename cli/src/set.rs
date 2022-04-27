@@ -9,8 +9,8 @@ use super::common::{
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use colored::*;
-use gpiod::line::{Offset, Value, Values};
-use gpiod::request::{Config, Request};
+use gpiocdev::line::{Offset, Value, Values};
+use gpiocdev::request::{Config, Request};
 use rustyline::completion::{Completer, Pair};
 use rustyline::config::CompletionType;
 use rustyline::error::ReadlineError;
@@ -151,7 +151,7 @@ impl Setter {
             }
             let req = Request::from_config(cfg)
                 .on_chip(&chip)
-                .with_consumer("gpiodctl-set")
+                .with_consumer("gpiocdev-set")
                 .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)
                 .request()
                 .with_context(|| format!("Failed to request and set lines on chip {:?}.", chip))?;
@@ -177,7 +177,7 @@ impl Setter {
         let mut rl = Editor::with_config(config);
         rl.set_helper(Some(helper));
         loop {
-            let readline = rl.readline("gpiodctl-set> ");
+            let readline = rl.readline("gpiocdev-set> ");
             match readline {
                 Ok(line) => {
                     let mut words = line.trim().split_ascii_whitespace();

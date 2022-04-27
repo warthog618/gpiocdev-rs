@@ -16,7 +16,7 @@
 compile_error!("Either feature \"uapi_v1\" or \"uapi_v2\" must be enabled for this crate.");
 
 #[cfg(any(feature = "uapi_v1", feature = "uapi_v2"))]
-use gpiod_uapi as uapi;
+use gpiocdev_uapi as uapi;
 use std::borrow::Cow;
 use std::fmt;
 use std::os::unix::prelude::OsStrExt;
@@ -38,8 +38,8 @@ pub mod line;
 ///
 /// To request and read a basic input line:
 /// ```no_run
-/// # use gpiod::Result;
-/// use gpiod::request::Request;
+/// # use gpiocdev::Result;
+/// use gpiocdev::request::Request;
 ///
 /// # fn main() -> Result<()> {
 /// let l3 = Request::builder()
@@ -66,7 +66,7 @@ use std::ffi::{OsStr, OsString};
 ///
 /// Two versions of the Linux GPIO uAPI ABI currently exist, with v1 being released in
 /// Linux v4.8 and v2 being released in Linux v5.10.
-/// Both versions of the uAPI ABI are supported by `gpiod`, both individually and combined,
+/// Both versions of the uAPI ABI are supported by `gpiocdev`, both individually and combined,
 /// with the library defaulting to v2.
 ///
 /// The v1 uAPI can be selected as a feature for applications where v2 may be unavailable.
@@ -159,9 +159,9 @@ impl From<Timestamp> for DateTime<Utc> {
     }
 }
 
-/// Errors returned by [`gpiod`] functions.
+/// Errors returned by [`gpiocdev`] functions.
 ///
-/// [`gpiod`]: crate
+/// [`gpiocdev`]: crate
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// An operation cannot be performed due to a limitation in the ABI version being used.
@@ -253,9 +253,9 @@ impl fmt::Display for AbiSupportKind {
     }
 }
 
-/// The result for [`gpiod`] functions.
+/// The result for [`gpiocdev`] functions.
 ///
-/// [`gpiod`]: crate
+/// [`gpiocdev`]: crate
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Detect the most recent uAPI ABI supported by the platform.

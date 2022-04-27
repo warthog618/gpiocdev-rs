@@ -4,11 +4,11 @@
 
 use crate::Name;
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-use gpiod_uapi::v1 as uapi;
+use gpiocdev_uapi::v1 as uapi;
 #[cfg(feature = "uapi_v1")]
-use gpiod_uapi::v1;
+use gpiocdev_uapi::v1;
 #[cfg(feature = "uapi_v2")]
-use gpiod_uapi::{v2, v2 as uapi};
+use gpiocdev_uapi::{v2, v2 as uapi};
 use nohash_hasher::IntMap;
 use std::collections::hash_map::Iter;
 use std::time::Duration;
@@ -763,7 +763,7 @@ impl From<uapi::LineInfoChangeKind> for InfoChangeKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpiod_uapi as uapi;
+    use gpiocdev_uapi as uapi;
 
     #[test]
     fn config_default() {
@@ -1335,7 +1335,7 @@ mod tests {
     fn edge_event_from_v1() {
         let v1event = v1::LineEdgeEvent {
             timestamp_ns: 1234,
-            kind: gpiod_uapi::v1::LineEdgeEventKind::FallingEdge,
+            kind: gpiocdev_uapi::v1::LineEdgeEventKind::FallingEdge,
         };
         let ee = EdgeEvent::from(&v1event);
         assert_eq!(ee.timestamp_ns, 1234);
@@ -1349,7 +1349,7 @@ mod tests {
     fn edge_event_from_v2() {
         let v2event = v2::LineEdgeEvent {
             timestamp_ns: 1234,
-            kind: gpiod_uapi::v2::LineEdgeEventKind::RisingEdge,
+            kind: gpiocdev_uapi::v2::LineEdgeEventKind::RisingEdge,
             offset: 23,
             seqno: 2,
             line_seqno: 1,
@@ -1367,7 +1367,7 @@ mod tests {
     fn info_change_event_from_v1() {
         let v1event = v1::LineInfoChangeEvent {
             timestamp_ns: 1234,
-            kind: gpiod_uapi::v1::LineInfoChangeKind::Reconfigured,
+            kind: gpiocdev_uapi::v1::LineInfoChangeKind::Reconfigured,
             info: v1::LineInfo {
                 offset: 32,
                 flags: v1::LineInfoFlags::OPEN_DRAIN,
@@ -1387,7 +1387,7 @@ mod tests {
     fn info_change_event_from_v2() {
         let v2event = v2::LineInfoChangeEvent {
             timestamp_ns: 1234,
-            kind: gpiod_uapi::v1::LineInfoChangeKind::Reconfigured,
+            kind: gpiocdev_uapi::v1::LineInfoChangeKind::Reconfigured,
             info: v2::LineInfo {
                 offset: 32,
                 flags: v2::LineFlags::OPEN_DRAIN,

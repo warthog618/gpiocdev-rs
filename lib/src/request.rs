@@ -12,12 +12,12 @@ use crate::{AbiVersion, Error, Result, UapiCall};
 #[cfg(feature = "uapi_v2")]
 use bitmaps::Bitmap;
 #[cfg(not(feature = "uapi_v2"))]
-use gpiod_uapi::v1 as uapi;
+use gpiocdev_uapi::v1 as uapi;
 #[cfg(feature = "uapi_v1")]
-use gpiod_uapi::v1;
-use gpiod_uapi::NUM_LINES_MAX;
+use gpiocdev_uapi::v1;
+use gpiocdev_uapi::NUM_LINES_MAX;
 #[cfg(feature = "uapi_v2")]
-use gpiod_uapi::{v2, v2 as uapi};
+use gpiocdev_uapi::{v2, v2 as uapi};
 use nohash_hasher::IntMap;
 use std::cmp::max;
 #[cfg(feature = "uapi_v2")]
@@ -35,8 +35,8 @@ use std::time::Duration;
 ///
 /// To request and read a basic input line:
 /// ```no_run
-/// # use gpiod::Result;
-/// use gpiod::request::Request;
+/// # use gpiocdev::Result;
+/// use gpiocdev::request::Request;
 ///
 /// # fn main() -> Result<()> {
 /// let l3 = Request::builder()
@@ -51,9 +51,9 @@ use std::time::Duration;
 /// Or several lines:
 ///
 /// ```no_run
-/// # use gpiod::Result;
-/// use gpiod::request::Request;
-/// use gpiod::line::Values;
+/// # use gpiocdev::Result;
+/// use gpiocdev::request::Request;
+/// use gpiocdev::line::Values;
 ///
 /// # fn main() -> Result<()> {
 /// let offsets = &[3,5];
@@ -71,9 +71,9 @@ use std::time::Duration;
 /// to the `Builder`:
 ///
 /// ```no_run
-/// # use gpiod::Result;
-/// use gpiod::request::{Config, Request};
-/// use gpiod::line::Value;
+/// # use gpiocdev::Result;
+/// use gpiocdev::request::{Config, Request};
+/// use gpiocdev::line::Value;
 ///
 /// # fn main() -> Result<()> {
 /// let mut cfg = Config::default();
@@ -100,7 +100,7 @@ pub struct Builder {
 }
 
 fn default_consumer() -> Name {
-    Name::from(format!("gpiod-p{}", std::process::id()).as_str())
+    Name::from(format!("gpiocdev-p{}", std::process::id()).as_str())
 }
 
 impl Builder {
@@ -190,7 +190,7 @@ impl Builder {
     /// Specify the consumer label to be applied to the request, and so to all lines
     /// in the request.
     ///
-    /// If not specified, a label *"gpiod-p**PID**"* is applied by [`request`],
+    /// If not specified, a label *"gpiocdev-p**PID**"* is applied by [`request`],
     /// where **PID** is the process id of the application.
     ///
     /// [`request`]: #method.request
@@ -510,8 +510,8 @@ enum UapiRequest {
 ///
 /// e.g.
 /// ```
-///    use gpiod::line::{Bias::*, Value::*};
-///    use gpiod::request::Config;
+///    use gpiocdev::line::{Bias::*, Value::*};
+///    use gpiocdev::request::Config;
 ///
 ///    let cfg = Config::default()
 ///        .as_input()
@@ -1052,9 +1052,9 @@ impl Request {
     /// # Examples
     ///
     /// ```no_run
-    /// # use gpiod::Result;
-    /// use gpiod::request::Request;
-    /// use gpiod::line::Values;
+    /// # use gpiocdev::Result;
+    /// use gpiocdev::request::Request;
+    /// use gpiocdev::line::Values;
     ///
     /// # fn main() -> Result<()> {
     /// let ll = Request::builder()
@@ -1075,9 +1075,9 @@ impl Request {
     /// # Examples
     ///
     /// ```no_run
-    /// # use gpiod::Result;
-    /// use gpiod::line::Value;
-    /// use gpiod::request::{Config, Request};
+    /// # use gpiocdev::Result;
+    /// use gpiocdev::line::Value;
+    /// use gpiocdev::request::{Config, Request};
     ///
     /// # fn main() -> Result<()> {
     /// let mut cfg = Config::default();
@@ -1099,9 +1099,9 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiod::Result;
-    /// use gpiod::request::Request;
-    /// use gpiod::line::Values;
+    /// # use gpiocdev::Result;
+    /// use gpiocdev::request::Request;
+    /// use gpiocdev::line::Values;
     ///
     /// # fn main() -> Result<()> {
     /// let ll = Request::builder()
@@ -1146,9 +1146,9 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiod::Result;
-    /// use gpiod::request::Request;
-    /// use gpiod::line::Values;
+    /// # use gpiocdev::Result;
+    /// use gpiocdev::request::Request;
+    /// use gpiocdev::line::Values;
     ///
     /// # fn main() -> Result<()> {
     /// let ll = Request::builder()
@@ -1171,10 +1171,10 @@ impl Request {
     /// Set the values for a subset of the requested lines.
     /// # Examples
     /// ```no_run
-    /// # use gpiod::Result;
-    /// use gpiod::line::Value::{Active, Inactive};
-    /// use gpiod::line::Values;
-    /// use gpiod::request::Request;
+    /// # use gpiocdev::Result;
+    /// use gpiocdev::line::Value::{Active, Inactive};
+    /// use gpiocdev::line::Values;
+    /// use gpiocdev::request::Request;
     ///
     /// # fn main() -> Result<()> {
     /// let ll = Request::builder()
@@ -1214,9 +1214,9 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiod::Result;
-    /// use gpiod::line::Value;
-    /// use gpiod::request::{Config, Request};
+    /// # use gpiocdev::Result;
+    /// use gpiocdev::line::Value;
+    /// use gpiocdev::request::{Config, Request};
     ///
     /// # fn main() -> Result<()> {
     /// let mut cfg = Config::default();
@@ -1329,17 +1329,17 @@ impl Request {
     // This will read in v1:LineEdgeEvent or v2::LineEdgeEvent sized chunks so buf must be at least
     // as large as one event.
     fn read_event(&self, buf: &mut [u8]) -> Result<usize> {
-        gpiod_uapi::read_event(self.fd, buf).map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))
+        gpiocdev_uapi::read_event(self.fd, buf).map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))
     }
 
     /// Returns true when the request has edge events available to read.
     pub fn has_edge_event(&self) -> Result<bool> {
-        gpiod_uapi::has_event(self.fd).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
+        gpiocdev_uapi::has_event(self.fd).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
     }
 
     /// Wait for an edge event to be available.
     pub fn wait_edge_event(&self, timeout: Duration) -> Result<bool> {
-        gpiod_uapi::wait_event(self.fd, timeout)
+        gpiocdev_uapi::wait_event(self.fd, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
     }
 
@@ -1830,7 +1830,7 @@ mod tests {
             assert_eq!(hr.offsets.get(3), 7);
             assert_eq!(
                 hr.consumer.as_os_str().to_string_lossy(),
-                format!("gpiod-p{}", std::process::id()).as_str()
+                format!("gpiocdev-p{}", std::process::id()).as_str()
             );
             assert!(hr.flags.contains(v1::HandleRequestFlags::OUTPUT));
             assert_eq!(hr.values.get(0), 1);
@@ -1944,7 +1944,7 @@ mod tests {
             assert_eq!(lr.event_buffer_size, 0);
             assert_eq!(
                 lr.consumer.as_os_str().to_string_lossy(),
-                format!("gpiod-p{}", std::process::id()).as_str()
+                format!("gpiocdev-p{}", std::process::id()).as_str()
             );
             // default flags match most lines, so output
             assert!(lr.config.flags.contains(v2::LineFlags::OUTPUT));

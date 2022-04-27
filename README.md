@@ -1,4 +1,4 @@
-# gpiod-rs
+# gpiocdev-rs
 
 A Rust library for accessing GPIO lines on Linux platforms using the GPIO character device.
 
@@ -6,9 +6,9 @@ This is the equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpio
 
 The crates are still a work in progress.  They are functionally complete, but have only been lightly tested on a couple of platforms.
 
-## gpiod
+## gpiocdev
 
-The [gpiod](https://warthog618.github.io/gpiod-rs/gpiod/) crate provides an API for accessing and controlling GPIO lines from Rust applications.
+The [gpiocdev](https://warthog618.github.io/gpiocdev-rs/lib/) crate provides an API for accessing and controlling GPIO lines from Rust applications.
 
 Getting a line value:
 
@@ -103,20 +103,20 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
     let value = req.value(23)?;
 ```
 
-A good starting point to learn more is the [gpiod::request::Request](https://warthog618.github.io/gpiod-rs/gpiod/request/struct.Request.html).
+A good starting point to learn more is the [gpiocdev::request::Request](https://warthog618.github.io/gpiocdev-rs/gpiocdev/request/struct.Request.html).
 
-## gpiodctl
+## cli
 
-gpiodctl provides a command line tool to access and control GPIO lines.
+The [gpiocdev-cli](https://warthog618.github.io/gpiocdev-rs/cli/) crate provides a command line tool to access and control GPIO lines.
 
 This is equivalent to the tools provided by libgpiod, combined into a single tool.
 
 ```text
-gpiodctl 0.1.0
+gpiocdev 0.1.0
 A utility to control GPIO lines on Linux GPIO character devices.
 
 USAGE:
-    gpiodctl [OPTIONS] <SUBCOMMAND>
+    gpiocdev [OPTIONS] <SUBCOMMAND>
 
 OPTIONS:
     -h, --help       Print help information
@@ -135,6 +135,6 @@ SUBCOMMANDS:
 
 ## uapi
 
-The [uapi](https://warthog618.github.io/gpiod-rs/gpiod_uapi/) crate provides a minimal safe Rust wrapper around the character device ioctls.
+The [gpiocdev-uapi](https://warthog618.github.io/gpiocdev-rs/uapi/) crate provides a minimal safe Rust wrapper around the character device ioctls.
 
-The gpiod crate provides a higher level abstraction, so you should use that unless you have some particular interest in calling the ioctls directly.
+The gpiocdev crate provides a higher level abstraction, so you should use that unless you have some particular interest in calling the ioctls directly.

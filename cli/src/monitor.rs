@@ -8,8 +8,8 @@ use super::common::{
 };
 use anyhow::{Context, Result};
 use clap::Parser;
-use gpiod::line::Offset;
-use gpiod::request::{Config, Request};
+use gpiocdev::line::Offset;
+use gpiocdev::request::{Config, Request};
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
@@ -71,7 +71,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     cfg.with_lines(&offsets);
     let req = Request::from_config(cfg)
         .on_chip(&chip)
-        .with_consumer("gpiodctl-monitor")
+        .with_consumer("gpiocdev-monitor")
         .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)
         .request()
         .context("Failed to request lines.")?;

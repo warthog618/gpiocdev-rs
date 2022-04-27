@@ -8,8 +8,8 @@ use super::common::{
 };
 use anyhow::{Context, Result};
 use clap::Parser;
-use gpiod::chip::Chip;
-use gpiod::line::Offset;
+use gpiocdev::chip::Chip;
+use gpiocdev::line::Offset;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -125,7 +125,7 @@ fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
     Ok(())
 }
 
-fn print_line_info(li: gpiod::line::Info) {
+fn print_line_info(li: gpiocdev::line::Info) {
     println!(
         "\tline {:>3}:\t{:16}\t{:11} [{}]",
         li.offset,

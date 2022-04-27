@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "gpiod",
-  "gpiodctl",
+  "lib",
+  "cli",
   "uapi",
 ]

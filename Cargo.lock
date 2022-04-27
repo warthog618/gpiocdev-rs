@@ -204,39 +204,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpiod"
+name = "gpiocdev"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "bitmaps",
  "chrono",
- "gpiod-uapi",
+ "gpiocdev-uapi",
  "nohash-hasher",
  "thiserror",
 ]
 
 [[package]]
-name = "gpiod-uapi"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "bitmaps",
- "libc",
- "nix",
- "thiserror",
-]
-
-[[package]]
-name = "gpiodctl"
+name = "gpiocdev-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
  "colored",
- "gpiod",
+ "gpiocdev",
  "rustyline",
  "rustyline-derive",
  "strum",
+ "thiserror",
+]
+
+[[package]]
+name = "gpiocdev-uapi"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "bitmaps",
+ "libc",
+ "nix 0.24.1",
  "thiserror",
 ]
 
@@ -336,6 +336,18 @@ checksum = "9f866317acbd3a240710c63f065ffb1e4fd466259045ccb504130b7f668f35c6"
 dependencies = [
  "bitflags",
  "cc",
+ "cfg-if",
+ "libc",
+ "memoffset",
+]
+
+[[package]]
+name = "nix"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f17df307904acd05aa8e32e97bb20f2a0df1728bbc2d771ae8f9a90463441e9"
+dependencies = [
+ "bitflags",
  "cfg-if",
  "libc",
  "memoffset",
@@ -478,7 +490,7 @@ dependencies = [
  "libc",
  "log",
  "memchr",
- "nix",
+ "nix 0.23.1",
  "radix_trie",
  "scopeguard",
  "smallvec",

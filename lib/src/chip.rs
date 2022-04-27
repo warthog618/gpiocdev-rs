@@ -8,11 +8,11 @@ use crate::{
     UapiCall,
 };
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-use gpiod_uapi::v1 as uapi;
+use gpiocdev_uapi::v1 as uapi;
 #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-use gpiod_uapi::v2 as uapi;
+use gpiocdev_uapi::v2 as uapi;
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-use gpiod_uapi::{v1, v2};
+use gpiocdev_uapi::{v1, v2};
 use std::collections::HashSet;
 use std::fmt;
 use std::fs;
@@ -195,12 +195,12 @@ impl Chip {
 
     /// Check if the request has at least one info change event available to read.
     pub fn has_line_info_change_event(&self) -> Result<bool> {
-        gpiod_uapi::has_event(self.fd).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
+        gpiocdev_uapi::has_event(self.fd).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
     }
 
     /// Wait for an info change event to be available.
     pub fn wait_line_info_change_event(&self, timeout: Duration) -> Result<bool> {
-        gpiod_uapi::wait_event(self.fd, timeout)
+        gpiocdev_uapi::wait_event(self.fd, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
     }
 
@@ -210,7 +210,7 @@ impl Chip {
     pub fn read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
         let mut buf = Vec::with_capacity(self.line_info_change_event_size());
         buf.resize(buf.capacity(), 0);
-        let n = gpiod_uapi::read_event(self.fd, &mut buf)
+        let n = gpiocdev_uapi::read_event(self.fd, &mut buf)
             .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))?;
         assert_eq!(n, self.line_info_change_event_size());
         self.line_info_change_event_from_buf(&buf)
@@ -351,7 +351,7 @@ pub struct InfoChangeIterator<'a> {
 
 impl<'a> InfoChangeIterator<'a> {
     fn read_event(&mut self) -> Result<InfoChangeEvent> {
-        let n = gpiod_uapi::read_event(self.chip.fd, &mut self.buf)
+        let n = gpiocdev_uapi::read_event(self.chip.fd, &mut self.buf)
             .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))?;
         assert!(n == self.event_size);
         self.chip.line_info_change_event_from_buf(&self.buf)
@@ -389,10 +389,10 @@ impl fmt::Display for ErrorKind {
 mod tests {
     use super::*;
     #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-    use gpiod_uapi::v1 as uapi;
+    use gpiocdev_uapi::v1 as uapi;
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    use gpiod_uapi::v2 as uapi;
-    use gpiod_uapi::Name;
+    use gpiocdev_uapi::v2 as uapi;
+    use gpiocdev_uapi::Name;
 
     // Chip tests are all integration tests as construction requires GPIO chips.
 
