@@ -209,7 +209,7 @@ impl Builder {
     /// The default size is typically sufficient unless the hardware may generate bursts
     /// of events faster than the application can service them.
     ///
-    /// Altering the buffer size does NOT effect latency.
+    /// Altering the buffer size does NOT affect latency.
     /// Buffering is provided in the kernel to reduce the likelyhood of event loss when
     /// user space is slow servicing events.
     /// In all cases the events are provided to user space as fast as user space allows.
@@ -222,11 +222,11 @@ impl Builder {
     ///
     /// This method is only required in unusual circumstances.
     ///
-    /// The size defines the number of events that may be buffered in user space by the events()
-    /// iterator.  The user space buffer is a performance optimisation to reduce the number of
-    /// system calls required to read events.
+    /// The size defines the number of events that may be buffered in user space by the
+    /// edge_events() iterator.  The user space buffer is a performance optimisation to
+    /// reduce the number of system calls required to read events.
     ///
-    /// Altering the buffer size does NOT effect latency.
+    /// Altering the buffer size does NOT affect latency.
     /// In all cases the events are provided to user space as fast as user space allows.
     pub fn with_user_event_buffer_size(&mut self, event_buffer_size: usize) -> &mut Self {
         self.user_event_buffer_size = event_buffer_size;
@@ -1329,7 +1329,8 @@ impl Request {
     // This will read in v1:LineEdgeEvent or v2::LineEdgeEvent sized chunks so buf must be at least
     // as large as one event.
     fn read_event(&self, buf: &mut [u8]) -> Result<usize> {
-        gpiocdev_uapi::read_event(self.fd, buf).map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))
+        gpiocdev_uapi::read_event(self.fd, buf)
+            .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))
     }
 
     /// Returns true when the request has edge events available to read.
