@@ -43,6 +43,14 @@ pub struct Opts {
     /// With --by-name set the lines are never assumed to be identified by offsets, only names.
     #[clap(short = 'N', long)]
     by_name: bool,
+    /// Check all lines - don't assume names are unique.
+    ///
+    /// If not specified then the command stops when a matching line is found.
+    ///
+    /// If specified then all lines with the specified name are returned,
+    /// each on a separate line.
+    #[clap(short = 's', long)]
+    strict: bool,
     #[clap(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -61,7 +69,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     } else {
         let line_opts = LineOpts {
             chip: opts.chip.to_owned(),
-            exhaustive: false,
+            strict: opts.strict,
             by_name: opts.by_name,
         };
         let (lines, mut chips) = find_lines(&opts.lines, &line_opts, opts.uapi_opts.abiv)?;

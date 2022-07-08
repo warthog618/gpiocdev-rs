@@ -4,7 +4,7 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use gpiocdev::chip::{chips, is_chip, Chip};
+use gpiocdev::chip::{chips, Chip};
 use gpiocdev::line::Offset;
 use gpiocdev::request::Config;
 use gpiocdev::{
@@ -51,17 +51,18 @@ pub fn abi_version_from_opts(abiv: u8) -> Result<AbiVersion> {
 }
 
 pub fn parse_chip_path(s: &OsStr) -> PathBuf {
-    // from name (most likely case)
-    let mut p = OsString::from("/dev/");
-    p.push(s);
-    if let Ok(rp) = is_chip(p) {
-        return rp;
+    let str = s.to_string_lossy();
+    if str.chars().all(char::is_numeric) {
+        // from number
+        let mut p = OsString::from("/dev/gpiochip");
+        p.push(s);
+        return PathBuf::from(p);
     }
-    // from number
-    p = OsString::from("/dev/gpiochip");
-    p.push(s);
-    if let Ok(rp) = is_chip(p) {
-        return rp;
+    if !str.chars().any(|x| x == '/') {
+        // from name
+        let mut p = OsString::from("/dev/");
+        p.push(s);
+        return PathBuf::from(p);
     }
     // from raw path
     PathBuf::from(s)
@@ -119,10 +120,10 @@ pub fn find_lines(
                                 offset,
                             },
                         );
-                        if !opts.exhaustive && found_lines.len() == lines.len() {
+                        if !opts.strict && found_lines.len() == lines.len() {
                             break;
                         }
-                    } else if opts.exhaustive {
+                    } else if opts.strict {
                         return Err(anyhow::Error::new(DuplicateLineError::new(name)));
                     }
                 }
@@ -199,8 +200,8 @@ pub struct LineOpts {
     ///
     /// If --chip is also specified then provided line names must only be unique to the
     /// lines on that chip.
-    #[clap(short = 'x', long)]
-    pub exhaustive: bool,
+    #[clap(short = 's', long)]
+    pub strict: bool,
     /// Lines are strictly identified by name.
     ///
     /// If --chip is provided then lines are initially assumed to be offsets, and only

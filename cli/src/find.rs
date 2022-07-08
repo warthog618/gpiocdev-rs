@@ -28,12 +28,12 @@ pub struct Opts {
     line: String,
     /// Check all lines - don't assume names are unique.
     ///
-    /// If not specified then the find stops when a matching line is found.
+    /// If not specified then the command stops when a matching line is found.
     ///
-    /// If specified then the find returns all lines with the specified name,
+    /// If specified then all lines with the specified name are returned,
     /// each on a separate line.
-    #[clap(short = 'x', long)]
-    exhaustive: bool,
+    #[clap(short = 's', long)]
+    strict: bool,
     /// Print the info for found lines.
     #[clap(short, long)]
     pub info: bool,
@@ -50,7 +50,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     for p in chips {
         let mut c = chip_from_opts(&p, opts.uapi_opts.abiv)?;
         if find_line(&mut c, opts)? {
-            if !opts.exhaustive {
+            if !opts.strict {
                 return Ok(());
             }
             found = true;
@@ -62,7 +62,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     Ok(())
 }
 
-// Exhaustive form that checks every line even when a matching line has already been found.
+// strict form that checks every line even when a matching line has already been found.
 fn find_line(chip: &mut Chip, opts: &Opts) -> Result<bool> {
     let ci = chip
         .info()
@@ -89,7 +89,7 @@ fn find_line(chip: &mut Chip, opts: &Opts) -> Result<bool> {
             } else {
                 println!("{} {}", chip.name().to_string_lossy(), li.offset);
             }
-            if !opts.exhaustive {
+            if !opts.strict {
                 return Ok(true);
             }
             found = true;
