@@ -1196,7 +1196,6 @@ mod tests {
         src.set(7, Value::Active); // should be ignored
         src.set(8, Value::Active);
         let dst = src.to_v2(&offsets);
-        println!("dst {:?}", dst);
         assert!(dst.get(0).unwrap()); // 1
         assert!(dst.get(1).is_none()); // 5
         assert!(!dst.get(2).unwrap()); // 3
