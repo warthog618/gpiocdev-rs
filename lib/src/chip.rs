@@ -14,6 +14,7 @@ use gpiocdev_uapi::v2 as uapi;
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi::{v1, v2};
 use std::collections::HashSet;
+use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::mem::size_of;
@@ -136,11 +137,11 @@ impl Chip {
     /// Find the offset of the named line.
     ///
     /// Returns the first matching line.
-    pub fn find_line(&self, line: &str) -> Option<Offset> {
+    pub fn find_line<N: AsRef<OsStr> + ?Sized>(&self, line: &N) -> Option<Offset> {
         if let Ok(ci) = self.info() {
             for offset in 0..ci.num_lines {
                 if let Ok(li) = self.line_info(offset) {
-                    if li.name.as_os_str() == line {
+                    if li.name == line.as_ref().into() {
                         return Some(offset);
                     }
                 }
