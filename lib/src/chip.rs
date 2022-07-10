@@ -317,6 +317,7 @@ impl Chip {
     }
 }
 /// The publicly available information for a GPIO chip.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Info {
     /// The system name for the chip, such as "*gpiochip0*".
     pub name: String,

@@ -1,0 +1,17 @@
+[package]
+authors = ["Kent Gibson <warthog618@gmail.com>"]
+categories = ["embedded"]
+description = "A library to drive gpio-sims for GPIO software testing"
+edition = "2021"
+keywords = ["linux", "gpio", "library", "embedded"]
+license = "MIT"
+name = "gpiosim"
+version = "0.1.0"
+
+[dependencies]
+global_counter = "0.2"
+nohash-hasher = "0.2.0"
+thiserror = "1.0"
+
+[dev-dependencies]
+gpiocdev = {path = "../lib", features = ["uapi_v1", "uapi_v2"]}
