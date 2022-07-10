@@ -60,9 +60,9 @@ pub fn parse_chip_path(s: &OsStr) -> PathBuf {
     }
     if !str.chars().any(|x| x == '/') {
         // from name
-        let mut p = OsString::from("/dev/");
+        let mut p = PathBuf::from("/dev");
         p.push(s);
-        return PathBuf::from(p);
+        return p;
     }
     // from raw path
     PathBuf::from(s)
