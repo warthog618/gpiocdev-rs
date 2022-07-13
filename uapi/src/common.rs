@@ -23,7 +23,6 @@ pub fn read_event(fd: RawFd, buf: &mut [u8]) -> Result<usize> {
         match read(fd, bufptr, buf.len()) {
             -1 => Err(Error::from(IoError::last_os_error())),
             x => Ok(x.try_into().unwrap()),
-
         }
     }
 }
@@ -175,13 +174,29 @@ impl Name {
     }
     /// Construct a Name from byte slice.
     ///
-    /// May result in invalid UTF-8 if truncated in the middle of a multi-byte character.
+    /// Slice will be truncated if longer than the Name size.
+    /// Truncation occurs on UTF-8 codepoint boundaries so the resulting
+    /// name is still valid UTF-8.
     pub fn from_bytes(s: &[u8]) -> Name {
         let mut d: Name = Default::default();
         for (src, dst) in s.iter().zip(d.0.iter_mut()) {
             *dst = *src;
         }
+        // drop any truncated UTF-8 codepoint
+        if d.strlen() == NAME_LEN_MAX && d.0[NAME_LEN_MAX - 1] > 0x80 {
+            d.0[NAME_LEN_MAX - 1] = 0;
+        }
         d
+    }
+}
+impl From<&Name> for String {
+    fn from(s: &Name) -> Self {
+        String::from(s.as_os_str().to_string_lossy())
+    }
+}
+impl From<&str> for Name {
+    fn from(s: &str) -> Self {
+        Name::from_bytes(s.as_bytes())
     }
 }
 
@@ -369,9 +384,10 @@ mod tests {
         x[3] = 97;
         x[4] = 110;
         x[5] = 97;
-        let mut a = Name::from_bytes("banana".as_bytes());
+        let mut a: Name = "banana".into();
         assert_eq!(a.0, x);
-        a = Name::from_bytes("apple".as_bytes());
+
+        a = "apple".into();
         x[0] = 97;
         x[1] = 112;
         x[2] = 112;
@@ -379,31 +395,54 @@ mod tests {
         x[4] = 101;
         x[5] = 0;
         assert_eq!(a.0, x);
+
+        a = "an overly long truncated name -><- cut here".into();
+        assert_eq!(a.as_os_str(), "an overly long truncated name ->");
     }
     #[test]
     fn name_is_empty() {
         let mut a = Name::default();
         assert!(a.is_empty());
-        a = Name::from_bytes("banana".as_bytes());
+        a = "banana".into();
         assert!(!a.is_empty());
     }
     #[test]
     fn name_strlen() {
         let mut a = Name::default();
         assert_eq!(a.strlen(), 0);
-        a = Name::from_bytes("banana".as_bytes());
+        a = "banana".into();
         assert_eq!(a.strlen(), 6);
-        a = Name::from_bytes("an overly long truncated name -><- cut here".as_bytes());
+        a = "an overly long truncated name -><- cut here".into();
         assert_eq!(a.strlen(), 32);
     }
     #[test]
     fn name_as_os_str() {
         let mut a = Name::default();
         assert_eq!(a.as_os_str(), "");
+        a = "banana".into();
+        assert_eq!(a.as_os_str(), "banana");
+    }
+    #[test]
+    fn name_from_bytes() {
+        // empty
+        let mut a = Name::from_bytes("some bytes".as_bytes());
+        assert_eq!(a.as_os_str(), "some bytes");
+
+        // word
         a = Name::from_bytes("banana".as_bytes());
         assert_eq!(a.as_os_str(), "banana");
+
+        // multiple words
+        let mut a = Name::from_bytes("some bytes".as_bytes());
+        assert_eq!(a.as_os_str(), "some bytes");
+
+        // truncated overlength
         a = Name::from_bytes("an overly long truncated name -><- cut here".as_bytes());
         assert_eq!(a.as_os_str(), "an overly long truncated name ->");
+
+        // truncated at UTF-8 code point
+        a = Name::from_bytes("an overly long truncated name->ó<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "an overly long truncated name->");
     }
     #[test]
     fn name_default() {

@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-use crate::Name;
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
 use gpiocdev_uapi::v1 as uapi;
 #[cfg(feature = "uapi_v1")]
@@ -176,12 +175,12 @@ pub struct Info {
     /// GPIO chip.
     ///
     /// May be empty.
-    pub name: Name,
+    pub name: String,
     /// A functional name for the consumer of this GPIO line as set
     /// by whatever is using it.
     ///
     /// May be empty if not set by the user or the line is unused.
-    pub consumer: Name,
+    pub consumer: String,
     /// When true the line is used and not available for request.
     pub used: bool,
     /// When true the line active state corresponds to a physical low.
@@ -215,8 +214,8 @@ impl From<&v1::LineInfo> for Info {
     fn from(li: &v1::LineInfo) -> Self {
         Info {
             offset: li.offset,
-            name: Name::from(&li.name),
-            consumer: Name::from(&li.consumer),
+            name: String::from(&li.name),
+            consumer: String::from(&li.consumer),
             used: li.flags.contains(v1::LineInfoFlags::USED),
             active_low: li.flags.contains(v1::LineInfoFlags::ACTIVE_LOW),
             direction: Direction::from(li.flags),
@@ -244,8 +243,8 @@ impl From<&v2::LineInfo> for Info {
         };
         Info {
             offset: li.offset,
-            name: Name::from(&li.name),
-            consumer: Name::from(&li.consumer),
+            name: String::from(&li.name),
+            consumer: String::from(&li.consumer),
             used: li.flags.contains(v2::LineFlags::USED),
             active_low: li.flags.contains(v2::LineFlags::ACTIVE_LOW),
             direction: Direction::from(li.flags),
@@ -763,7 +762,6 @@ impl From<uapi::LineInfoChangeKind> for InfoChangeKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpiocdev_uapi as uapi;
 
     #[test]
     fn config_default() {
@@ -1005,13 +1003,13 @@ mod tests {
                 | v1::LineInfoFlags::ACTIVE_LOW
                 | v1::LineInfoFlags::OUTPUT
                 | v1::LineInfoFlags::BIAS_PULL_DOWN,
-            name: uapi::Name::from_bytes("banana".as_bytes()),
-            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+            name: "banana".into(),
+            consumer: "jam".into(),
         };
         let info = Info::from(&v1info);
         assert_eq!(info.offset, 32);
-        assert_eq!(info.name.as_os_str(), "banana");
-        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert_eq!(info.name, "banana");
+        assert_eq!(info.consumer, "jam");
         assert!(info.used);
         assert!(info.active_low);
         assert_eq!(info.direction, Direction::Output);
@@ -1026,13 +1024,13 @@ mod tests {
                 | v1::LineInfoFlags::OUTPUT
                 | v1::LineInfoFlags::OPEN_DRAIN
                 | v1::LineInfoFlags::BIAS_DISABLED,
-            name: uapi::Name::from_bytes("banana".as_bytes()),
-            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+            name: "banana".into(),
+            consumer: "jam".into(),
         };
         let info = Info::from(&v1info);
         assert_eq!(info.offset, 32);
-        assert_eq!(info.name.as_os_str(), "banana");
-        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert_eq!(info.name, "banana");
+        assert_eq!(info.consumer, "jam");
         assert!(info.used);
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
@@ -1064,16 +1062,16 @@ mod tests {
                 | v2::LineFlags::ACTIVE_LOW
                 | v2::LineFlags::OUTPUT
                 | v2::LineFlags::BIAS_PULL_DOWN,
-            name: uapi::Name::from_bytes("banana".as_bytes()),
-            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+            name: "banana".into(),
+            consumer: "jam".into(),
             num_attrs: 0,
             attrs: Default::default(),
             padding: Default::default(),
         };
         let info = Info::from(&v2info);
         assert_eq!(info.offset, 32);
-        assert_eq!(info.name.as_os_str(), "banana");
-        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert_eq!(info.name, "banana");
+        assert_eq!(info.consumer, "jam");
         assert!(info.used);
         assert!(info.active_low);
         assert_eq!(info.direction, Direction::Output);
@@ -1088,16 +1086,16 @@ mod tests {
                 | v2::LineFlags::OUTPUT
                 | v2::LineFlags::OPEN_DRAIN
                 | v2::LineFlags::BIAS_DISABLED,
-            name: uapi::Name::from_bytes("banana".as_bytes()),
-            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+            name: "banana".into(),
+            consumer: "jam".into(),
             num_attrs: 0,
             attrs: Default::default(),
             padding: Default::default(),
         };
         let info = Info::from(&v2info);
         assert_eq!(info.offset, 32);
-        assert_eq!(info.name.as_os_str(), "banana");
-        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert_eq!(info.name, "banana");
+        assert_eq!(info.consumer, "jam");
         assert!(info.used);
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
@@ -1112,16 +1110,16 @@ mod tests {
                 | v2::LineFlags::INPUT
                 | v2::LineFlags::EDGE_RISING
                 | v2::LineFlags::BIAS_PULL_DOWN,
-            name: uapi::Name::from_bytes("banana".as_bytes()),
-            consumer: uapi::Name::from_bytes("jam".as_bytes()),
+            name: "banana".into(),
+            consumer: "jam".into(),
             num_attrs: 0,
             attrs: Default::default(),
             padding: Default::default(),
         };
         let info = Info::from(&v2info);
         assert_eq!(info.offset, 32);
-        assert_eq!(info.name.as_os_str(), "banana");
-        assert_eq!(info.consumer.as_os_str(), "jam");
+        assert_eq!(info.name, "banana");
+        assert_eq!(info.consumer, "jam");
         assert!(info.used);
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Input);

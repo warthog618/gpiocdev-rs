@@ -4,8 +4,7 @@
 
 use super::line::Offset;
 use crate::{
-    line, line::InfoChangeEvent, AbiSupportKind, AbiVersion, AbiVersion::*, Error, Name, Result,
-    UapiCall,
+    line, line::InfoChangeEvent, AbiSupportKind, AbiVersion, AbiVersion::*, Error, Result, UapiCall,
 };
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
 use gpiocdev_uapi::v1 as uapi;
@@ -14,7 +13,6 @@ use gpiocdev_uapi::v2 as uapi;
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi::{v1, v2};
 use std::collections::HashSet;
-use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::mem::size_of;
@@ -124,9 +122,9 @@ impl Chip {
     /// from the [`Info`], so it does not involve any system calls.
     ///
     /// [`Info`]: Info
-    pub fn name(&self) -> Name {
+    pub fn name(&self) -> String {
         // The unwrap can only fail for directories, and the path is known to refer to a file.
-        Name::from(self.path.file_name().unwrap())
+        String::from(self.path.file_name().unwrap().to_string_lossy())
     }
 
     /// Return the path of the chip.
@@ -137,11 +135,11 @@ impl Chip {
     /// Find the offset of the named line.
     ///
     /// Returns the first matching line.
-    pub fn find_line<N: AsRef<OsStr> + ?Sized>(&self, line: &N) -> Option<Offset> {
+    pub fn find_line(&self, line: &str) -> Option<Offset> {
         if let Ok(ci) = self.info() {
             for offset in 0..ci.num_lines {
                 if let Ok(li) = self.line_info(offset) {
-                    if li.name == line.as_ref().into() {
+                    if li.name == line {
                         return Some(offset);
                     }
                 }
@@ -321,19 +319,19 @@ impl Chip {
 /// The publicly available information for a GPIO chip.
 pub struct Info {
     /// The system name for the chip, such as "*gpiochip0*".
-    pub name: Name,
+    pub name: String,
     /// A functional name for the chip.
     ///
     /// This typically identifies the type of GPIO chip.
-    pub label: Name,
+    pub label: String,
     /// The number of lines provided by the chip.
     pub num_lines: u32,
 }
 impl From<uapi::ChipInfo> for Info {
     fn from(ci: uapi::ChipInfo) -> Self {
         Info {
-            name: Name::from(&ci.name),
-            label: Name::from(&ci.label),
+            name: String::from(&ci.name),
+            label: String::from(&ci.label),
             num_lines: ci.num_lines,
         }
     }
@@ -393,20 +391,19 @@ mod tests {
     use gpiocdev_uapi::v1 as uapi;
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     use gpiocdev_uapi::v2 as uapi;
-    use gpiocdev_uapi::Name;
 
     // Chip tests are all integration tests as construction requires GPIO chips.
 
     #[test]
     fn info_from_uapi() {
         let ui = uapi::ChipInfo {
-            name: Name::from_bytes("banana".as_bytes()),
-            label: Name::from_bytes("peel".as_bytes()),
+            name: "banana".into(),
+            label: "peel".into(),
             num_lines: 42,
         };
         let i = Info::from(ui);
         assert_eq!(i.num_lines, 42);
-        assert_eq!(i.name.as_os_str(), "banana");
-        assert_eq!(i.label.as_os_str(), "peel");
+        assert_eq!(i.name.as_str(), "banana");
+        assert_eq!(i.label.as_str(), "peel");
     }
 }

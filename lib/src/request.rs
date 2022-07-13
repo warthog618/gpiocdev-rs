@@ -7,7 +7,6 @@ use super::line::{
     self, Bias, Direction, Drive, EdgeDetection, EdgeEvent, EventClock, Offset, Offsets, Value,
     Values,
 };
-use super::Name;
 use crate::{AbiVersion, Error, Result, UapiCall};
 #[cfg(feature = "uapi_v2")]
 use bitmaps::Bitmap;
@@ -91,7 +90,7 @@ use std::time::Duration;
 pub struct Builder {
     chip: PathBuf,
     cfg: Config,
-    consumer: Name,
+    consumer: String,
     kernel_event_buffer_size: u32,
     user_event_buffer_size: usize,
     /// The ABI version used to create the request, and so determines how to decode events.
@@ -99,8 +98,8 @@ pub struct Builder {
     abiv: AbiVersion,
 }
 
-fn default_consumer() -> Name {
-    Name::from(format!("gpiocdev-p{}", std::process::id()).as_str())
+fn default_consumer() -> String {
+    format!("gpiocdev-p{}", std::process::id())
 }
 
 impl Builder {
@@ -194,7 +193,7 @@ impl Builder {
     /// where **PID** is the process id of the application.
     ///
     /// [`request`]: #method.request
-    pub fn with_consumer<N: Into<Name>>(&mut self, consumer: N) -> &mut Self {
+    pub fn with_consumer<N: Into<String>>(&mut self, consumer: N) -> &mut Self {
         self.consumer = consumer.into();
         self
     }
@@ -443,9 +442,9 @@ impl Builder {
             ));
         }
         let consumer = if self.consumer.is_empty() {
-            default_consumer().into()
+            default_consumer().as_str().into()
         } else {
-            self.consumer.clone().into()
+            self.consumer.as_str().into()
         };
         if lcfg.edge_detection.is_some() {
             if self.cfg.offsets.len() != 1 {
@@ -476,9 +475,9 @@ impl Builder {
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     fn to_v2(&self) -> Result<UapiRequest> {
         let consumer = if self.consumer.is_empty() {
-            default_consumer().into()
+            default_consumer().as_str().into()
         } else {
-            self.consumer.clone().into()
+            self.consumer.as_str().into()
         };
         Ok(UapiRequest::Line(v2::LineRequest {
             offsets: v2::Offsets::from_slice(&self.cfg.offsets),
@@ -1513,7 +1512,7 @@ mod tests {
         let b = Builder::default();
         assert_eq!(b.chip.as_os_str(), "");
         assert_eq!(b.cfg.num_lines(), 0);
-        assert_eq!(b.consumer.as_os_str(), "");
+        assert_eq!(b.consumer.as_str(), "");
         assert_eq!(b.kernel_event_buffer_size, 0);
         assert_eq!(b.user_event_buffer_size, 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -1553,9 +1552,9 @@ mod tests {
     #[test]
     fn builder_with_consumer() {
         let mut b = Builder::default();
-        assert_eq!(b.consumer.as_os_str(), "");
+        assert_eq!(b.consumer.as_str(), "");
         b.with_consumer("builder test");
-        assert_eq!(b.consumer.as_os_str(), "builder test");
+        assert_eq!(b.consumer.as_str(), "builder test");
     }
     #[test]
     fn builder_with_kernel_event_buffer_size() {
@@ -1794,7 +1793,7 @@ mod tests {
             assert_eq!(hr.offsets.get(0), 1);
             assert_eq!(hr.offsets.get(1), 8);
             assert_eq!(hr.offsets.get(2), 4);
-            assert_eq!(hr.consumer.as_os_str().to_string_lossy(), "test builder");
+            assert_eq!(String::from(&hr.consumer).as_str(), "test builder");
             assert!(hr
                 .flags
                 .contains(v1::HandleRequestFlags::INPUT | v1::HandleRequestFlags::ACTIVE_LOW));
@@ -1811,7 +1810,7 @@ mod tests {
             .with_edge_detection(RisingEdge);
         if let UapiRequest::Event(er) = b.to_v1().unwrap() {
             assert_eq!(er.offset, 8);
-            assert_eq!(er.consumer.as_os_str().to_string_lossy(), "test builder");
+            assert_eq!(String::from(&er.consumer).as_str(), "test builder");
             assert!(er.handleflags.contains(v1::HandleRequestFlags::INPUT));
             assert!(er.eventflags.contains(v1::EventRequestFlags::RISING_EDGE));
         } else {
@@ -1830,7 +1829,7 @@ mod tests {
             assert_eq!(hr.offsets.get(2), 5);
             assert_eq!(hr.offsets.get(3), 7);
             assert_eq!(
-                hr.consumer.as_os_str().to_string_lossy(),
+                String::from(&hr.consumer).as_str(),
                 format!("gpiocdev-p{}", std::process::id()).as_str()
             );
             assert!(hr.flags.contains(v1::HandleRequestFlags::OUTPUT));
@@ -1914,7 +1913,7 @@ mod tests {
             assert_eq!(lr.offsets.get(1), 8);
             assert_eq!(lr.offsets.get(2), 4);
             assert_eq!(lr.event_buffer_size, 42);
-            assert_eq!(lr.consumer.as_os_str().to_string_lossy(), "test builder");
+            assert_eq!(String::from(&lr.consumer).as_str(), "test builder");
             assert!(lr.config.flags.contains(
                 v2::LineFlags::INPUT
                     | v2::LineFlags::EDGE_RISING
@@ -1944,7 +1943,7 @@ mod tests {
             assert_eq!(lr.offsets.get(6), 7);
             assert_eq!(lr.event_buffer_size, 0);
             assert_eq!(
-                lr.consumer.as_os_str().to_string_lossy(),
+                String::from(&lr.consumer).as_str(),
                 format!("gpiocdev-p{}", std::process::id()).as_str()
             );
             // default flags match most lines, so output
@@ -2487,7 +2486,7 @@ mod tests {
         let b = Request::builder();
         assert_eq!(b.chip.as_os_str(), "");
         assert_eq!(b.cfg.num_lines(), 0);
-        assert_eq!(b.consumer.as_os_str(), "");
+        assert_eq!(b.consumer.as_str(), "");
         assert_eq!(b.kernel_event_buffer_size, 0);
         assert_eq!(b.user_event_buffer_size, 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]

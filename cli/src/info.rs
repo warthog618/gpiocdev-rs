@@ -33,7 +33,7 @@ pub struct Opts {
     ///     -c 0
     ///     -c gpiochip0
     ///     -c /dev/gpiochip0
-    #[clap(short, long, name = "chip", parse(from_os_str = parse_chip_path), verbatim_doc_comment)]
+    #[clap(short, long, name = "chip", parse(from_str = parse_chip_path), verbatim_doc_comment)]
     chip: Option<PathBuf>,
     /// Lines are strictly identified by name.
     ///
@@ -94,7 +94,7 @@ fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
         .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
     println!(
         "{} - {} lines",
-        string_or_default(&ci.name.to_string_lossy(), "??"),
+        string_or_default(&ci.name, "??"),
         ci.num_lines
     );
     for offset in 0..ci.num_lines {
@@ -116,7 +116,7 @@ fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
         .with_context(|| format!("Failed to read info from chip {:?}.", chip.path()))?;
     println!(
         "{} - {} lines (displaying {})",
-        string_or_default(&ci.name.to_string_lossy(), "??"),
+        string_or_default(&ci.name, "??"),
         ci.num_lines,
         lines.len(),
     );
@@ -137,8 +137,8 @@ fn print_line_info(li: gpiocdev::line::Info) {
     println!(
         "\tline {:>3}:\t{:16}\t{:11} [{}]",
         li.offset,
-        string_or_default(&li.name.to_string_lossy(), "unnamed"),
-        string_or_default(&li.consumer.to_string_lossy(), "unused"),
+        string_or_default(&li.name, "unnamed"),
+        string_or_default(&li.consumer, "unused"),
         stringify_attrs(&li),
     );
 }

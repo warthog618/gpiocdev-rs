@@ -15,11 +15,10 @@
 #[cfg(not(any(feature = "uapi_v1", feature = "uapi_v2")))]
 compile_error!("Either feature \"uapi_v1\" or \"uapi_v2\" must be enabled for this crate.");
 
+use chrono::{DateTime, TimeZone, Utc};
 #[cfg(any(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi as uapi;
-use std::borrow::Cow;
 use std::fmt;
-use std::os::unix::prelude::OsStrExt;
 use std::path::PathBuf;
 
 /// Types and functions specific to chips.
@@ -59,9 +58,6 @@ pub mod line;
 /// [`with_edge_detection`]: struct.Builder.html#method.with_edge_detection
 pub mod request;
 
-use chrono::{DateTime, TimeZone, Utc};
-use std::ffi::{OsStr, OsString};
-
 /// The uAPI ABI versions available to interact with the kernel.
 ///
 /// Two versions of the Linux GPIO uAPI ABI currently exist, with v1 being released in
@@ -92,49 +88,6 @@ impl fmt::Display for AbiVersion {
             AbiVersion::V1 => write!(f, "uAPI ABI v1"),
             AbiVersion::V2 => write!(f, "uAPI ABI v2"),
         }
-    }
-}
-
-/// A name string.
-///
-/// Typically returned by the operating system.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct Name(OsString);
-
-impl Name {
-    pub fn as_os_str(&self) -> &OsStr {
-        self.0.as_os_str()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-    pub fn to_string_lossy(&self) -> Cow<'_, str> {
-        self.0.to_string_lossy()
-    }
-}
-impl From<&uapi::Name> for Name {
-    fn from(n: &uapi::Name) -> Self {
-        Name(n.as_os_str().to_os_string())
-    }
-}
-impl From<Name> for uapi::Name {
-    fn from(s: Name) -> Self {
-        uapi::Name::from_bytes(s.as_os_str().as_bytes())
-    }
-}
-impl From<&OsStr> for Name {
-    fn from(n: &OsStr) -> Self {
-        Name(n.to_os_string())
-    }
-}
-impl From<&str> for Name {
-    fn from(n: &str) -> Self {
-        Name(n.to_string().into())
-    }
-}
-impl From<Name> for OsString {
-    fn from(n: Name) -> Self {
-        n.0
     }
 }
 
@@ -240,7 +193,7 @@ impl fmt::Display for UapiCall {
 pub enum AbiSupportKind {
     /// The library does not have the feature enabled for the requested ABI version.
     Library,
-    /// The kernel runniong on the platform does not support the requested ABI version.
+    /// The kernel running on the platform does not support the requested ABI version.
     Platform,
 }
 

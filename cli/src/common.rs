@@ -13,7 +13,6 @@ use gpiocdev::{
 };
 use std::collections::HashMap;
 use std::error::Error;
-use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -50,22 +49,19 @@ pub fn abi_version_from_opts(abiv: u8) -> Result<AbiVersion> {
     Ok(abiv)
 }
 
-pub fn parse_chip_path(s: &OsStr) -> PathBuf {
-    let str = s.to_string_lossy();
-    if str.chars().all(char::is_numeric) {
+pub fn parse_chip_path(s: &str) -> PathBuf {
+    if s.chars().all(char::is_numeric) {
         // from number
-        let mut p = OsString::from("/dev/gpiochip");
-        p.push(s);
-        return PathBuf::from(p);
+        return format!("/dev/gpiochip{}", s).into();
     }
-    if !str.chars().any(|x| x == '/') {
+    if !s.chars().any(|x| x == '/') {
         // from name
-        let mut p = PathBuf::from("/dev");
+        let mut p: PathBuf = "/dev".into();
         p.push(s);
         return p;
     }
     // from raw path
-    PathBuf::from(s)
+    s.into()
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -111,7 +107,7 @@ pub fn find_lines(
                 format!("Failed to read line {} info from chip {:?}.", offset, path)
             })?;
             for name in lines {
-                if name.as_str() == li.name.as_os_str() {
+                if name.as_str() == li.name.as_str() {
                     if !found_lines.contains_key(name) {
                         found_lines.insert(
                             name.to_owned(),
@@ -194,7 +190,7 @@ pub struct LineOpts {
     ///     --chip 0
     ///     --chip gpiochip0
     ///     --chip /dev/gpiochip0
-    #[clap(short, long, name="chip", parse(from_os_str = parse_chip_path), verbatim_doc_comment)]
+    #[clap(short, long, name="chip", parse(from_str = parse_chip_path), verbatim_doc_comment)]
     pub chip: Option<PathBuf>,
     /// Provided line names must be unique or the command will abort.
     ///

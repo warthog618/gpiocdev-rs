@@ -21,7 +21,7 @@ pub struct Opts {
     ///     -c 0
     ///     -c gpiochip0
     ///     -c /dev/gpiochip0
-    #[clap(short, long, name="chip", parse(from_os_str = parse_chip_path), verbatim_doc_comment)]
+    #[clap(short, long, name="chip", parse(from_str = parse_chip_path), verbatim_doc_comment)]
     chip: Option<PathBuf>,
     /// The name of the line to find.
     #[clap(name = "line")]
@@ -76,18 +76,18 @@ fn find_line(chip: &mut Chip, opts: &Opts) -> Result<bool> {
                 chip.path()
             )
         })?;
-        if li.name.as_os_str() == opts.line.as_str() {
+        if li.name.as_str() == opts.line.as_str() {
             if opts.info {
                 println!(
                     "{} {}\t{}\t{} [{}]",
-                    chip.name().to_string_lossy(),
+                    chip.name(),
                     li.offset,
-                    &li.name.to_string_lossy(),
-                    string_or_default(&li.consumer.to_string_lossy(), "unused"),
+                    &li.name,
+                    string_or_default(&li.consumer, "unused"),
                     stringify_attrs(&li),
                 );
             } else {
-                println!("{} {}", chip.name().to_string_lossy(), li.offset);
+                println!("{} {}", chip.name(), li.offset);
             }
             if !opts.strict {
                 return Ok(true);

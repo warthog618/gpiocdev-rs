@@ -19,7 +19,7 @@ pub struct Opts {
     ///     0
     ///     gpiochip0
     ///     /dev/gpiochip0
-    #[clap(name="chip", parse(from_os_str = parse_chip_path), verbatim_doc_comment)]
+    #[clap(name="chip", parse(from_str = parse_chip_path), verbatim_doc_comment)]
     chips: Vec<PathBuf>,
 }
 
@@ -47,8 +47,8 @@ fn print_chip_info(chip: &mut Chip) -> Result<()> {
         .with_context(|| format!("Failed to read chip {:?} info.", chip.path()))?;
     println!(
         "{} [{}] ({} lines)",
-        ci.name.to_string_lossy(),
-        ci.label.to_string_lossy(),
+        ci.name,
+        ci.label,
         ci.num_lines
     );
     Ok(())
