@@ -66,10 +66,12 @@ enum Ioctl {
 pub struct ChipInfo {
     /// The Linux kernel name of this GPIO chip.
     pub name: Name,
+
     /// A functional name for this GPIO chip, such as a product number.
     ///
     /// May be empty.
     pub label: Name,
+
     /// The number of GPIO lines on this chip.
     pub num_lines: u32,
 }
@@ -272,14 +274,15 @@ impl<const SIZE: usize> Padding<SIZE> {
 /// The trigger identifier for a [`LineInfoChangeEvent`].
 ///
 /// [`LineInfoChangeEvent`]: struct.LineInfoChangeEvent.html
-
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LineInfoChangeKind {
     /// The line has been requested.
     Requested = 1,
+
     /// The line has been released.
     Released = 2,
+
     /// The line has been reconfigured.
     Reconfigured = 3,
 }
@@ -313,6 +316,7 @@ impl LineInfoChangeKind {
 pub enum LineEdgeEventKind {
     /// Indicates the line transitioned from *inactive* to *active*.
     RisingEdge = 1,
+
     /// Indicates the line transitioned from *active* to *inactive*.
     FallingEdge = 2,
 }
@@ -349,6 +353,7 @@ mod tests {
             concat!("Size of: ", stringify!(ChipInfo))
         );
     }
+
     #[test]
     fn line_info_changed_kind_validate() {
         let mut a = LineInfoChangeKind::Requested;
@@ -362,6 +367,7 @@ mod tests {
             assert!(a.validate().is_ok());
         }
     }
+
     #[test]
     fn line_event_kind_validate() {
         let mut a = LineInfoChangeKind::Requested;
@@ -375,6 +381,7 @@ mod tests {
             assert!(a.validate().is_ok());
         }
     }
+
     #[test]
     fn name_from_str() {
         let mut x = [0u8; 32];
@@ -399,6 +406,7 @@ mod tests {
         a = "an overly long truncated name -><- cut here".into();
         assert_eq!(a.as_os_str(), "an overly long truncated name ->");
     }
+
     #[test]
     fn name_is_empty() {
         let mut a = Name::default();
@@ -406,6 +414,7 @@ mod tests {
         a = "banana".into();
         assert!(!a.is_empty());
     }
+
     #[test]
     fn name_strlen() {
         let mut a = Name::default();
@@ -415,6 +424,7 @@ mod tests {
         a = "an overly long truncated name -><- cut here".into();
         assert_eq!(a.strlen(), 32);
     }
+
     #[test]
     fn name_as_os_str() {
         let mut a = Name::default();
@@ -422,6 +432,7 @@ mod tests {
         a = "banana".into();
         assert_eq!(a.as_os_str(), "banana");
     }
+
     #[test]
     fn name_from_bytes() {
         // empty
@@ -444,10 +455,12 @@ mod tests {
         a = Name::from_bytes("an overly long truncated name->ó<- cut here".as_bytes());
         assert_eq!(a.as_os_str(), "an overly long truncated name->");
     }
+
     #[test]
     fn name_default() {
         assert_eq!(Name::default().0, [0u8; NAME_LEN_MAX]);
     }
+
     #[test]
     fn offsets_from_slice() {
         let mut x = [0u32; NUM_LINES_MAX];
@@ -476,10 +489,12 @@ mod tests {
         x[5] = 0;
         assert_eq!(a.0, x);
     }
+
     #[test]
     fn offsets_default() {
         assert_eq!(Offsets::default().0, [0u32; NUM_LINES_MAX]);
     }
+
     #[test]
     fn padding_is_zeroed() {
         let mut padding: Padding<3> = Padding::default();
@@ -487,6 +502,7 @@ mod tests {
         padding.0[1] = 3;
         assert!(!padding.is_zeroed());
     }
+
     #[test]
     fn size_of_name() {
         assert_eq!(
@@ -495,6 +511,7 @@ mod tests {
             concat!("Size of: ", stringify!(Name))
         );
     }
+
     #[test]
     fn size_of_offsets() {
         assert_eq!(
@@ -503,6 +520,7 @@ mod tests {
             concat!("Size of: ", stringify!(Offsets))
         );
     }
+
     #[test]
     fn size_of_padding() {
         assert_eq!(

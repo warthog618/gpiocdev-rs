@@ -38,26 +38,37 @@ bitflags! {
     pub struct LineFlags: u64 {
         /// The line is in use and is not available for request.
         const USED = 1;
+
         /// The line active state corresponds to a physical low.
         const ACTIVE_LOW = 2;
+
         /// The line is an input.
         const INPUT = 4;
+
         /// The line is an output.
         const OUTPUT = 8;
+
         /// The line detects rising (*inactive* to *active*) edges.
         const EDGE_RISING = 16;
+
         /// The line detects falling (*active* to *inactive*) edges.
         const EDGE_FALLING = 32;
+
         /// The line is an open drain output.
         const OPEN_DRAIN = 64;
+
         /// The line is an open source output.
         const OPEN_SOURCE = 128;
+
         /// The line has pull-up bias enabled.
         const BIAS_PULL_UP = 256;
+
         /// The line has pull-down bias enabled.
         const BIAS_PULL_DOWN = 512;
+
         /// The line has bias disabled.
         const BIAS_DISABLED = 1024;
+
         /// The line events contain **CLOCK_REALTIME** timestamps.
         const EVENT_CLOCK_REALTIME = 2048;
     }
@@ -74,6 +85,7 @@ bitflags! {
 pub struct LineValues {
     /// The value of the lines, set to 1 for *active* and 0 for *inactive*.
     pub bits: Bitmap<64>,
+
     /// The lines in a request to access, set to 1 to access and 0 to ignore.
     pub mask: Bitmap<64>,
 }
@@ -107,6 +119,7 @@ impl LineValues {
         }
         Some(self.bits.get(idx))
     }
+
     /// Set the value of a line.
     ///
     /// Note that the values are not applied to hardware until passed to [`set_line_values`].
@@ -119,6 +132,7 @@ impl LineValues {
         self.bits.set(idx, active);
         self.mask.set(idx, true);
     }
+
     /// Clear the mask bit for a line.
     ///
     /// The line will be ignored in subsequent calls to [`get_line_values`] and
@@ -182,10 +196,13 @@ pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
 pub enum LineAttributeKind {
     /// The attribute is *inactive* - no fields are in use.
     Unused = 0,
+
     /// The flags field is in use.
     Flags = 1,
+
     /// The values field is in use.
     Values = 2,
+
     /// The debounce_period_us field is in use.
     Debounce = 3,
 }
@@ -224,9 +241,11 @@ impl LineAttributeKind {
 pub struct LineAttribute {
     /// The type of attribute stored in `value`.
     pub kind: LineAttributeKind,
+
     /// Reserved for future use and must be zero filled.
     #[doc(hidden)]
     pub padding: Padding<1>,
+
     /// The attribute value.
     pub value: LineAttributeValueUnion,
 }
@@ -249,6 +268,7 @@ impl LineAttribute {
         self.kind = LineAttributeKind::Values;
         self.value.values = values;
     }
+
     /// Get the contained value.
     ///
     /// Converts the unsafe kind/union into a safe enum.
@@ -308,11 +328,13 @@ impl Eq for LineAttribute {}
 pub union LineAttributeValueUnion {
     /// The line configuration flags.
     pub flags: LineFlags,
+
     /// The values to which the lines will be set, with each bit number
     ///  corresponding to the index into [`LineRequest.offsets`].
     ///
     /// [`LineRequest.offsets`]: struct@LineRequest
     pub values: Bitmap<64>,
+
     /// The debounce period, in microseconds.
     pub debounce_period_us: u32,
 }
@@ -329,8 +351,10 @@ impl Default for LineAttributeValueUnion {
 pub enum LineAttributeValue {
     /// The debounce period attribute as a Duration.
     DebouncePeriod(Duration),
+
     /// The configuration flags.
     Flags(LineFlags),
+
     /// The line values.
     Values(Bitmap<64>),
 }
@@ -341,24 +365,12 @@ pub enum LineAttributeValue {
 pub struct LineConfigAttribute {
     /// The configurable attribute.
     pub attr: LineAttribute,
+
     /// The lines to which the attribute applies, with each bit number corresponding
     /// to the index into [`LineRequest.offsets`].
     ///
     /// [`LineRequest.offsets`]: struct@LineRequest
     pub mask: Bitmap<64>,
-}
-
-impl LineConfigAttribute {
-    ///
-    pub fn to_line_values(&self) -> Option<LineValues> {
-        if let Some(LineAttributeValue::Values(values)) = self.attr.to_value() {
-            return Some(LineValues {
-                bits: values,
-                mask: self.mask,
-            });
-        }
-        None
-    }
 }
 
 /// The set of additional configuration attributes for a line request.
@@ -381,11 +393,14 @@ pub struct LineConfig {
     /// Flags for the GPIO lines.  This is the default for all requested lines but
     /// may be overridden for particular lines using `attrs`.
     pub flags: LineFlags,
+
     /// The number of attributes active in `attrs`.
     pub num_attrs: u32,
+
     /// Reserved for future use and must be zero filled.
     #[doc(hidden)]
     pub padding: Padding<5>,
+
     /// The configuration attributes associated with the requested lines.
     ///
     /// The number of active attributes in the array is specified by `num_attrs`.
@@ -397,6 +412,7 @@ impl LineConfig {
     pub fn attr(&self, idx: usize) -> &LineConfigAttribute {
         &self.attrs.0[idx]
     }
+
     /// The nth attribute in the attrs
     pub fn attr_mut(&mut self, idx: usize) -> &mut LineConfigAttribute {
         &mut self.attrs.0[idx]
@@ -430,16 +446,20 @@ pub fn set_line_config(lfd: RawFd, lc: LineConfig) -> Result<()> {
 pub struct LineRequest {
     /// An array of requested lines, identified by offset on the associated GPIO chip.
     pub offsets: Offsets,
+
     /// The requested consumer label for the selected GPIO lines such as
     /// "*my-bitbanged-relay*".
     pub consumer: Name,
+
     /// The requested configuration for the lines.
     pub config: LineConfig,
+
     /// The number of lines requested in this request.
     /// i.e. the number of valid elements in `offsets`.
     ///
     /// Set to 1 to request a single line.
     pub num_lines: u32,
+
     /// A suggested minimum number of line events that the kernel should buffer.
     ///
     /// This is only relevant if edge detection is enabled in the configuration.
@@ -448,9 +468,11 @@ pub struct LineRequest {
     /// larger buffer or cap the size of the buffer.
     /// If this field is zero then the buffer size defaults to a minimum of `num_lines*16`.
     pub event_buffer_size: u32,
+
     /// Reserved for future use and must be zero filled.
     #[doc(hidden)]
     pub padding: Padding<5>,
+
     /// This field is only present for the underlying ioctl call and is only used internally.
     #[doc(hidden)]
     pub fd: i32,
@@ -494,21 +516,27 @@ pub struct LineInfo {
     ///
     /// May be empty.
     pub name: Name,
+
     /// A functional name for the consumer of this GPIO line as set by whatever is using it.
     ///
     /// Will be empty if there is no current user.
     /// May also be empty if the consumer requests doesn't set this up.
     pub consumer: Name,
+
     /// The local offset on this GPIO chip.
     pub offset: Offset,
+
     /// The number of attributes active in `attrs`.
     pub num_attrs: u32,
+
     /// The configuration flags for this GPIO line.
     pub flags: LineFlags,
+
     /// Additilnal configuration attributes associated with the line.
     ///
     /// The number of active attributes in the array is specified by `num_attrs`.
     pub attrs: LineAttributes,
+
     /// Reserved for future use.
     #[doc(hidden)]
     pub padding: Padding<4>,
@@ -592,10 +620,13 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
 pub struct LineInfoChangeEvent {
     /// The new line info.
     pub info: LineInfo,
+
     /// The best estimate of time of event occurrence, in nanoseconds.
     pub timestamp_ns: u64,
+
     /// The trigger for the change.
     pub kind: LineInfoChangeKind,
+
     /// Reserved for future use.
     #[doc(hidden)]
     pub padding: Padding<5>,
@@ -629,16 +660,21 @@ pub struct LineEdgeEvent {
     /// If the [`LineFlags::EVENT_CLOCK_REALTIME`] flag is set then the
     /// timestamp is read from **CLOCK_REALTIME**.
     pub timestamp_ns: u64,
+
     /// The event trigger identifier.
     pub kind: LineEdgeEventKind,
+
     /// The offset of the line that triggered the event.
     pub offset: Offset,
+
     /// The sequence number for this event in the sequence of events for all
     /// the lines in this line request.
     pub seqno: u32,
+
     /// The sequence number for this event in the sequence of events on this
     /// particular line.
     pub line_seqno: u32,
+
     /// Reserved for future use.
     #[doc(hidden)]
     pub padding: Padding<6>,
@@ -671,6 +707,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineValues))
         );
     }
+
     #[test]
     fn size_of_line_attribute() {
         assert_eq!(
@@ -679,6 +716,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineAttribute))
         );
     }
+
     #[test]
     fn size_of_line_attribute_value() {
         assert_eq!(
@@ -687,6 +725,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineAttributeValue))
         );
     }
+
     #[test]
     fn size_of_line_config_attribute() {
         assert_eq!(
@@ -695,6 +734,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineConfigAttribute))
         );
     }
+
     #[test]
     fn size_of_line_config() {
         assert_eq!(
@@ -703,6 +743,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineConfig))
         );
     }
+
     #[test]
     fn size_of_line_request() {
         assert_eq!(
@@ -711,6 +752,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineRequest))
         );
     }
+
     #[test]
     fn size_of_line_info() {
         assert_eq!(
@@ -719,6 +761,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineInfo))
         );
     }
+
     #[test]
     fn size_of_line_info_changed() {
         assert_eq!(
@@ -727,6 +770,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineInfoChangeEvent))
         );
     }
+
     #[test]
     fn size_of_line_event() {
         assert_eq!(
@@ -735,18 +779,22 @@ mod tests {
             concat!("Size of: ", stringify!(LineEdgeEvent))
         );
     }
+
     #[test]
     fn line_values_get() {
         let mut a = LineValues::default();
         for idx in [0, 2] {
             assert!(!a.bits.get(idx), "idx: {}", idx);
             assert!(a.get(idx).is_none(), "idx: {}", idx);
+
             a.mask.set(idx, true);
             assert!(!a.get(idx).unwrap(), "idx: {}", idx);
+
             a.bits.set(idx, true);
             assert!(a.get(idx).unwrap(), "idx: {}", idx);
         }
     }
+
     #[test]
     fn line_values_set() {
         let mut a = LineValues::default();
@@ -754,11 +802,13 @@ mod tests {
             a.set(idx, false);
             assert!(a.mask.get(idx), "idx: {}", idx);
             assert!(!a.bits.get(idx), "idx: {}", idx);
+
             a.set(idx, true);
             assert!(a.mask.get(idx), "idx: {}", idx);
             assert!(a.bits.get(idx), "idx: {}", idx);
         }
     }
+
     #[test]
     fn line_values_unset_mask() {
         let mut a = LineValues {
@@ -767,18 +817,22 @@ mod tests {
         };
         assert_eq!(a.mask.len(), 6);
         assert!(a.mask.get(0));
+
         a.unset_mask(0);
         assert!(!a.mask.get(0));
         assert_eq!(a.mask.len(), 5);
         assert!(a.mask.get(3));
+
         a.unset_mask(3);
         assert!(!a.mask.get(3));
         assert_eq!(a.mask.len(), 4);
         assert!(a.mask.get(5));
+
         a.unset_mask(5);
         assert!(!a.mask.get(5));
         assert_eq!(a.mask.len(), 3);
         assert!(!a.mask.get(6));
+
         a.unset_mask(5);
         assert!(!a.mask.get(5));
         assert_eq!(a.mask.len(), 3);
@@ -787,8 +841,10 @@ mod tests {
     fn line_attribute_kind_validate() {
         let mut a = LineAttributeKind::Flags;
         assert!(a.validate().is_ok());
+
         a = LineAttributeKind::Unused;
         assert!(a.validate().is_ok());
+
         unsafe {
             a = *(&4 as *const i32 as *const LineAttributeKind);
             assert_eq!(a.validate().unwrap_err(), "invalid value: 4");
@@ -800,12 +856,15 @@ mod tests {
     fn line_info_validate() {
         let mut a = LineInfo::default();
         assert!(a.validate().is_ok());
+
         a.num_attrs = NUM_ATTRS_MAX as u32;
         assert!(a.validate().is_ok());
+
         a.num_attrs += 1;
         let e = a.validate().unwrap_err();
         assert_eq!(e.field, "num_attrs");
         assert_eq!(e.msg, "out of range: 11");
+
         a.num_attrs = NUM_ATTRS_MAX as u32;
         for idx in [0, 1, 4, 7] {
             unsafe {
@@ -826,6 +885,7 @@ mod tests {
             padding: Default::default(),
         };
         assert!(a.validate().is_ok());
+
         a.timestamp_ns = 1234;
         assert!(a.validate().is_ok());
         unsafe {
@@ -833,14 +893,17 @@ mod tests {
             let e = a.validate().unwrap_err();
             assert_eq!(e.field, "kind");
             assert_eq!(e.msg, "invalid value: 0");
+
             a.kind = *(&4 as *const i32 as *const LineInfoChangeKind);
             let e = a.validate().unwrap_err();
             assert_eq!(e.field, "kind");
             assert_eq!(e.msg, "invalid value: 4");
+
             a.kind = *(&1 as *const i32 as *const LineInfoChangeKind);
             assert!(a.validate().is_ok());
         }
     }
+
     #[test]
     fn line_event_validate() {
         let mut a = LineEdgeEvent {
@@ -852,6 +915,7 @@ mod tests {
             padding: Default::default(),
         };
         assert!(a.validate().is_ok());
+
         a.timestamp_ns = 1234;
         assert!(a.validate().is_ok());
         unsafe {
@@ -859,10 +923,12 @@ mod tests {
             let e = a.validate().unwrap_err();
             assert_eq!(e.field, "kind");
             assert_eq!(e.msg, "invalid value: 0");
+
             a.kind = *(&3 as *const i32 as *const LineEdgeEventKind);
             let e = a.validate().unwrap_err();
             assert_eq!(e.field, "kind");
             assert_eq!(e.msg, "invalid value: 3");
+
             a.kind = *(&1 as *const i32 as *const LineEdgeEventKind);
             assert!(a.validate().is_ok());
         }

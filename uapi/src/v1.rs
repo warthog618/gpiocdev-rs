@@ -36,14 +36,17 @@ pub struct LineInfo {
     /// The line offset on this GPIO device.
     /// This is the identifier used when requesting the line from the kernel.
     pub offset: Offset,
+
     /// The configuration flags for this line.
     pub flags: LineInfoFlags,
+
     /// The name of this GPIO line, such as the output pin of the line on the
     /// chip, a rail or a pin header name on a board, as specified by the GPIO
     /// chip.
     ///
     /// May be empty.
     pub name: Name,
+
     /// A functional name for the consumer of this GPIO line as set by
     /// whatever is using it.
     ///
@@ -58,18 +61,25 @@ bitflags! {
     pub struct LineInfoFlags: u32 {
         /// The line is in use and is not available for request.
         const USED = 1;
+
         /// The line is an output.
         const OUTPUT = 2;
+
         /// The line active state corresponds to a physical low.
         const ACTIVE_LOW = 4;
+
         /// The line is an open drain output.
         const OPEN_DRAIN = 8;
+
         /// The line is an open source output.
         const OPEN_SOURCE = 16;
+
         /// The line has pull-up bias enabled.
         const BIAS_PULL_UP = 32;
+
         /// The line has pull-down bias enabled.
         const BIAS_PULL_DOWN = 64;
+
         /// The line has bias disabled.
         const BIAS_DISABLED = 128;
     }
@@ -130,10 +140,13 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
 pub struct LineInfoChangeEvent {
     /// Updated line information.
     pub info: LineInfo,
+
     /// An estimate of time of status change occurrence, in nanoseconds.
     pub timestamp_ns: u64,
+
     /// The kind of change event.
     pub kind: LineInfoChangeKind,
+
     /// Reserved for future use.
     #[doc(hidden)]
     pub padding: Padding<5>,
@@ -163,6 +176,7 @@ impl LineInfoChangeEvent {
 pub struct HandleRequest {
     /// An array of requested lines, identitifed by offset on the associated GPIO device.
     pub offsets: Offsets,
+
     /// The requested flags for the requested GPIO lines.
     ///
     /// Note that even if multiple lines are requested, the same flags must be applicable
@@ -170,17 +184,21 @@ pub struct HandleRequest {
     /// It is possible to select a batch of input or output lines, but they must all
     /// have the same characteristics, i.e. all inputs or all outputs, all active low etc.
     pub flags: HandleRequestFlags,
+
     /// If the [`HandleRequestFlags::OUTPUT`] is set for a requested line, this specifies the
     /// output value for each offset.  Should be 0 (*inactive*) or 1 (*active*).
     /// Anything other than 0 or 1 is interpreted as 1 (*active*).
     pub values: LineValues,
+
     /// A requested consumer label for the selected GPIO line(s) such as "*my-bitbanged-relay*".
     pub consumer: Name,
+
     /// The number of lines requested in this request, i.e. the number of valid fields in
     /// the `offsets` and `values` arrays.
     ///
     /// Set to 1 to request a single line.
     pub num_lines: u32,
+
     /// This field is only present for the underlying ioctl call and is only used internally.
     //
     // This is actually specified as an int in gpio.h, but that presents problems
@@ -200,18 +218,25 @@ bitflags! {
     pub struct HandleRequestFlags: u32 {
         /// Requests line as an input.
         const INPUT = 1;
+
         /// Requests line as an output.
         const OUTPUT = 2;
+
         /// Requests line as active low.
         const ACTIVE_LOW = 4;
+
         /// Requests line as open drain.
         const OPEN_DRAIN = 8;
+
         /// Requests line as open source.
         const OPEN_SOURCE = 16;
+
         /// Requests line with pull-up bias.
         const BIAS_PULL_UP = 32;
+
         /// Requests line with pull-down bias.
         const BIAS_PULL_DOWN = 64;
+
         /// Requests line with bias disabled.
         const BIAS_DISABLED = 128;
     }
@@ -246,11 +271,13 @@ pub struct HandleConfig {
     ///
     /// The flags will be applied to all lines in the existing request.
     pub flags: HandleRequestFlags,
+
     /// If the [`HandleRequestFlags::OUTPUT`] is set in flags, this specifies the
     /// output value, should be 0 (*inactive*) or 1 (*active*).
     ///
     /// All other values are interpreted as active.
     pub values: LineValues,
+
     /// Reserved for future use and should be zero filled.
     #[doc(hidden)]
     pub padding: Padding<4>,
@@ -301,6 +328,7 @@ impl LineValues {
         }
         n
     }
+
     /// Return the value of a line.
     ///
     /// Note that the [`LineValues`] need to be populated via a call to [`get_line_values`]
@@ -313,6 +341,7 @@ impl LineValues {
     pub fn get(&self, idx: usize) -> u8 {
         self.0[idx]
     }
+
     /// Set the value of a line.
     ///
     /// Note that this is not applied to hardware until these values are passed to
@@ -382,12 +411,16 @@ pub struct EventRequest {
     /// The line to request edge events from, identified by its offset
     /// on the associated GPIO device.
     pub offset: Offset,
+
     /// The requested handle flags for the GPIO line.
     pub handleflags: HandleRequestFlags,
+
     /// The requested event flags for the GPIO line.
     pub eventflags: EventRequestFlags,
+
     /// A requested consumer label for the selected GPIO line(s) such as "*my-listener*".
     pub consumer: Name,
+
     /// This field is only present for the underlying ioctl call and is only used internally.
     ///
     // This is actually specified as an int in gpio.h, but that presents problems
@@ -403,8 +436,10 @@ bitflags! {
     pub struct EventRequestFlags: u32 {
         /// Report rising edge events on the requested line.
         const RISING_EDGE = 1;
+
         /// Report falling edge events on the requested line.
         const FALLING_EDGE = 2;
+
         /// Report both rising and falling edge events on the requested line.
         const BOTH_EDGES = Self::RISING_EDGE.bits | Self::FALLING_EDGE.bits;
     }
@@ -473,6 +508,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineInfo))
         );
     }
+
     #[test]
     fn size_of_line_info_changed() {
         assert_eq!(
@@ -481,6 +517,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineInfoChangeEvent))
         );
     }
+
     #[test]
     fn size_of_handle_request() {
         assert_eq!(
@@ -489,6 +526,7 @@ mod tests {
             concat!("Size of: ", stringify!(HandleRequest))
         );
     }
+
     #[test]
     fn size_of_handle_config() {
         assert_eq!(
@@ -497,6 +535,7 @@ mod tests {
             concat!("Size of: ", stringify!(HandleConfig))
         );
     }
+
     #[test]
     fn size_of_values() {
         assert_eq!(
@@ -505,6 +544,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineValues))
         );
     }
+
     #[test]
     fn size_of_event_request() {
         assert_eq!(
@@ -513,6 +553,7 @@ mod tests {
             concat!("Size of: ", stringify!(EventRequest))
         );
     }
+
     #[test]
     fn size_of_line_event() {
         assert_eq!(
@@ -521,6 +562,7 @@ mod tests {
             concat!("Size of: ", stringify!(LineEdgeEvent))
         );
     }
+
     #[test]
     fn line_info_changed_validate() {
         let mut a = LineInfoChangeEvent {
@@ -545,6 +587,7 @@ mod tests {
             assert!(a.validate().is_ok());
         }
     }
+
     #[test]
     fn line_event_validate() {
         let mut a = LineEdgeEvent {
@@ -567,6 +610,7 @@ mod tests {
             assert!(a.validate().is_ok());
         }
     }
+
     #[test]
     fn line_values_get() {
         let mut a = LineValues::default();
@@ -579,6 +623,7 @@ mod tests {
             assert_eq!(a.get(idx), 42, "idx: {}", idx);
         }
     }
+
     #[test]
     fn line_values_set() {
         let mut a = LineValues::default();
