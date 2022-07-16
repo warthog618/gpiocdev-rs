@@ -28,7 +28,8 @@ mod builder {
                     .name(4, "piggly")
                     .hog(7, "hogster", Direction::OutputHigh),
             )
-            .live().unwrap();
+            .live()
+            .unwrap();
 
         assert_eq!(sim.name(), &name);
         let chips = sim.chips();
@@ -179,5 +180,28 @@ mod builder {
             sim2.unwrap_err().to_string(),
             Error::SimulatorExists(name).to_string()
         );
+    }
+
+    #[test]
+    fn simpleton() {
+        let sim = gpiosim::simpleton(12);
+        assert_eq!(sim.chips().len(), 1);
+
+        let c = &sim.chips()[0];
+        assert_eq!(c.cfg.num_lines, 12);
+        assert_eq!(c.cfg.label, "simpleton");
+
+        let cdevc = chip::Chip::from_path(&c.dev_path);
+        assert!(cdevc.is_ok());
+        let cdevc = cdevc.unwrap();
+        let info = cdevc.info();
+        assert!(info.is_ok());
+        let info = info.unwrap();
+        let xinfo = chip::Info {
+            name: String::from(&c.chip_name),
+            label: "simpleton".into(),
+            num_lines: 12,
+        };
+        assert_eq!(info, xinfo);
     }
 }

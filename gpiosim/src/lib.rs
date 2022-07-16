@@ -144,10 +144,10 @@ pub struct Chip {
 
 impl Chip {
     /// Pull a line to simulate the line being externally driven.
-    pub fn set_pull(&self, offset: Offset, pull: &Value) -> Result<()> {
+    pub fn set_pull(&self, offset: Offset, pull: &Level) -> Result<()> {
         let value = match pull {
-            Value::Inactive => "pull-down",
-            Value::Active => "pull-up",
+            Level::Low => "pull-down",
+            Level::High => "pull-up",
         };
         let dir = self.sysfs_path.join(format!("sim_gpio{}", offset));
         write_attr(&dir, "pull", value)
@@ -155,19 +155,19 @@ impl Chip {
 
     /// Pull a line up to simulate the line being externally driven high.
     pub fn pullup(&self, offset: Offset) -> Result<()> {
-        self.set_pull(offset, &Value::Active)
+        self.set_pull(offset, &Level::High)
     }
 
     /// Pull a line down to simulate the line being externally driven low.
     pub fn pulldown(&self, offset: Offset) -> Result<()> {
-        self.set_pull(offset, &Value::Inactive)
+        self.set_pull(offset, &Level::Low)
     }
 
     /// Toggle the pull on a line.
-    pub fn toggle(&self, offset: Offset) -> Result<Value> {
+    pub fn toggle(&self, offset: Offset) -> Result<Level> {
         let value = match self.get_pull(offset)? {
-            Value::Active => Value::Inactive,
-            Value::Inactive => Value::Active,
+            Level::High => Level::Low,
+            Level::Low => Level::High,
         };
         self.set_pull(offset, &value)?;
         Ok(value)
@@ -179,21 +179,21 @@ impl Chip {
     }
 
     /// Get the current state of the simulated external pull on a line.
-    pub fn get_pull(&self, offset: Offset) -> Result<Value> {
+    pub fn get_pull(&self, offset: Offset) -> Result<Level> {
         let pull = self.get_attr(offset, "pull")?;
         match pull.as_str() {
-            "pull-down" => Ok(Value::Inactive),
-            "pull-up" => Ok(Value::Active),
+            "pull-down" => Ok(Level::Low),
+            "pull-up" => Ok(Level::High),
             _ => Err(Error::UnexpectedValue(pull)),
         }
     }
 
     /// Get the current output value for a simulated output line.
-    pub fn get_value(&self, offset: Offset) -> Result<Value> {
+    pub fn get_level(&self, offset: Offset) -> Result<Level> {
         let val = self.get_attr(offset, "value")?;
         match val.as_str() {
-            "0" => Ok(Value::Inactive),
-            "1" => Ok(Value::Active),
+            "0" => Ok(Level::Low),
+            "1" => Ok(Level::High),
             _ => Err(Error::UnexpectedValue(val)),
         }
     }
@@ -202,6 +202,17 @@ impl Chip {
 /// Start building a GPIO simulator.
 pub fn builder() -> Builder {
     Builder::default()
+}
+
+/// Build a basic single bank sim and take it live.
+///
+/// This is sufficient for tests that do not require named lines, hogged lines
+/// or multiple chips.
+pub fn simpleton(num_lines: u32) -> Sim {
+    builder()
+        .with_bank(&Bank::new(num_lines, "simpleton"))
+        .live()
+        .unwrap()
 }
 
 /// A builder of simulators.
@@ -372,12 +383,12 @@ impl std::string::ToString for Direction {
 
 /// The physical value of a line.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Value {
+pub enum Level {
     /// The line is  physically high.
-    Active,
+    High,
 
     /// The line is physically low.
-    Inactive,
+    Low,
 }
 
 /// Create a unique, but predicatable, name for the simulator.

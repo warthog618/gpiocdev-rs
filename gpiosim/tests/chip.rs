@@ -8,11 +8,11 @@
 mod chip {
     use gpiocdev::line;
     use gpiocdev::request::Request;
-    use gpiosim::{builder, Bank, Direction};
+    use gpiosim::{simpleton, Bank, Direction};
 
     #[test]
     fn live_attrs() {
-        let sim = builder()
+        let sim = gpiosim::builder()
             .with_bank(
                 Bank::new(8, "veintidós")
                     .name(3, "banana")
@@ -47,8 +47,7 @@ mod chip {
 
     #[test]
     fn pull() {
-        let sim = builder().with_bank(&Bank::new(8, "doce")).live().unwrap();
-
+        let sim = simpleton(8);
         let c = &sim.chips()[0];
 
         let req = Request::builder()
@@ -59,30 +58,29 @@ mod chip {
         assert!(req.is_ok());
         let req = req.unwrap();
 
-        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Value::Inactive);
+        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Level::Low);
         assert_eq!(req.value(5).unwrap(), line::Value::Inactive);
 
         assert!(c.pullup(5).is_ok());
-        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Value::Active);
+        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Level::High);
         assert_eq!(req.value(5).unwrap(), line::Value::Active);
 
         assert!(c.pulldown(5).is_ok());
-        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Value::Inactive);
+        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Level::Low);
         assert_eq!(req.value(5).unwrap(), line::Value::Inactive);
 
-        assert!(c.set_pull(5, &gpiosim::Value::Active).is_ok());
-        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Value::Active);
+        assert!(c.set_pull(5, &gpiosim::Level::High).is_ok());
+        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Level::High);
         assert_eq!(req.value(5).unwrap(), line::Value::Active);
 
-        assert!(c.set_pull(5, &gpiosim::Value::Inactive).is_ok());
-        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Value::Inactive);
+        assert!(c.set_pull(5, &gpiosim::Level::Low).is_ok());
+        assert_eq!(c.get_pull(5).unwrap(), gpiosim::Level::Low);
         assert_eq!(req.value(5).unwrap(), line::Value::Inactive);
     }
 
     #[test]
     fn toggle() {
-        let sim = builder().with_bank(&Bank::new(8, "uno")).live().unwrap();
-
+        let sim = simpleton(8);
         let c = &sim.chips()[0];
 
         let req = Request::builder()
@@ -93,22 +91,21 @@ mod chip {
         assert!(req.is_ok());
         let req = req.unwrap();
 
-        assert_eq!(c.get_pull(4).unwrap(), gpiosim::Value::Inactive);
+        assert_eq!(c.get_pull(4).unwrap(), gpiosim::Level::Low);
         assert_eq!(req.value(4).unwrap(), line::Value::Inactive);
 
         assert!(c.toggle(4).is_ok());
-        assert_eq!(c.get_pull(4).unwrap(), gpiosim::Value::Active);
+        assert_eq!(c.get_pull(4).unwrap(), gpiosim::Level::High);
         assert_eq!(req.value(4).unwrap(), line::Value::Active);
 
         assert!(c.toggle(4).is_ok());
-        assert_eq!(c.get_pull(4).unwrap(), gpiosim::Value::Inactive);
+        assert_eq!(c.get_pull(4).unwrap(), gpiosim::Level::Low);
         assert_eq!(req.value(4).unwrap(), line::Value::Inactive);
     }
 
     #[test]
     fn get_value() {
-        let sim = builder().with_bank(&Bank::new(8, "dos")).live().unwrap();
-
+        let sim = simpleton(8);
         let c = &sim.chips()[0];
 
         let req = Request::builder()
@@ -120,15 +117,15 @@ mod chip {
         let req = req.unwrap();
 
         // chip pull checked to ensure not altered
-        assert_eq!(c.get_pull(3).unwrap(), gpiosim::Value::Inactive);
+        assert_eq!(c.get_pull(3).unwrap(), gpiosim::Level::Low);
         assert_eq!(req.value(3).unwrap(), line::Value::Inactive);
 
         assert!(req.set_value(3, line::Value::Active).is_ok());
-        assert_eq!(c.get_pull(3).unwrap(), gpiosim::Value::Inactive);
-        assert_eq!(c.get_value(3).unwrap(), gpiosim::Value::Active);
+        assert_eq!(c.get_pull(3).unwrap(), gpiosim::Level::Low);
+        assert_eq!(c.get_level(3).unwrap(), gpiosim::Level::High);
 
         assert!(req.set_value(3, line::Value::Inactive).is_ok());
-        assert_eq!(c.get_pull(3).unwrap(), gpiosim::Value::Inactive);
-        assert_eq!(c.get_value(3).unwrap(), gpiosim::Value::Inactive);
+        assert_eq!(c.get_pull(3).unwrap(), gpiosim::Level::Low);
+        assert_eq!(c.get_level(3).unwrap(), gpiosim::Level::Low);
     }
 }
