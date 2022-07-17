@@ -208,11 +208,26 @@ pub fn builder() -> Builder {
 ///
 /// This is sufficient for tests that do not require named lines, hogged lines
 /// or multiple chips.
-pub fn simpleton(num_lines: u32) -> Sim {
-    builder()
-        .with_bank(&Bank::new(num_lines, "simpleton"))
-        .live()
-        .unwrap()
+pub fn simpleton(num_lines: u32) -> Simpleton {
+    Simpleton(
+        builder()
+            .with_bank(&Bank::new(num_lines, "simpleton"))
+            .live()
+            .unwrap(),
+    )
+}
+
+/// A basic single bank/chip sim.
+///
+/// This is sufficient for tests that do not require named lines, hogged lines
+/// or multiple chips.
+pub struct Simpleton(Sim);
+
+impl Simpleton {
+    /// Return the only chip simulated by the Simpleton.
+    pub fn chip(&self) -> &Chip {
+        &self.0.chips[0]
+    }
 }
 
 /// A builder of simulators.
