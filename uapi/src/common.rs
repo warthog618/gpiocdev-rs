@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: MIT
 
+use errno::{errno, Errno};
 use libc::{c_long, ioctl, pollfd, ppoll, read, sigset_t, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
-use std::io::Error as IoError;
 use std::mem::{size_of, MaybeUninit};
 use std::os::unix::prelude::{OsStrExt, RawFd};
 use std::ptr::null;
@@ -21,7 +21,7 @@ pub fn read_event(fd: RawFd, buf: &mut [u8]) -> Result<usize> {
     unsafe {
         let bufptr: *mut libc::c_void = std::ptr::addr_of_mut!(*buf) as *mut libc::c_void;
         match read(fd, bufptr, buf.len()) {
-            -1 => Err(Error::from(IoError::last_os_error())),
+            -1 => Err(Error::from(errno())),
             x => Ok(x.try_into().unwrap()),
         }
     }
@@ -45,7 +45,7 @@ pub fn wait_event(fd: RawFd, d: Duration) -> Result<bool> {
             std::ptr::addr_of!(timeout),
             null() as *const sigset_t,
         ) {
-            -1 => Err(Error::from(IoError::last_os_error())),
+            -1 => Err(Error::from(errno())),
             0 => Ok(false),
             _ => Ok(true),
         }
@@ -88,7 +88,7 @@ pub fn get_chip_info(cfd: RawFd) -> Result<ChipInfo> {
             chip.as_mut_ptr(),
         ) {
             0 => Ok(chip.assume_init()),
-            _ => Err(Error::from(IoError::last_os_error())),
+            _ => Err(Error::from(errno())),
         }
     }
 }
@@ -108,7 +108,7 @@ pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 
@@ -123,11 +123,13 @@ pub type ValidationResult = std::result::Result<(), ValidationError>;
 /// Errors returned by [`gpiocdev_uapi`] functions.
 ///
 /// [`gpiocdev_uapi`]: crate
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
     /// An error returned from an underlying system call.
     #[error(transparent)]
-    Os(#[from] std::io::Error),
+    Os(#[from] Errno),
+
+    /// An error validating an data structure retuned from the kernel
     #[error(transparent)]
     Validation(#[from] ValidationError),
 }

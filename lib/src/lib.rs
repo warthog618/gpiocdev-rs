@@ -16,6 +16,7 @@
 compile_error!("Either feature \"uapi_v1\" or \"uapi_v2\" must be enabled for this crate.");
 
 use chrono::{DateTime, TimeZone, Utc};
+use errno::Errno;
 #[cfg(any(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi as uapi;
 use std::fmt;
@@ -115,29 +116,36 @@ impl From<Timestamp> for DateTime<Utc> {
 /// Errors returned by [`gpiocdev`] functions.
 ///
 /// [`gpiocdev`]: crate
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum Error {
     /// An operation cannot be performed due to a limitation in the ABI version being used.
     #[error("{0} {1}.")]
     AbiLimitation(AbiVersion, String),
+
     /// An error returned when there is a problem with an argument.
     #[error("{0}")]
     InvalidArgument(String),
+
     /// No gpiochips are available to the user.
     #[error("No GPIO chips are available")]
     NoGpioChips(),
+
     /// Problem accessing GPIO chip character devices
     #[error("\"{0}\" {1}.")]
     GpioChip(PathBuf, chip::ErrorKind),
+
     /// An error returned from an underlying os call.
     #[error(transparent)]
-    OsError(#[from] std::io::Error),
+    OsError(#[from] Errno),
+
     /// An error returned from an underlying uAPI call.
     #[error("uAPI {0} returned: {1}")]
     UapiError(UapiCall, #[source] uapi::Error),
+
     /// The response to a uAPI command contained unexpected content.
     #[error("{0}")]
     UnexpectedResponse(String),
+
     /// The platform or library does not support the requested uAPI ABI version.
     #[error("{0} is not supported by the {1}.")]
     UnsupportedAbi(AbiVersion, AbiSupportKind),
@@ -193,6 +201,7 @@ impl fmt::Display for UapiCall {
 pub enum AbiSupportKind {
     /// The library does not have the feature enabled for the requested ABI version.
     Library,
+
     /// The kernel running on the platform does not support the requested ABI version.
     Platform,
 }

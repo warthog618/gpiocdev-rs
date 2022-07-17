@@ -20,15 +20,20 @@ use std::os::linux::fs::MetadataExt;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use errno::Errno;
 
 const CHARDEV_MODE: u32 = 0x2000;
+
+fn errno_from_ioerr(e: std::io::Error) -> Errno {
+    Errno(e.raw_os_error().unwrap_or(0))
+}
 
 /// Check if a path corresponds to a GPIO character device.
 ///
 /// Returns the resolved path to the character device.
 pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    let pb = fs::canonicalize(&path)?;
-    let m = fs::symlink_metadata(&pb)?;
+    let pb = fs::canonicalize(&path).map_err(errno_from_ioerr)?;
+    let m = fs::symlink_metadata(&pb).map_err(errno_from_ioerr)?;
     if m.st_mode() & CHARDEV_MODE == 0 {
         return Err(Error::GpioChip(pb, ErrorKind::NotCharacterDevice));
     }
@@ -51,7 +56,7 @@ pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
 /// to check them with [`is_chip`].
 pub fn chips() -> Result<ChipIterator> {
     Ok(ChipIterator {
-        rd: std::fs::read_dir("/dev")?,
+        rd: std::fs::read_dir("/dev").map_err(errno_from_ioerr)?,
         paths: HashSet::new(),
     })
 }
@@ -99,7 +104,7 @@ impl Chip {
     /// The path must resolve to a valid GPIO character device.
     pub fn from_path<P: AsRef<Path>>(p: P) -> Result<Chip> {
         let path = is_chip(p.as_ref())?;
-        let f = fs::File::open(&path)?;
+        let f = fs::File::open(&path).map_err(errno_from_ioerr)?;
         let fd = f.as_raw_fd();
         Ok(Chip {
             path,

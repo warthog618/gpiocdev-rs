@@ -8,10 +8,10 @@ use libc::ioctl;
 use std::convert::TryFrom;
 use std::fmt;
 use std::fs::File;
-use std::io::Error as IoError;
 use std::mem::size_of;
 use std::os::unix::prelude::{FromRawFd, RawFd};
 use std::time::Duration;
+use errno::errno;
 
 use super::common::{ValidationResult, IOCTL_MAGIC};
 
@@ -163,7 +163,7 @@ pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 
@@ -186,7 +186,7 @@ pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 
@@ -435,7 +435,7 @@ pub fn set_line_config(lfd: RawFd, lc: LineConfig) -> Result<()> {
             &lc,
         ) {
             0 => Ok(()),
-            _ => Err(Error::from(IoError::last_os_error())),
+            _ => Err(Error::from(errno())),
         }
     }
 }
@@ -490,7 +490,7 @@ pub fn get_line(cfd: RawFd, lr: LineRequest) -> Result<File> {
             &lr,
         ) {
             0 => Ok(File::from_raw_fd(lr.fd)),
-            _ => Err(Error::from(IoError::last_os_error())),
+            _ => Err(Error::from(errno())),
         }
     }
 }
@@ -584,7 +584,7 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         )
     } {
         0 => li.validate().map(|_| li).map_err(Error::from),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 
@@ -610,7 +610,7 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         )
     } {
         0 => li.validate().map(|_| li).map_err(Error::from),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 

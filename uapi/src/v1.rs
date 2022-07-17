@@ -5,9 +5,9 @@
 use bitflags::bitflags;
 use libc::ioctl;
 use std::fs::File;
-use std::io::Error as IoError;
 use std::mem::size_of;
 use std::os::unix::prelude::{FromRawFd, RawFd};
+use errno::errno;
 
 use super::common::{ValidationResult, IOCTL_MAGIC};
 
@@ -105,7 +105,7 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         )
     } {
         0 => Ok(li),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 
@@ -130,7 +130,7 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         )
     } {
         0 => Ok(li),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 
@@ -258,7 +258,7 @@ pub fn get_line_handle(cfd: RawFd, hr: HandleRequest) -> Result<File> {
             &hr,
         ) {
             0 => Ok(File::from_raw_fd(hr.fd)),
-            _ => Err(Error::from(IoError::last_os_error())),
+            _ => Err(Error::from(errno())),
         }
     }
 }
@@ -295,7 +295,7 @@ pub fn set_line_config(cfd: RawFd, hc: HandleConfig) -> Result<()> {
             &hc,
         ) {
             0 => Ok(()),
-            _ => Err(Error::from(IoError::last_os_error())),
+            _ => Err(Error::from(errno())),
         }
     }
 }
@@ -379,7 +379,7 @@ pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 
@@ -400,7 +400,7 @@ pub fn set_line_values(lfd: RawFd, vals: &LineValues) -> Result<()> {
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(IoError::last_os_error())),
+        _ => Err(Error::from(errno())),
     }
 }
 
@@ -463,7 +463,7 @@ pub fn get_line_event(cfd: RawFd, er: EventRequest) -> Result<File> {
             &er,
         ) {
             0 => Ok(File::from_raw_fd(er.fd)),
-            _ => Err(Error::from(IoError::last_os_error())),
+            _ => Err(Error::from(errno())),
         }
     }
 }
