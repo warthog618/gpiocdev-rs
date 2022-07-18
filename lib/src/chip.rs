@@ -6,6 +6,7 @@ use super::line::Offset;
 use crate::{
     line, line::InfoChangeEvent, AbiSupportKind, AbiVersion, AbiVersion::*, Error, Result, UapiCall,
 };
+use errno::Errno;
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
 use gpiocdev_uapi::v1 as uapi;
 #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
@@ -20,7 +21,6 @@ use std::os::linux::fs::MetadataExt;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use errno::Errno;
 
 const CHARDEV_MODE: u32 = 0x2000;
 
@@ -115,6 +115,7 @@ impl Chip {
             abiv: V2,
         })
     }
+
     /// Get the information for the chip.
     pub fn info(&self) -> Result<Info> {
         Ok(Info::from(
@@ -190,6 +191,7 @@ impl Chip {
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::WatchLineInfo, e))
     }
+
     /// Remove a watch for changes to the publicly available information on a line.
     ///
     /// This is a null operation if there is no existing watch on the line.
@@ -232,6 +234,7 @@ impl Chip {
             buf,
         })
     }
+
     /// Detect the most recent uAPI ABI supported by the library for the chip.
     pub fn detect_abi_version(&self) -> Result<AbiVersion> {
         // check in preferred order
@@ -245,6 +248,7 @@ impl Chip {
             AbiSupportKind::Platform,
         ))
     }
+
     /// Check if the platform and library support a specific ABI version.
     pub fn supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         self.do_supports_abi_version(abiv)
@@ -327,10 +331,12 @@ impl Chip {
 pub struct Info {
     /// The system name for the chip, such as "*gpiochip0*".
     pub name: String,
+
     /// A functional name for the chip.
     ///
     /// This typically identifies the type of GPIO chip.
     pub label: String,
+
     /// The number of lines provided by the chip.
     pub num_lines: u32,
 }
@@ -349,8 +355,10 @@ impl From<uapi::ChipInfo> for Info {
 /// Blocks until events are available.
 pub struct InfoChangeIterator<'a> {
     chip: &'a Chip,
+
     /// The size of an individual edge event stored in the buffer.
     event_size: usize,
+
     /// The buffer for uAPI edge events, sized by event size and capacity
     buf: Vec<u8>,
 }
@@ -377,6 +385,7 @@ impl<'a> Iterator for InfoChangeIterator<'a> {
 pub enum ErrorKind {
     /// File is not a character device.
     NotCharacterDevice,
+
     /// File is not a GPIO character device.
     NotGpioDevice,
 }
@@ -399,18 +408,23 @@ mod tests {
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     use gpiocdev_uapi::v2 as uapi;
 
-    // Chip tests are all integration tests as construction requires GPIO chips.
+    // Chip, ChipIterator and InfoChangeIterator tests are all integration
+    // tests as Chip construction requires GPIO chips.
 
-    #[test]
-    fn info_from_uapi() {
-        let ui = uapi::ChipInfo {
-            name: "banana".into(),
-            label: "peel".into(),
-            num_lines: 42,
-        };
-        let i = Info::from(ui);
-        assert_eq!(i.num_lines, 42);
-        assert_eq!(i.name.as_str(), "banana");
-        assert_eq!(i.label.as_str(), "peel");
+    mod info {
+        use super::{uapi, Info};
+
+        #[test]
+        fn from_uapi() {
+            let ui = uapi::ChipInfo {
+                name: "banana".into(),
+                label: "peel".into(),
+                num_lines: 42,
+            };
+            let i = Info::from(ui);
+            assert_eq!(i.num_lines, 42);
+            assert_eq!(i.name.as_str(), "banana");
+            assert_eq!(i.label.as_str(), "peel");
+        }
     }
 }

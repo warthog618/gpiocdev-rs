@@ -403,7 +403,6 @@ impl Builder {
         }
         self.do_to_uapi()
     }
-
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_to_uapi(&self) -> Result<UapiRequest> {
         match self.abiv {
@@ -495,8 +494,10 @@ impl Builder {
 enum UapiRequest {
     #[cfg(feature = "uapi_v1")]
     Handle(v1::HandleRequest),
+
     #[cfg(feature = "uapi_v1")]
     Event(v1::EventRequest),
+
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     Line(v2::LineRequest),
 }
@@ -549,6 +550,7 @@ pub struct Config {
     /// If empty then the base config is selected.
     selected: Vec<Offset>,
 }
+
 impl Config {
     /// Update the line configs using the updated config.
     ///
@@ -1454,6 +1456,7 @@ impl<'a> EdgeEventBuffer<'a> {
         }
         self.req.has_edge_event()
     }
+
     /// Returns the next event from the buffer.
     ///
     /// If the buffer is empty then events are read from the request, which may block if no
@@ -1480,6 +1483,7 @@ impl<'a> EdgeEventBuffer<'a> {
         self.read = self.event_size;
         self.req.edge_event_from_buf(&self.buf[0..self.event_size])
     }
+
     /// Wait for an edge event from the request.
     ///
     /// * `timeout` - The maximum time to wait for an event.
@@ -1507,457 +1511,1070 @@ mod tests {
     use EventClock::*;
     use Value::*;
 
-    #[test]
-    fn builder_default() {
-        let b = Builder::default();
-        assert_eq!(b.chip.as_os_str(), "");
-        assert_eq!(b.cfg.num_lines(), 0);
-        assert_eq!(b.consumer.as_str(), "");
-        assert_eq!(b.kernel_event_buffer_size, 0);
-        assert_eq!(b.user_event_buffer_size, 0);
+    mod builder {
+        use super::*;
+
+        #[test]
+        fn default() {
+            let b = Builder::default();
+            assert_eq!(b.chip.as_os_str(), "");
+            assert_eq!(b.cfg.num_lines(), 0);
+            assert_eq!(b.consumer.as_str(), "");
+            assert_eq!(b.kernel_event_buffer_size, 0);
+            assert_eq!(b.user_event_buffer_size, 0);
+            #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+            assert_eq!(b.abiv, AbiVersion::V2);
+        }
+
+        #[test]
+        fn from_config() {
+            let mut cfg = Config::default();
+            cfg.as_input().with_lines(&[1, 7, 4]);
+            let b = Builder::from_config(cfg);
+            assert_eq!(b.cfg.offsets, &[1, 7, 4]);
+            assert_eq!(b.cfg.num_lines(), 3);
+        }
+
+        #[test]
+        fn request() {
+            let res = Builder::default().with_line(2).request();
+            assert!(res.is_err());
+            assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
+        }
+
+        #[test]
+        fn with_config() {
+            let mut b = Builder::default();
+            let mut cfg = Config::default();
+            cfg.as_input().with_lines(&[1, 7, 4]);
+            b.with_config(cfg);
+            assert_eq!(b.cfg.offsets, &[1, 7, 4]);
+            assert_eq!(b.cfg.num_lines(), 3);
+        }
+
+        #[test]
+        fn config() {
+            let mut b = Builder::default();
+            b.as_input().with_lines(&[1, 7, 4]);
+            let cfg = b.config();
+            assert_eq!(cfg.num_lines(), 3);
+            assert_eq!(cfg.offsets, &[1, 7, 4]);
+        }
+
+        #[test]
+        fn with_consumer() {
+            let mut b = Builder::default();
+            assert_eq!(b.consumer.as_str(), "");
+
+            b.with_consumer("builder test");
+            assert_eq!(b.consumer.as_str(), "builder test");
+        }
+
+        #[test]
+        fn with_kernel_event_buffer_size() {
+            let mut b = Builder::default();
+            assert_eq!(b.kernel_event_buffer_size, 0);
+
+            b.with_kernel_event_buffer_size(42);
+            assert_eq!(b.kernel_event_buffer_size, 42);
+        }
+        #[test]
+        fn with_user_event_buffer_size() {
+            let mut b = Builder::default();
+            assert_eq!(b.user_event_buffer_size, 0);
+
+            b.with_user_event_buffer_size(67);
+            assert_eq!(b.user_event_buffer_size, 67);
+        }
+
+        #[test]
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        assert_eq!(b.abiv, AbiVersion::V2);
-    }
-    #[test]
-    fn builder_from_config() {
-        let mut cfg = Config::default();
-        cfg.as_input().with_lines(&[1, 7, 4]);
-        let b = Builder::from_config(cfg);
-        assert_eq!(b.cfg.offsets, &[1, 7, 4]);
-        assert_eq!(b.cfg.num_lines(), 3);
-    }
-    #[test]
-    fn builder_request() {
-        let res = Builder::default().with_line(2).request();
-        assert!(res.is_err());
-        assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
-    }
-    #[test]
-    fn builder_with_config() {
-        let mut b = Builder::default();
-        let mut cfg = Config::default();
-        cfg.as_input().with_lines(&[1, 7, 4]);
-        b.with_config(cfg);
-        assert_eq!(b.cfg.offsets, &[1, 7, 4]);
-        assert_eq!(b.cfg.num_lines(), 3);
-    }
-    #[test]
-    fn builder_config() {
-        let mut b = Builder::default();
-        b.as_input().with_lines(&[1, 7, 4]);
-        let cfg = b.config();
-        assert_eq!(cfg.num_lines(), 3);
-        assert_eq!(cfg.offsets, &[1, 7, 4]);
-    }
-    #[test]
-    fn builder_with_consumer() {
-        let mut b = Builder::default();
-        assert_eq!(b.consumer.as_str(), "");
-        b.with_consumer("builder test");
-        assert_eq!(b.consumer.as_str(), "builder test");
-    }
-    #[test]
-    fn builder_with_kernel_event_buffer_size() {
-        let mut b = Builder::default();
-        assert_eq!(b.kernel_event_buffer_size, 0);
-        b.with_kernel_event_buffer_size(42);
-        assert_eq!(b.kernel_event_buffer_size, 42);
-    }
-    #[test]
-    fn builder_with_user_event_buffer_size() {
-        let mut b = Builder::default();
-        assert_eq!(b.user_event_buffer_size, 0);
-        b.with_user_event_buffer_size(67);
-        assert_eq!(b.user_event_buffer_size, 67);
-    }
-    #[test]
-    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn builder_using_abi_version() {
-        let mut b = Builder::default();
-        assert_eq!(b.abiv, AbiVersion::V2);
-        b.using_abi_version(AbiVersion::V1);
-        assert_eq!(b.abiv, AbiVersion::V1);
-        b.using_abi_version(AbiVersion::V2);
-        assert_eq!(b.abiv, AbiVersion::V2);
-    }
-    #[test]
-    fn builder_on_chip() {
-        let mut b = Builder::default();
-        assert_eq!(b.chip.as_os_str(), "");
-        b.on_chip("test chip");
-        assert_eq!(b.chip.as_os_str(), "test chip");
-    }
-    #[test]
-    fn builder_as_input() {
-        let mut b = Builder::default();
-        b.as_output(Active);
-        assert_eq!(b.cfg.base.direction, Some(Output));
-        b.as_input();
-        assert_eq!(b.cfg.base.direction, Some(Input));
-    }
-    #[test]
-    fn builder_as_output() {
-        let mut b = Builder::default();
-        b.as_input();
-        assert_eq!(b.cfg.base.direction, Some(Input));
-        b.as_output(Active);
-        assert_eq!(b.cfg.base.direction, Some(Output));
-    }
-    #[test]
-    fn builder_as_active_low() {
-        let mut b = Builder::default();
-        assert!(!b.cfg.base.active_low);
-        b.as_active_low();
-        assert!(b.cfg.base.active_low);
-    }
-    #[test]
-    fn builder_as_active_high() {
-        let mut b = Builder::default();
-        assert!(!b.cfg.base.active_low);
-        b.as_active_low();
-        assert!(b.cfg.base.active_low);
-        b.as_active_high();
-        assert!(!b.cfg.base.active_low);
-    }
-    #[test]
-    fn builder_with_bias() {
-        let mut b = Builder::default();
-        b.with_bias(PullUp);
-        assert_eq!(b.cfg.base.bias, Some(PullUp));
-        b.with_bias(PullDown);
-        assert_eq!(b.cfg.base.bias, Some(PullDown));
-        b.with_bias(Disabled);
-        assert_eq!(b.cfg.base.bias, Some(Disabled));
-        b.with_bias(None);
-        assert_eq!(b.cfg.base.bias, None);
-    }
-    #[test]
-    fn builder_with_debounce_period() {
-        let d_us = Duration::from_micros(1234);
-        let d_ns = Duration::from_nanos(234);
-        let mut b = Builder::default();
-        b.with_drive(OpenSource);
-        assert_eq!(b.cfg.base.direction, Some(Output));
-        b.with_debounce_period(Duration::from_micros(1234));
-        assert_eq!(b.cfg.base.debounce_period, Some(d_us));
-        assert_eq!(b.cfg.base.direction, Some(Input));
-        b.with_debounce_period(Duration::from_nanos(234));
-        assert_eq!(b.cfg.base.debounce_period, Some(d_ns));
-        b.with_debounce_period(Duration::ZERO);
-        assert!(b.cfg.base.debounce_period.is_none());
-    }
-    #[test]
-    fn builder_with_direction() {
-        let mut b = Builder::default();
-        b.with_direction(Output);
-        assert_eq!(b.cfg.base.direction, Some(Output));
-        b.with_direction(Input);
-        assert_eq!(b.cfg.base.direction, Some(Input));
-    }
-    #[test]
-    fn builder_with_drive() {
-        let mut b = Builder::default();
-        b.with_bias(PullUp)
-            .with_debounce_period(Duration::from_millis(10))
-            .with_edge_detection(RisingEdge);
-        assert_eq!(b.cfg.base.direction, Some(Input));
-        assert_eq!(b.cfg.base.bias, Some(PullUp));
-        assert_eq!(b.cfg.base.debounce_period, Some(Duration::from_millis(10)));
-        assert_eq!(b.cfg.base.edge_detection, Some(RisingEdge));
-        b.with_drive(PushPull);
-        assert_eq!(b.cfg.base.direction, Some(Output));
-        assert_eq!(b.cfg.base.drive, Some(PushPull));
-        assert_eq!(b.cfg.base.bias, Some(PullUp));
-        assert!(b.cfg.base.debounce_period.is_none());
-        assert_eq!(b.cfg.base.edge_detection, None);
-        b.with_drive(OpenDrain);
-        assert_eq!(b.cfg.base.drive, Some(OpenDrain));
-        b.with_drive(OpenSource);
-        assert_eq!(b.cfg.base.drive, Some(OpenSource));
-    }
-    #[test]
-    fn builder_with_edge_detection() {
-        let mut b = Builder::default();
-        b.with_drive(OpenSource);
-        assert_eq!(b.cfg.base.direction, Some(Output));
-        b.with_edge_detection(RisingEdge);
-        assert_eq!(b.cfg.base.edge_detection, Some(RisingEdge));
-        assert_eq!(b.cfg.base.drive, None);
-        assert_eq!(b.cfg.base.direction, Some(Input));
-        b.with_edge_detection(FallingEdge);
-        assert_eq!(b.cfg.base.edge_detection, Some(FallingEdge));
-        b.with_edge_detection(BothEdges);
-        assert_eq!(b.cfg.base.edge_detection, Some(BothEdges));
-    }
-    #[test]
-    fn builder_with_event_clock() {
-        let mut b = Builder::default();
-        assert_eq!(b.cfg.base.event_clock, None);
-        b.with_event_clock(Realtime);
-        assert_eq!(b.cfg.base.event_clock, Some(Realtime));
-        b.with_event_clock(Monotonic);
-        assert_eq!(b.cfg.base.event_clock, Some(Monotonic));
-    }
-    #[test]
-    fn builder_with_line() {
-        let mut b = Builder::default();
-        assert_eq!(b.cfg.num_lines(), 0);
-        b.with_line(3);
-        assert_eq!(b.cfg.num_lines(), 1);
-        b.with_line(5);
-        assert_eq!(b.cfg.num_lines(), 2);
-        b.with_line(3);
-        assert_eq!(b.cfg.num_lines(), 2);
-    }
-    #[test]
-    fn builder_without_line() {
-        let mut b = Builder::default();
-        b.with_lines(&[3, 1]);
-        assert_eq!(b.cfg.num_lines(), 2);
-        b.without_line(3);
-        assert_eq!(b.cfg.num_lines(), 1);
-        assert_eq!(b.cfg.offsets, &[1]);
-    }
-    #[test]
-    fn builder_with_lines() {
-        let mut b = Builder::default();
-        assert_eq!(b.cfg.num_lines(), 0);
-        b.with_lines(&[3, 1]);
-        assert_eq!(b.cfg.num_lines(), 2);
-        assert_eq!(b.cfg.offsets, &[3, 1]);
-        b.with_lines(&[1, 5]);
-        assert_eq!(b.cfg.num_lines(), 3);
-        assert_eq!(b.cfg.offsets, &[3, 1, 5]);
-    }
-    #[test]
-    fn builder_without_lines() {
-        let mut b = Builder::default();
-        b.with_lines(&[3, 1, 0, 5, 7]);
-        assert_eq!(b.cfg.num_lines(), 5);
-        b.without_lines(&[3, 5]);
-        assert_eq!(b.cfg.num_lines(), 3);
-        assert_eq!(b.cfg.offsets, &[1, 0, 7]);
-    }
-    #[test]
-    fn builder_with_value() {
-        let mut b = Builder::default();
-        assert_eq!(b.cfg.base.value, None);
-        b.as_input().with_value(Active);
-        assert_eq!(b.cfg.base.value, Some(Active));
-        b.as_input().with_value(Inactive);
-        assert_eq!(b.cfg.base.value, Some(Inactive));
-    }
-    #[test]
-    fn builder_from_line_config() {
-        let mut b = Builder::default();
-        let d_us = Duration::from_micros(1234);
-        let lc = line::Config {
-            direction: Some(Output),
-            active_low: true,
-            bias: Some(Disabled),
-            drive: Some(OpenSource),
-            edge_detection: Some(BothEdges),
-            event_clock: Some(Realtime),
-            debounce_period: Some(d_us),
-            value: Some(Active),
-        };
-        b.from_line_config(&lc);
-        assert_eq!(b.cfg.lcfg.len(), 0);
-        assert_eq!(b.cfg.selected.len(), 0);
-        let base = b.cfg.base;
-        assert_eq!(base.direction, Some(Output));
-        assert!(base.active_low);
-        assert_eq!(base.direction, Some(Output));
-        assert_eq!(base.drive, Some(OpenSource));
-        assert_eq!(base.edge_detection, Some(BothEdges));
-        assert_eq!(base.event_clock, Some(Realtime));
-        assert_eq!(base.value, Some(Active));
-        assert_eq!(base.debounce_period, Some(d_us));
-    }
-    #[test]
-    fn builder_to_uapi() {
-        let res = Builder::default().to_uapi();
-        assert!(res.is_err());
-        assert_eq!(res.err().unwrap().to_string(), "No lines specified.");
-    }
-    #[test]
-    #[cfg(feature = "uapi_v1")]
-    fn builder_to_v1() {
-        let mut b = Builder::default();
-        b.with_consumer("test builder")
-            .with_lines(&[1, 8, 4])
-            .as_active_low()
-            .as_input();
-        if let UapiRequest::Handle(hr) = b.to_v1().unwrap() {
-            assert_eq!(hr.num_lines, 3);
-            assert_eq!(hr.offsets.get(0), 1);
-            assert_eq!(hr.offsets.get(1), 8);
-            assert_eq!(hr.offsets.get(2), 4);
-            assert_eq!(String::from(&hr.consumer).as_str(), "test builder");
-            assert!(hr
-                .flags
-                .contains(v1::HandleRequestFlags::INPUT | v1::HandleRequestFlags::ACTIVE_LOW));
-            assert_eq!(hr.values.get(0), 0);
-            assert_eq!(hr.values.get(1), 0);
-            assert_eq!(hr.values.get(2), 0);
-        } else {
-            panic!("not a handle request");
+        fn using_abi_version() {
+            let mut b = Builder::default();
+            assert_eq!(b.abiv, AbiVersion::V2);
+
+            b.using_abi_version(AbiVersion::V1);
+            assert_eq!(b.abiv, AbiVersion::V1);
+
+            b.using_abi_version(AbiVersion::V2);
+            assert_eq!(b.abiv, AbiVersion::V2);
         }
 
-        let mut b = Builder::default();
-        b.with_consumer("test builder")
-            .with_line(8)
-            .with_edge_detection(RisingEdge);
-        if let UapiRequest::Event(er) = b.to_v1().unwrap() {
-            assert_eq!(er.offset, 8);
-            assert_eq!(String::from(&er.consumer).as_str(), "test builder");
-            assert!(er.handleflags.contains(v1::HandleRequestFlags::INPUT));
-            assert!(er.eventflags.contains(v1::EventRequestFlags::RISING_EDGE));
-        } else {
-            panic!("not an event request");
+        #[test]
+        fn on_chip() {
+            let mut b = Builder::default();
+            assert_eq!(b.chip.as_os_str(), "");
+
+            b.on_chip("test chip");
+            assert_eq!(b.chip.as_os_str(), "test chip");
         }
 
-        let mut b = Builder::default();
-        b.with_lines(&[2, 6])
-            .as_output(Value::Active)
-            .with_lines(&[5, 7])
-            .as_output(Value::Inactive);
-        if let UapiRequest::Handle(hr) = b.to_v1().unwrap() {
-            assert_eq!(hr.num_lines, 4);
-            assert_eq!(hr.offsets.get(0), 2);
-            assert_eq!(hr.offsets.get(1), 6);
-            assert_eq!(hr.offsets.get(2), 5);
-            assert_eq!(hr.offsets.get(3), 7);
-            assert_eq!(
-                String::from(&hr.consumer).as_str(),
-                format!("gpiocdev-p{}", std::process::id()).as_str()
-            );
-            assert!(hr.flags.contains(v1::HandleRequestFlags::OUTPUT));
-            assert_eq!(hr.values.get(0), 1);
-            assert_eq!(hr.values.get(1), 1);
-            assert_eq!(hr.values.get(2), 0);
-            assert_eq!(hr.values.get(3), 0);
-        } else {
-            panic!("not a handle request");
+        #[test]
+        fn as_input() {
+            let mut b = Builder::default();
+            b.as_output(Active);
+            assert_eq!(b.cfg.base.direction, Some(Output));
+
+            b.as_input();
+            assert_eq!(b.cfg.base.direction, Some(Input));
         }
 
-        // ABI limitations
+        #[test]
+        fn as_output() {
+            let mut b = Builder::default();
+            b.as_input();
+            assert_eq!(b.cfg.base.direction, Some(Input));
 
-        let mut b = Builder::default();
-        assert_eq!(
-            b.with_kernel_event_buffer_size(42)
+            b.as_output(Active);
+            assert_eq!(b.cfg.base.direction, Some(Output));
+        }
+
+        #[test]
+        fn as_active_low() {
+            let mut b = Builder::default();
+            assert!(!b.cfg.base.active_low);
+
+            b.as_active_low();
+            assert!(b.cfg.base.active_low);
+        }
+
+        #[test]
+        fn as_active_high() {
+            let mut b = Builder::default();
+            assert!(!b.cfg.base.active_low);
+
+            b.as_active_low();
+            assert!(b.cfg.base.active_low);
+
+            b.as_active_high();
+            assert!(!b.cfg.base.active_low);
+        }
+
+        #[test]
+        fn with_bias() {
+            let mut b = Builder::default();
+            b.with_bias(PullUp);
+            assert_eq!(b.cfg.base.bias, Some(PullUp));
+
+            b.with_bias(PullDown);
+            assert_eq!(b.cfg.base.bias, Some(PullDown));
+
+            b.with_bias(Disabled);
+            assert_eq!(b.cfg.base.bias, Some(Disabled));
+
+            b.with_bias(None);
+            assert_eq!(b.cfg.base.bias, None);
+        }
+
+        #[test]
+        fn with_debounce_period() {
+            let d_us = Duration::from_micros(1234);
+            let d_ns = Duration::from_nanos(234);
+            let mut b = Builder::default();
+
+            b.with_drive(OpenSource);
+            assert_eq!(b.cfg.base.direction, Some(Output));
+
+            b.with_debounce_period(Duration::from_micros(1234));
+            assert_eq!(b.cfg.base.debounce_period, Some(d_us));
+            assert_eq!(b.cfg.base.direction, Some(Input));
+
+            b.with_debounce_period(Duration::from_nanos(234));
+            assert_eq!(b.cfg.base.debounce_period, Some(d_ns));
+
+            b.with_debounce_period(Duration::ZERO);
+            assert!(b.cfg.base.debounce_period.is_none());
+        }
+
+        #[test]
+        fn with_direction() {
+            let mut b = Builder::default();
+            b.with_direction(Output);
+            assert_eq!(b.cfg.base.direction, Some(Output));
+
+            b.with_direction(Input);
+            assert_eq!(b.cfg.base.direction, Some(Input));
+        }
+
+        #[test]
+        fn with_drive() {
+            let mut b = Builder::default();
+            b.with_bias(PullUp)
+                .with_debounce_period(Duration::from_millis(10))
+                .with_edge_detection(RisingEdge);
+            assert_eq!(b.cfg.base.direction, Some(Input));
+            assert_eq!(b.cfg.base.bias, Some(PullUp));
+            assert_eq!(b.cfg.base.debounce_period, Some(Duration::from_millis(10)));
+            assert_eq!(b.cfg.base.edge_detection, Some(RisingEdge));
+
+            b.with_drive(PushPull);
+            assert_eq!(b.cfg.base.direction, Some(Output));
+            assert_eq!(b.cfg.base.drive, Some(PushPull));
+            assert_eq!(b.cfg.base.bias, Some(PullUp));
+            assert!(b.cfg.base.debounce_period.is_none());
+            assert_eq!(b.cfg.base.edge_detection, None);
+
+            b.with_drive(OpenDrain);
+            assert_eq!(b.cfg.base.drive, Some(OpenDrain));
+
+            b.with_drive(OpenSource);
+            assert_eq!(b.cfg.base.drive, Some(OpenSource));
+        }
+
+        #[test]
+        fn with_edge_detection() {
+            let mut b = Builder::default();
+            b.with_drive(OpenSource);
+            assert_eq!(b.cfg.base.direction, Some(Output));
+
+            b.with_edge_detection(RisingEdge);
+            assert_eq!(b.cfg.base.edge_detection, Some(RisingEdge));
+            assert_eq!(b.cfg.base.drive, None);
+            assert_eq!(b.cfg.base.direction, Some(Input));
+
+            b.with_edge_detection(FallingEdge);
+            assert_eq!(b.cfg.base.edge_detection, Some(FallingEdge));
+
+            b.with_edge_detection(BothEdges);
+            assert_eq!(b.cfg.base.edge_detection, Some(BothEdges));
+        }
+
+        #[test]
+        fn with_event_clock() {
+            let mut b = Builder::default();
+            assert_eq!(b.cfg.base.event_clock, None);
+
+            b.with_event_clock(Realtime);
+            assert_eq!(b.cfg.base.event_clock, Some(Realtime));
+
+            b.with_event_clock(Monotonic);
+            assert_eq!(b.cfg.base.event_clock, Some(Monotonic));
+        }
+        #[test]
+        fn with_line() {
+            let mut b = Builder::default();
+            assert_eq!(b.cfg.num_lines(), 0);
+
+            b.with_line(3);
+            assert_eq!(b.cfg.num_lines(), 1);
+
+            b.with_line(5);
+            assert_eq!(b.cfg.num_lines(), 2);
+
+            b.with_line(3);
+            assert_eq!(b.cfg.num_lines(), 2);
+        }
+
+        #[test]
+        fn without_line() {
+            let mut b = Builder::default();
+
+            b.with_lines(&[3, 1]);
+            assert_eq!(b.cfg.num_lines(), 2);
+
+            b.without_line(3);
+            assert_eq!(b.cfg.num_lines(), 1);
+            assert_eq!(b.cfg.offsets, &[1]);
+        }
+
+        #[test]
+        fn with_lines() {
+            let mut b = Builder::default();
+            assert_eq!(b.cfg.num_lines(), 0);
+
+            b.with_lines(&[3, 1]);
+            assert_eq!(b.cfg.num_lines(), 2);
+            assert_eq!(b.cfg.offsets, &[3, 1]);
+
+            b.with_lines(&[1, 5]);
+            assert_eq!(b.cfg.num_lines(), 3);
+            assert_eq!(b.cfg.offsets, &[3, 1, 5]);
+        }
+
+        #[test]
+        fn without_lines() {
+            let mut b = Builder::default();
+            b.with_lines(&[3, 1, 0, 5, 7]);
+            assert_eq!(b.cfg.num_lines(), 5);
+
+            b.without_lines(&[3, 5]);
+            assert_eq!(b.cfg.num_lines(), 3);
+            assert_eq!(b.cfg.offsets, &[1, 0, 7]);
+        }
+
+        #[test]
+        fn with_value() {
+            let mut b = Builder::default();
+            assert_eq!(b.cfg.base.value, None);
+
+            b.as_input().with_value(Active);
+            assert_eq!(b.cfg.base.value, Some(Active));
+
+            b.as_input().with_value(Inactive);
+            assert_eq!(b.cfg.base.value, Some(Inactive));
+        }
+
+        #[test]
+        fn from_line_config() {
+            let mut b = Builder::default();
+            let d_us = Duration::from_micros(1234);
+            let lc = line::Config {
+                direction: Some(Output),
+                active_low: true,
+                bias: Some(Disabled),
+                drive: Some(OpenSource),
+                edge_detection: Some(BothEdges),
+                event_clock: Some(Realtime),
+                debounce_period: Some(d_us),
+                value: Some(Active),
+            };
+            b.from_line_config(&lc);
+            assert_eq!(b.cfg.lcfg.len(), 0);
+            assert_eq!(b.cfg.selected.len(), 0);
+            let base = b.cfg.base;
+            assert_eq!(base.direction, Some(Output));
+            assert!(base.active_low);
+            assert_eq!(base.direction, Some(Output));
+            assert_eq!(base.drive, Some(OpenSource));
+            assert_eq!(base.edge_detection, Some(BothEdges));
+            assert_eq!(base.event_clock, Some(Realtime));
+            assert_eq!(base.value, Some(Active));
+            assert_eq!(base.debounce_period, Some(d_us));
+        }
+
+        #[test]
+        fn to_uapi() {
+            let res = Builder::default().to_uapi();
+            assert!(res.is_err());
+            assert_eq!(res.err().unwrap().to_string(), "No lines specified.");
+        }
+
+        #[test]
+        #[cfg(feature = "uapi_v1")]
+        fn to_v1() {
+            let mut b = Builder::default();
+            b.with_consumer("test builder")
                 .with_lines(&[1, 8, 4])
-                .as_input()
-                .to_v1()
-                .unwrap_err()
-                .to_string(),
-            "uAPI ABI v1 does not support setting event buffer size."
-        );
+                .as_active_low()
+                .as_input();
+            if let UapiRequest::Handle(hr) = b.to_v1().unwrap() {
+                assert_eq!(hr.num_lines, 3);
+                assert_eq!(hr.offsets.get(0), 1);
+                assert_eq!(hr.offsets.get(1), 8);
+                assert_eq!(hr.offsets.get(2), 4);
+                assert_eq!(String::from(&hr.consumer).as_str(), "test builder");
+                assert!(hr
+                    .flags
+                    .contains(v1::HandleRequestFlags::INPUT | v1::HandleRequestFlags::ACTIVE_LOW));
+                assert_eq!(hr.values.get(0), 0);
+                assert_eq!(hr.values.get(1), 0);
+                assert_eq!(hr.values.get(2), 0);
+            } else {
+                panic!("not a handle request");
+            }
 
-        let mut b = Builder::default();
-        assert_eq!(
-            b.with_lines(&[1, 8, 4])
-                .as_input()
-                .with_line(3)
+            let mut b = Builder::default();
+            b.with_consumer("test builder")
+                .with_line(8)
+                .with_edge_detection(RisingEdge);
+            if let UapiRequest::Event(er) = b.to_v1().unwrap() {
+                assert_eq!(er.offset, 8);
+                assert_eq!(String::from(&er.consumer).as_str(), "test builder");
+                assert!(er.handleflags.contains(v1::HandleRequestFlags::INPUT));
+                assert!(er.eventflags.contains(v1::EventRequestFlags::RISING_EDGE));
+            } else {
+                panic!("not an event request");
+            }
+
+            let mut b = Builder::default();
+            b.with_lines(&[2, 6])
                 .as_output(Value::Active)
-                .to_v1()
-                .unwrap_err()
-                .to_string(),
-            "uAPI ABI v1 requires all lines to share the same configuration."
-        );
+                .with_lines(&[5, 7])
+                .as_output(Value::Inactive);
+            if let UapiRequest::Handle(hr) = b.to_v1().unwrap() {
+                assert_eq!(hr.num_lines, 4);
+                assert_eq!(hr.offsets.get(0), 2);
+                assert_eq!(hr.offsets.get(1), 6);
+                assert_eq!(hr.offsets.get(2), 5);
+                assert_eq!(hr.offsets.get(3), 7);
+                assert_eq!(
+                    String::from(&hr.consumer).as_str(),
+                    format!("gpiocdev-p{}", std::process::id()).as_str()
+                );
+                assert!(hr.flags.contains(v1::HandleRequestFlags::OUTPUT));
+                assert_eq!(hr.values.get(0), 1);
+                assert_eq!(hr.values.get(1), 1);
+                assert_eq!(hr.values.get(2), 0);
+                assert_eq!(hr.values.get(3), 0);
+            } else {
+                panic!("not a handle request");
+            }
 
-        let mut b = Builder::default();
-        assert_eq!(
-            b.with_lines(&[1, 8, 4])
-                .with_edge_detection(RisingEdge)
-                .to_v1()
-                .unwrap_err()
-                .to_string(),
-            "uAPI ABI v1 only supports edge detection on single line requests."
-        );
+            // ABI limitations
 
-        let mut b = Builder::default();
-        assert_eq!(
-            b.with_lines(&[1, 8, 4])
-                .with_debounce_period(Duration::from_millis(23))
-                .to_v1()
-                .unwrap_err()
-                .to_string(),
-            "uAPI ABI v1 does not support debounce."
-        );
+            let mut b = Builder::default();
+            assert_eq!(
+                b.with_kernel_event_buffer_size(42)
+                    .with_lines(&[1, 8, 4])
+                    .as_input()
+                    .to_v1()
+                    .unwrap_err()
+                    .to_string(),
+                "uAPI ABI v1 does not support setting event buffer size."
+            );
 
-        let mut b = Builder::default();
-        assert_eq!(
-            b.with_line(4)
-                .with_edge_detection(RisingEdge)
-                .with_event_clock(EventClock::Realtime)
-                .to_v1()
-                .unwrap_err()
-                .to_string(),
-            "uAPI ABI v1 does not support selecting the event clock source."
-        );
-    }
-    #[test]
-    #[allow(irrefutable_let_patterns)]
-    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn builder_to_v2() {
-        let mut b = Builder::default();
-        b.with_consumer("test builder")
-            .with_kernel_event_buffer_size(42)
-            .with_lines(&[1, 8, 4])
-            .with_edge_detection(RisingEdge)
-            .with_event_clock(EventClock::Realtime);
-        if let UapiRequest::Line(lr) = b.to_v2().unwrap() {
-            assert_eq!(lr.num_lines, 3);
-            assert_eq!(lr.offsets.get(0), 1);
-            assert_eq!(lr.offsets.get(1), 8);
-            assert_eq!(lr.offsets.get(2), 4);
-            assert_eq!(lr.event_buffer_size, 42);
-            assert_eq!(String::from(&lr.consumer).as_str(), "test builder");
-            assert!(lr.config.flags.contains(
-                v2::LineFlags::INPUT
-                    | v2::LineFlags::EDGE_RISING
-                    | v2::LineFlags::EVENT_CLOCK_REALTIME
-            ));
-            assert_eq!(lr.config.num_attrs, 0);
-        } else {
-            panic!("not a line request");
+            let mut b = Builder::default();
+            assert_eq!(
+                b.with_lines(&[1, 8, 4])
+                    .as_input()
+                    .with_line(3)
+                    .as_output(Value::Active)
+                    .to_v1()
+                    .unwrap_err()
+                    .to_string(),
+                "uAPI ABI v1 requires all lines to share the same configuration."
+            );
+
+            let mut b = Builder::default();
+            assert_eq!(
+                b.with_lines(&[1, 8, 4])
+                    .with_edge_detection(RisingEdge)
+                    .to_v1()
+                    .unwrap_err()
+                    .to_string(),
+                "uAPI ABI v1 only supports edge detection on single line requests."
+            );
+
+            let mut b = Builder::default();
+            assert_eq!(
+                b.with_lines(&[1, 8, 4])
+                    .with_debounce_period(Duration::from_millis(23))
+                    .to_v1()
+                    .unwrap_err()
+                    .to_string(),
+                "uAPI ABI v1 does not support debounce."
+            );
+
+            let mut b = Builder::default();
+            assert_eq!(
+                b.with_line(4)
+                    .with_edge_detection(RisingEdge)
+                    .with_event_clock(EventClock::Realtime)
+                    .to_v1()
+                    .unwrap_err()
+                    .to_string(),
+                "uAPI ABI v1 does not support selecting the event clock source."
+            );
         }
 
-        let mut b = Builder::default();
-        b.with_lines(&[1, 8, 4])
-            .as_input()
-            .as_active_low()
-            .with_lines(&[2, 6])
-            .as_output(Value::Active)
-            .with_lines(&[5, 7])
-            .as_output(Value::Inactive);
-        if let UapiRequest::Line(lr) = b.to_v2().unwrap() {
-            assert_eq!(lr.num_lines, 7);
-            assert_eq!(lr.offsets.get(0), 1);
-            assert_eq!(lr.offsets.get(1), 8);
-            assert_eq!(lr.offsets.get(2), 4);
-            assert_eq!(lr.offsets.get(3), 2);
-            assert_eq!(lr.offsets.get(4), 6);
-            assert_eq!(lr.offsets.get(5), 5);
-            assert_eq!(lr.offsets.get(6), 7);
-            assert_eq!(lr.event_buffer_size, 0);
+        #[test]
+        #[allow(irrefutable_let_patterns)]
+        #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+        fn to_v2() {
+            let mut b = Builder::default();
+            b.with_consumer("test builder")
+                .with_kernel_event_buffer_size(42)
+                .with_lines(&[1, 8, 4])
+                .with_edge_detection(RisingEdge)
+                .with_event_clock(EventClock::Realtime);
+            if let UapiRequest::Line(lr) = b.to_v2().unwrap() {
+                assert_eq!(lr.num_lines, 3);
+                assert_eq!(lr.offsets.get(0), 1);
+                assert_eq!(lr.offsets.get(1), 8);
+                assert_eq!(lr.offsets.get(2), 4);
+                assert_eq!(lr.event_buffer_size, 42);
+                assert_eq!(String::from(&lr.consumer).as_str(), "test builder");
+                assert!(lr.config.flags.contains(
+                    v2::LineFlags::INPUT
+                        | v2::LineFlags::EDGE_RISING
+                        | v2::LineFlags::EVENT_CLOCK_REALTIME
+                ));
+                assert_eq!(lr.config.num_attrs, 0);
+            } else {
+                panic!("not a line request");
+            }
+
+            let mut b = Builder::default();
+            b.with_lines(&[1, 8, 4])
+                .as_input()
+                .as_active_low()
+                .with_lines(&[2, 6])
+                .as_output(Value::Active)
+                .with_lines(&[5, 7])
+                .as_output(Value::Inactive);
+            if let UapiRequest::Line(lr) = b.to_v2().unwrap() {
+                assert_eq!(lr.num_lines, 7);
+                assert_eq!(lr.offsets.get(0), 1);
+                assert_eq!(lr.offsets.get(1), 8);
+                assert_eq!(lr.offsets.get(2), 4);
+                assert_eq!(lr.offsets.get(3), 2);
+                assert_eq!(lr.offsets.get(4), 6);
+                assert_eq!(lr.offsets.get(5), 5);
+                assert_eq!(lr.offsets.get(6), 7);
+                assert_eq!(lr.event_buffer_size, 0);
+                assert_eq!(
+                    String::from(&lr.consumer).as_str(),
+                    format!("gpiocdev-p{}", std::process::id()).as_str()
+                );
+                // default flags match most lines, so output
+                assert!(lr.config.flags.contains(v2::LineFlags::OUTPUT));
+                assert_eq!(lr.config.num_attrs, 2);
+                // first is flags for line inputs
+                let lca = lr.config.attrs.0[0];
+                assert!(lca.mask.get(0));
+                assert!(lca.mask.get(1));
+                assert!(lca.mask.get(2));
+                assert!(!lca.mask.get(3));
+                assert!(!lca.mask.get(4));
+                assert!(!lca.mask.get(5));
+                assert!(!lca.mask.get(6));
+                assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
+                unsafe {
+                    assert!(lca
+                        .attr
+                        .value
+                        .flags
+                        .contains(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW));
+                }
+                // second is values for outputs
+                let lca = lr.config.attrs.0[1];
+                assert!(!lca.mask.get(0));
+                assert!(!lca.mask.get(1));
+                assert!(!lca.mask.get(2));
+                assert!(lca.mask.get(3));
+                assert!(lca.mask.get(4));
+                assert!(lca.mask.get(5));
+                assert!(lca.mask.get(6));
+                assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
+                unsafe {
+                    assert!(!lca.attr.value.values.get(0)); // inputs should be inactive
+                    assert!(!lca.attr.value.values.get(1));
+                    assert!(!lca.attr.value.values.get(2));
+                    assert!(lca.attr.value.values.get(3)); // two active outputs
+                    assert!(lca.attr.value.values.get(4));
+                    assert!(!lca.attr.value.values.get(5)); // and two inactive
+                    assert!(!lca.attr.value.values.get(6));
+                }
+            } else {
+                panic!("not a line request");
+            }
+        }
+    }
+
+    mod config {
+        use super::*;
+
+        #[test]
+        fn default() {
+            let cfg = Config::default();
+            assert_eq!(cfg.lcfg.len(), 0);
+            assert_eq!(cfg.selected.len(), 0);
+            #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+            assert_eq!(cfg.base.direction, None);
+            assert!(!cfg.base.active_low);
+            assert_eq!(cfg.base.drive, None);
+            assert_eq!(cfg.base.edge_detection, None);
+            assert_eq!(cfg.base.event_clock, None);
+            assert_eq!(cfg.base.event_clock, None);
+            assert_eq!(cfg.base.value, None);
+        }
+
+        #[test]
+        fn as_input() {
+            let mut cfg = Config::default();
+            cfg.as_output(Active).with_drive(OpenDrain);
+            assert_eq!(cfg.base.direction, Some(Output));
+            assert_eq!(cfg.base.value, Some(Active));
+            assert_eq!(cfg.base.drive, Some(OpenDrain));
+
+            cfg.as_input();
+            assert_eq!(cfg.base.direction, Some(Input));
+            assert_eq!(cfg.base.value, None);
+            assert_eq!(cfg.base.drive, None);
+        }
+
+        #[test]
+        fn as_output() {
+            let mut cfg = Config::default();
+            cfg.as_input().with_edge_detection(RisingEdge);
+            assert_eq!(cfg.base.direction, Some(Input));
+            assert_eq!(cfg.base.value, None);
+            assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
+
+            cfg.as_output(Active);
+            assert_eq!(cfg.base.direction, Some(Output));
+            assert_eq!(cfg.base.value, Some(Active));
+            assert_eq!(cfg.base.edge_detection, None);
+        }
+
+        #[test]
+        fn as_active_low() {
+            let mut cfg = Config::default();
+
+            cfg.as_active_low();
+            assert!(cfg.base.active_low);
+
+            cfg.as_active_high();
+            assert!(!cfg.base.active_low);
+        }
+
+        #[test]
+        fn as_active_high() {
+            let mut cfg = Config::default();
+            cfg.as_active_low().with_line(3);
+            assert!(cfg.lcfg.get(&3).unwrap().active_low);
+            assert!(cfg.base.active_low);
+
+            cfg.as_active_high();
+            assert!(cfg.base.active_low);
+            assert!(!cfg.lcfg.get(&3).unwrap().active_low);
+        }
+
+        #[test]
+        fn with_bias() {
+            let mut cfg = Config::default();
+            cfg.with_bias(PullUp);
+            assert_eq!(cfg.base.bias, Some(PullUp));
+
+            cfg.with_bias(PullDown);
+            assert_eq!(cfg.base.bias, Some(PullDown));
+
+            cfg.with_bias(Disabled);
+            assert_eq!(cfg.base.bias, Some(Disabled));
+
+            cfg.with_bias(None);
+            assert_eq!(cfg.base.bias, None);
+        }
+
+        #[test]
+        fn with_debounce_period() {
+            let d_us = Duration::from_micros(1234);
+            let d_ns = Duration::from_nanos(234);
+            let mut cfg = Config::default();
+            cfg.with_drive(OpenSource);
+            assert_eq!(cfg.base.direction, Some(Output));
+
+            cfg.with_debounce_period(Duration::from_micros(1234));
+            assert_eq!(cfg.base.debounce_period, Some(d_us));
+            assert_eq!(cfg.base.direction, Some(Input));
+
+            cfg.with_debounce_period(Duration::from_nanos(234));
+            assert_eq!(cfg.base.debounce_period, Some(d_ns));
+
+            cfg.with_debounce_period(Duration::ZERO);
+            assert!(cfg.base.debounce_period.is_none());
+        }
+
+        #[test]
+        fn with_direction() {
+            let mut cfg = Config::default();
+            cfg.with_direction(Output);
+            assert_eq!(cfg.base.direction, Some(Output));
+            cfg.with_direction(Input);
+            assert_eq!(cfg.base.direction, Some(Input));
+        }
+
+        #[test]
+        fn with_drive() {
+            let mut cfg = Config::default();
+            cfg.with_bias(PullUp)
+                .with_debounce_period(Duration::from_millis(10))
+                .with_edge_detection(RisingEdge);
+            assert_eq!(cfg.base.direction, Some(Input));
+            assert_eq!(cfg.base.bias, Some(PullUp));
+            assert_eq!(cfg.base.debounce_period, Some(Duration::from_millis(10)));
+            assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
+
+            cfg.with_drive(PushPull);
+            assert_eq!(cfg.base.direction, Some(Output));
+            assert_eq!(cfg.base.drive, Some(PushPull));
+            assert_eq!(cfg.base.bias, Some(PullUp));
+            assert!(cfg.base.debounce_period.is_none());
+            assert_eq!(cfg.base.edge_detection, None);
+
+            cfg.with_drive(OpenDrain);
+            assert_eq!(cfg.base.drive, Some(OpenDrain));
+
+            cfg.with_drive(OpenSource);
+            assert_eq!(cfg.base.drive, Some(OpenSource));
+        }
+
+        #[test]
+        fn with_edge_detection() {
+            let mut cfg = Config::default();
+            cfg.with_drive(OpenSource);
+            assert_eq!(cfg.base.direction, Some(Output));
+            cfg.with_edge_detection(RisingEdge);
+            assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
+            assert_eq!(cfg.base.drive, None);
+            assert_eq!(cfg.base.direction, Some(Input));
+            cfg.with_edge_detection(FallingEdge);
+            assert_eq!(cfg.base.edge_detection, Some(FallingEdge));
+            cfg.with_edge_detection(BothEdges);
+            assert_eq!(cfg.base.edge_detection, Some(BothEdges));
+        }
+
+        #[test]
+        fn with_event_clock() {
+            let mut cfg = Config::default();
+            assert_eq!(cfg.base.event_clock, None);
+            cfg.with_event_clock(Realtime);
+            assert_eq!(cfg.base.event_clock, Some(Realtime));
+            cfg.with_event_clock(Monotonic);
+            assert_eq!(cfg.base.event_clock, Some(Monotonic));
+        }
+
+        #[test]
+        fn with_line() {
+            let mut cfg = Config::default();
+
+            // initial mutator hits base config
+            cfg.as_output(Active);
+            assert_eq!(cfg.base.direction, Some(Output));
+            assert_eq!(cfg.base.value, Some(Active));
+            cfg.as_input();
+            assert_eq!(cfg.base.direction, Some(Input));
+            assert_eq!(cfg.base.value, None);
+            assert!(cfg.offsets.is_empty());
+            assert!(cfg.selected.is_empty());
+
+            // mutator hits selected config
+            cfg.with_line(3);
+            assert_eq!(cfg.offsets, &[3]);
+            assert_eq!(cfg.selected, &[3]);
+            assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
+            assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
+
+            // mutator only hits selected config
+            cfg.with_line(5);
+            assert_eq!(cfg.offsets, &[3, 5]);
+            assert_eq!(cfg.selected, &[5]);
+            assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Input));
+            assert_eq!(cfg.lcfg.get(&5).unwrap().value, None);
+            assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
+            assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
+            cfg.as_output(Inactive);
+            assert_eq!(cfg.offsets, &[3, 5]);
+            assert_eq!(cfg.selected, &[5]);
+            assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Output));
+            assert_eq!(cfg.lcfg.get(&5).unwrap().value, Some(Inactive));
+            assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
+            assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
+            assert_eq!(cfg.base.direction, Some(Input));
+            assert_eq!(cfg.base.value, None);
+        }
+
+        #[test]
+        fn without_line() {
+            let mut cfg = Config::default();
+            cfg.as_output(Active);
+            assert_eq!(cfg.base.direction, Some(Output));
+            assert_eq!(cfg.base.value, Some(Active));
+
+            cfg.with_lines(&[1, 6, 2, 7]);
+            assert_eq!(cfg.offsets, &[1, 6, 2, 7]);
+            assert_eq!(cfg.selected, &[1, 6, 2, 7]);
+            assert_eq!(cfg.lcfg.get(&2).unwrap().direction, Some(Output));
+            assert_eq!(cfg.lcfg.get(&2).unwrap().value, Some(Active));
+            assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
+            assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
+
+            // from selected
+            cfg.without_line(2);
+            assert_eq!(cfg.offsets, &[1, 6, 7]);
+            assert_eq!(cfg.selected, &[1, 6, 7]);
+            assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
+            assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
+            cfg.with_line(1);
+            assert_eq!(cfg.offsets, &[1, 6, 7]);
+            assert_eq!(cfg.selected, &[1]);
+            assert_eq!(cfg.lcfg.len(), 3);
+            assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
+            assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
+
+            // from unselected
+            cfg.without_line(6);
+            assert_eq!(cfg.offsets, &[1, 7]);
+            assert_eq!(cfg.selected, &[1]);
+            assert_eq!(cfg.lcfg.len(), 2);
+            assert!(cfg.lcfg.contains_key(&1));
+            assert!(cfg.lcfg.contains_key(&7));
+            assert!(!cfg.lcfg.contains_key(&6));
+
+            // last select
+            cfg.without_line(1);
+            assert_eq!(cfg.offsets, &[7]);
+            assert!(cfg.selected.is_empty());
+            assert_eq!(cfg.lcfg.len(), 1);
+            assert!(!cfg.lcfg.contains_key(&1));
+        }
+
+        #[test]
+        fn with_lines() {
+            let mut cfg = Config::default();
+            cfg.as_output(Active);
+            assert_eq!(cfg.base.direction, Some(Output));
+            assert_eq!(cfg.base.value, Some(Active));
+
+            // select some
+            cfg.with_lines(&[7, 2, 6, 1]);
+            assert_eq!(cfg.offsets, &[7, 2, 6, 1]);
+            assert_eq!(cfg.selected, &[7, 2, 6, 1]);
+            assert_eq!(cfg.lcfg.len(), 4);
+            assert!(cfg.lcfg.contains_key(&1));
+            assert!(cfg.lcfg.contains_key(&2));
+            assert!(cfg.lcfg.contains_key(&6));
+            assert!(cfg.lcfg.contains_key(&7));
+
+            // add another
+            cfg.with_lines(&[1, 2, 9]);
+            assert_eq!(cfg.offsets, &[7, 2, 6, 1, 9]);
+            assert_eq!(cfg.selected, &[1, 2, 9]);
+            assert_eq!(cfg.lcfg.len(), 5);
+            assert!(cfg.lcfg.contains_key(&6));
+            assert!(cfg.lcfg.contains_key(&7));
+            assert!(cfg.lcfg.contains_key(&1));
+            assert!(cfg.lcfg.contains_key(&2));
+            assert!(cfg.lcfg.contains_key(&9));
+
+            // select none
+            cfg.with_lines(&[]);
+            assert_eq!(cfg.offsets, &[7, 2, 6, 1, 9]);
+            assert_eq!(cfg.selected.len(), 0);
+            assert_eq!(cfg.lcfg.len(), 5);
+            assert!(cfg.lcfg.contains_key(&1));
+            assert!(cfg.lcfg.contains_key(&2));
+            assert!(cfg.lcfg.contains_key(&6));
+            assert!(cfg.lcfg.contains_key(&7));
+            assert!(cfg.lcfg.contains_key(&9));
+        }
+
+        #[test]
+        fn without_lines() {
+            let mut cfg = Config::default();
+            cfg.with_lines(&[1, 2, 3, 4]).with_lines(&[5, 6, 7, 8]);
+
+            // from selected and unselected
+            cfg.without_lines(&[1, 4, 6, 7]);
+            assert_eq!(cfg.selected, &[5, 8]);
+            assert_eq!(cfg.lcfg.len(), 4);
+            assert!(!cfg.lcfg.contains_key(&1));
+            assert!(cfg.lcfg.contains_key(&2));
+            assert!(cfg.lcfg.contains_key(&3));
+            assert!(!cfg.lcfg.contains_key(&4));
+            assert!(cfg.lcfg.contains_key(&5));
+            assert!(!cfg.lcfg.contains_key(&6));
+            assert!(!cfg.lcfg.contains_key(&7));
+            assert!(cfg.lcfg.contains_key(&8));
+        }
+
+        #[test]
+        fn with_value() {
+            let mut cfg = Config::default();
+            assert_eq!(cfg.base.value, None);
+
+            cfg.as_input().with_value(Active);
+            assert_eq!(cfg.base.value, Some(Active));
+
+            cfg.as_input().with_value(Inactive);
+            assert_eq!(cfg.base.value, Some(Inactive));
+        }
+
+        #[test]
+        fn from_line_config() {
+            let d_us = Duration::from_micros(1234);
+            let lc = line::Config {
+                direction: Some(Output),
+                active_low: true,
+                bias: Some(Disabled),
+                drive: Some(OpenSource),
+                edge_detection: Some(BothEdges),
+                event_clock: Some(Realtime),
+                debounce_period: Some(d_us),
+                value: Some(Active),
+            };
+
+            // base
+            let mut cfg = Config::default();
+            cfg.from_line_config(&lc);
+            assert!(cfg.lcfg.is_empty());
+            assert!(cfg.selected.is_empty());
+            assert_eq!(cfg.base.direction, Some(Output));
+            assert!(cfg.base.active_low);
+            assert_eq!(cfg.base.drive, Some(OpenSource));
+            assert_eq!(cfg.base.edge_detection, Some(BothEdges));
+            assert_eq!(cfg.base.event_clock, Some(Realtime));
+            assert_eq!(cfg.base.value, Some(Active));
+            assert_eq!(cfg.base.debounce_period, Some(d_us));
+
+            // select
+            let mut cfg = Config::default();
+            cfg.with_line(1).from_line_config(&lc);
+            assert_eq!(cfg.selected, &[1]);
+            assert_eq!(cfg.lcfg.len(), 1);
+            let select = cfg.lcfg.get(&1).unwrap();
+            assert_eq!(select.direction, Some(Output));
+            assert!(select.active_low);
+            assert_eq!(select.direction, Some(Output));
+            assert_eq!(select.drive, Some(OpenSource));
+            assert_eq!(select.edge_detection, Some(BothEdges));
+            assert_eq!(select.event_clock, Some(Realtime));
+            assert_eq!(select.value, Some(Active));
+        }
+
+        #[test]
+        fn line_config() {
+            let mut cfg = Config::default();
+            cfg.with_bias(PullDown);
+            // no config
+            assert!(cfg.line_config(2).is_none());
+
+            // from select
+            cfg.with_line(2);
+            let mut lc = cfg.line_config(2);
+            assert!(lc.is_some());
+            assert_eq!(lc.unwrap().bias, Some(PullDown));
+
+            // from unselected
+            cfg.with_line(3);
+            lc = cfg.line_config(2);
+            assert!(lc.is_some());
+            let lc = lc.unwrap();
+            assert_eq!(lc.bias, Some(PullDown));
+        }
+
+        #[test]
+        fn lines() {
+            let mut cfg = Config::default();
+            cfg.with_lines(&[1, 2, 4, 6]).with_lines(&[2, 6, 9]);
+            // should have 1,4 unselected and 2,6,9 select
+            assert_eq!(cfg.lines(), &[1, 2, 4, 6, 9]);
+
+            cfg.without_lines(&[1, 2]);
+            assert_eq!(cfg.lines(), &[4, 6, 9]);
+        }
+
+        #[test]
+        fn num_lines() {
+            let mut cfg = Config::default();
+            cfg.with_lines(&[1, 2, 4, 6]);
+            assert_eq!(cfg.num_lines(), 4);
+
+            cfg.with_lines(&[2, 6, 9]);
+            // should have 1,4 unselected and 2,6,9 select
+            assert_eq!(cfg.num_lines(), 5);
+
+            cfg.without_lines(&[1, 2]);
+            assert_eq!(cfg.num_lines(), 3);
+        }
+
+        #[test]
+        #[cfg(feature = "uapi_v1")]
+        fn unique() {
+            let mut cfg = Config::default();
+            // multiple, but unique
+            cfg.with_lines(&[1, 2, 4, 6]);
+            let lc = cfg.lcfg.get(&1);
+            assert_eq!(cfg.unique().unwrap(), lc.unwrap());
+
+            // multiple, not unique
+            cfg.with_lines(&[2, 6, 9]).with_bias(PullUp);
             assert_eq!(
-                String::from(&lr.consumer).as_str(),
-                format!("gpiocdev-p{}", std::process::id()).as_str()
+                cfg.unique().unwrap_err().to_string(),
+                "uAPI ABI v1 requires all lines to share the same configuration."
             );
-            // default flags match most lines, so output
-            assert!(lr.config.flags.contains(v2::LineFlags::OUTPUT));
-            assert_eq!(lr.config.num_attrs, 2);
-            // first is flags for line inputs
-            let lca = lr.config.attrs.0[0];
-            assert!(lca.mask.get(0));
-            assert!(lca.mask.get(1));
+
+            // reduce to one (line 4), so unique again
+            cfg.without_lines(&[1, 2, 6, 9]);
+            let lc = cfg.lcfg.get(&4);
+            assert_eq!(cfg.unique().unwrap(), lc.unwrap());
+        }
+
+        #[test]
+        fn overlay() {
+            let mut bottom = Config::default();
+            bottom.with_lines(&[1, 4, 7]).as_active_low();
+            assert_eq!(bottom.num_lines(), 3);
+            let mut top = Config::default();
+            top.with_lines(&[3, 4]).as_active_high();
+            let overlay = bottom.overlay(&top);
+            assert_eq!(overlay.num_lines(), 3);
+
+            let lc = overlay.lcfg.get(&1).unwrap();
+            assert!(lc.active_low);
+            assert_eq!(overlay.lcfg.get(&3), None);
+
+            let lc = overlay.lcfg.get(&4).unwrap();
+            assert!(!lc.active_low);
+
+            let lc = overlay.lcfg.get(&7).unwrap();
+            assert!(lc.active_low);
+        }
+
+        #[test]
+        #[cfg(feature = "uapi_v1")]
+        fn to_v1() {
+            let mut cfg = Config::default();
+            cfg.with_line(3)
+                .as_output(Value::Active)
+                .with_line(1)
+                .as_output(Value::Inactive)
+                .with_line(2)
+                .as_output(Value::Active);
+            let hc = cfg.to_v1().unwrap();
+            assert!(hc.flags.contains(v1::HandleRequestFlags::OUTPUT));
+            assert_eq!(hc.values.get(0), 1);
+            assert_eq!(hc.values.get(1), 0);
+            assert_eq!(hc.values.get(2), 1);
+
+            cfg.with_line(2).as_input();
+            assert_eq!(
+                cfg.to_v1().unwrap_err().to_string(),
+                "uAPI ABI v1 requires all lines to share the same configuration."
+            );
+        }
+
+        #[test]
+        #[cfg(feature = "uapi_v1")]
+        fn to_v1_values() {
+            let mut cfg = Config::default();
+            cfg.with_line(3)
+                .as_output(Value::Active)
+                .with_line(2)
+                .as_input()
+                .with_line(1)
+                .as_output(Value::Inactive);
+            let values = cfg.to_v1_values().unwrap();
+            // in order added to config
+            assert_eq!(values.get(0), 1);
+            assert_eq!(values.get(1), 0);
+            assert_eq!(values.get(2), 0);
+        }
+
+        #[test]
+        #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
+        fn to_v2() {
+            let mut cfg = Config::default();
+            cfg.with_line(3)
+                .as_output(Value::Active)
+                .with_line(1)
+                .as_output(Value::Inactive)
+                .with_line(4)
+                .as_input()
+                .as_active_low()
+                .with_debounce_period(Duration::from_millis(10))
+                .with_line(2)
+                .as_output(Value::Active);
+            let lc = cfg.to_v2().unwrap();
+            assert!(lc.flags.contains(v2::LineFlags::OUTPUT));
+            assert_eq!(lc.num_attrs, 3);
+
+            // first is flags for line 4
+            let lca = lc.attrs.0[0];
+            assert!(!lca.mask.get(0));
+            assert!(!lca.mask.get(1));
             assert!(lca.mask.get(2));
             assert!(!lca.mask.get(3));
-            assert!(!lca.mask.get(4));
-            assert!(!lca.mask.get(5));
-            assert!(!lca.mask.get(6));
             assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
             unsafe {
                 assert!(lca
@@ -1966,530 +2583,60 @@ mod tests {
                     .flags
                     .contains(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW));
             }
+
             // second is values for outputs
-            let lca = lr.config.attrs.0[1];
-            assert!(!lca.mask.get(0));
-            assert!(!lca.mask.get(1));
+            let lca = lc.attrs.0[1];
+            assert!(lca.mask.get(0));
+            assert!(lca.mask.get(1));
             assert!(!lca.mask.get(2));
             assert!(lca.mask.get(3));
-            assert!(lca.mask.get(4));
-            assert!(lca.mask.get(5));
-            assert!(lca.mask.get(6));
             assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
             unsafe {
-                assert!(!lca.attr.value.values.get(0)); // inputs should be inactive
+                assert!(lca.attr.value.values.get(0));
                 assert!(!lca.attr.value.values.get(1));
                 assert!(!lca.attr.value.values.get(2));
-                assert!(lca.attr.value.values.get(3)); // two active outputs
-                assert!(lca.attr.value.values.get(4));
-                assert!(!lca.attr.value.values.get(5)); // and two inactive
-                assert!(!lca.attr.value.values.get(6));
+                assert!(lca.attr.value.values.get(3));
             }
-        } else {
-            panic!("not a line request");
+
+            // third is debounce for line 4
+            let lca = lc.attrs.0[2];
+            assert!(!lca.mask.get(0));
+            assert!(!lca.mask.get(1));
+            assert!(lca.mask.get(2));
+            assert!(!lca.mask.get(3));
+            assert_eq!(lca.attr.kind, v2::LineAttributeKind::Debounce);
+            unsafe {
+                assert_eq!(lca.attr.value.debounce_period_us, 10000);
+            }
+
+            // too many attrs required
+            for offset in 10..20 {
+                cfg.with_line(offset)
+                    .with_debounce_period(Duration::from_millis(offset as u64));
+            }
+            assert_eq!(
+                cfg.to_v2().unwrap_err().to_string(),
+                // requires 10 attrs in addition to the 3 above -
+                // one for the flags and 9 for additional debounce periods.
+                // (line 10 has debounce in common with line 4)
+                "uAPI ABI v2 supports 10 attrs, configuration requires 13."
+            );
         }
-    }
-    #[test]
-    fn config_default() {
-        let cfg = Config::default();
-        assert_eq!(cfg.lcfg.len(), 0);
-        assert_eq!(cfg.selected.len(), 0);
-        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        assert_eq!(cfg.base.direction, None);
-        assert!(!cfg.base.active_low);
-        assert_eq!(cfg.base.drive, None);
-        assert_eq!(cfg.base.edge_detection, None);
-        assert_eq!(cfg.base.event_clock, None);
-        assert_eq!(cfg.base.event_clock, None);
-        assert_eq!(cfg.base.value, None);
-    }
-    #[test]
-    fn config_as_input() {
-        let mut cfg = Config::default();
-        cfg.as_output(Active).with_drive(OpenDrain);
-        assert_eq!(cfg.base.direction, Some(Output));
-        assert_eq!(cfg.base.value, Some(Active));
-        assert_eq!(cfg.base.drive, Some(OpenDrain));
-        cfg.as_input();
-        assert_eq!(cfg.base.direction, Some(Input));
-        assert_eq!(cfg.base.value, None);
-        assert_eq!(cfg.base.drive, None);
-    }
-    #[test]
-    fn config_as_output() {
-        let mut cfg = Config::default();
-        cfg.as_input().with_edge_detection(RisingEdge);
-        assert_eq!(cfg.base.direction, Some(Input));
-        assert_eq!(cfg.base.value, None);
-        assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
-        cfg.as_output(Active);
-        assert_eq!(cfg.base.direction, Some(Output));
-        assert_eq!(cfg.base.value, Some(Active));
-        assert_eq!(cfg.base.edge_detection, None);
-    }
-    #[test]
-    fn config_as_active_low() {
-        let mut cfg = Config::default();
-        cfg.as_active_low();
-        assert!(cfg.base.active_low);
-        cfg.as_active_high();
-        assert!(!cfg.base.active_low);
     }
 
-    #[test]
-    fn config_as_active_high() {
-        let mut cfg = Config::default();
-        cfg.as_active_low().with_line(3);
-        assert!(cfg.lcfg.get(&3).unwrap().active_low);
-        assert!(cfg.base.active_low);
-        cfg.as_active_high();
-        assert!(cfg.base.active_low);
-        assert!(!cfg.lcfg.get(&3).unwrap().active_low);
-    }
-    #[test]
-    fn config_with_bias() {
-        let mut cfg = Config::default();
-        cfg.with_bias(PullUp);
-        assert_eq!(cfg.base.bias, Some(PullUp));
-        cfg.with_bias(PullDown);
-        assert_eq!(cfg.base.bias, Some(PullDown));
-        cfg.with_bias(Disabled);
-        assert_eq!(cfg.base.bias, Some(Disabled));
-        cfg.with_bias(None);
-        assert_eq!(cfg.base.bias, None);
-    }
-    #[test]
-    fn config_with_debounce_period() {
-        let d_us = Duration::from_micros(1234);
-        let d_ns = Duration::from_nanos(234);
-        let mut cfg = Config::default();
-        cfg.with_drive(OpenSource);
-        assert_eq!(cfg.base.direction, Some(Output));
-        cfg.with_debounce_period(Duration::from_micros(1234));
-        assert_eq!(cfg.base.debounce_period, Some(d_us));
-        assert_eq!(cfg.base.direction, Some(Input));
-        cfg.with_debounce_period(Duration::from_nanos(234));
-        assert_eq!(cfg.base.debounce_period, Some(d_ns));
-        cfg.with_debounce_period(Duration::ZERO);
-        assert!(cfg.base.debounce_period.is_none());
-    }
-    #[test]
-    fn config_with_direction() {
-        let mut cfg = Config::default();
-        cfg.with_direction(Output);
-        assert_eq!(cfg.base.direction, Some(Output));
-        cfg.with_direction(Input);
-        assert_eq!(cfg.base.direction, Some(Input));
-    }
-    #[test]
-    fn config_with_drive() {
-        let mut cfg = Config::default();
-        cfg.with_bias(PullUp)
-            .with_debounce_period(Duration::from_millis(10))
-            .with_edge_detection(RisingEdge);
-        assert_eq!(cfg.base.direction, Some(Input));
-        assert_eq!(cfg.base.bias, Some(PullUp));
-        assert_eq!(cfg.base.debounce_period, Some(Duration::from_millis(10)));
-        assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
-        cfg.with_drive(PushPull);
-        assert_eq!(cfg.base.direction, Some(Output));
-        assert_eq!(cfg.base.drive, Some(PushPull));
-        assert_eq!(cfg.base.bias, Some(PullUp));
-        assert!(cfg.base.debounce_period.is_none());
-        assert_eq!(cfg.base.edge_detection, None);
-        cfg.with_drive(OpenDrain);
-        assert_eq!(cfg.base.drive, Some(OpenDrain));
-        cfg.with_drive(OpenSource);
-        assert_eq!(cfg.base.drive, Some(OpenSource));
-    }
-    #[test]
-    fn config_with_edge_detection() {
-        let mut cfg = Config::default();
-        cfg.with_drive(OpenSource);
-        assert_eq!(cfg.base.direction, Some(Output));
-        cfg.with_edge_detection(RisingEdge);
-        assert_eq!(cfg.base.edge_detection, Some(RisingEdge));
-        assert_eq!(cfg.base.drive, None);
-        assert_eq!(cfg.base.direction, Some(Input));
-        cfg.with_edge_detection(FallingEdge);
-        assert_eq!(cfg.base.edge_detection, Some(FallingEdge));
-        cfg.with_edge_detection(BothEdges);
-        assert_eq!(cfg.base.edge_detection, Some(BothEdges));
-    }
-    #[test]
-    fn config_with_event_clock() {
-        let mut cfg = Config::default();
-        assert_eq!(cfg.base.event_clock, None);
-        cfg.with_event_clock(Realtime);
-        assert_eq!(cfg.base.event_clock, Some(Realtime));
-        cfg.with_event_clock(Monotonic);
-        assert_eq!(cfg.base.event_clock, Some(Monotonic));
-    }
-    #[test]
-    fn config_with_line() {
-        let mut cfg = Config::default();
-        // initial mutator hits base config
-        cfg.as_output(Active);
-        assert_eq!(cfg.base.direction, Some(Output));
-        assert_eq!(cfg.base.value, Some(Active));
-        cfg.as_input();
-        assert_eq!(cfg.base.direction, Some(Input));
-        assert_eq!(cfg.base.value, None);
-        assert!(cfg.offsets.is_empty());
-        assert!(cfg.selected.is_empty());
-        // mutator hits selected config
-        cfg.with_line(3);
-        assert_eq!(cfg.offsets, &[3]);
-        assert_eq!(cfg.selected, &[3]);
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
-        // mutator only hits selected config
-        cfg.with_line(5);
-        assert_eq!(cfg.offsets, &[3, 5]);
-        assert_eq!(cfg.selected, &[5]);
-        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Input));
-        assert_eq!(cfg.lcfg.get(&5).unwrap().value, None);
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
-        cfg.as_output(Inactive);
-        assert_eq!(cfg.offsets, &[3, 5]);
-        assert_eq!(cfg.selected, &[5]);
-        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&5).unwrap().value, Some(Inactive));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
-        assert_eq!(cfg.base.direction, Some(Input));
-        assert_eq!(cfg.base.value, None);
-    }
-    #[test]
-    fn config_without_line() {
-        let mut cfg = Config::default();
-        cfg.as_output(Active);
-        assert_eq!(cfg.base.direction, Some(Output));
-        assert_eq!(cfg.base.value, Some(Active));
-        cfg.with_lines(&[1, 6, 2, 7]);
-        assert_eq!(cfg.offsets, &[1, 6, 2, 7]);
-        assert_eq!(cfg.selected, &[1, 6, 2, 7]);
-        assert_eq!(cfg.lcfg.get(&2).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&2).unwrap().value, Some(Active));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
-        // from selected
-        cfg.without_line(2);
-        assert_eq!(cfg.offsets, &[1, 6, 7]);
-        assert_eq!(cfg.selected, &[1, 6, 7]);
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
-        cfg.with_line(1);
-        assert_eq!(cfg.offsets, &[1, 6, 7]);
-        assert_eq!(cfg.selected, &[1]);
-        assert_eq!(cfg.lcfg.len(), 3);
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
-        // from unselected
-        cfg.without_line(6);
-        assert_eq!(cfg.offsets, &[1, 7]);
-        assert_eq!(cfg.selected, &[1]);
-        assert_eq!(cfg.lcfg.len(), 2);
-        assert!(cfg.lcfg.contains_key(&1));
-        assert!(cfg.lcfg.contains_key(&7));
-        assert!(!cfg.lcfg.contains_key(&6));
-        // last select
-        cfg.without_line(1);
-        assert_eq!(cfg.offsets, &[7]);
-        assert!(cfg.selected.is_empty());
-        assert_eq!(cfg.lcfg.len(), 1);
-        assert!(!cfg.lcfg.contains_key(&1));
-    }
-    #[test]
-    fn config_with_lines() {
-        let mut cfg = Config::default();
-        cfg.as_output(Active);
-        assert_eq!(cfg.base.direction, Some(Output));
-        assert_eq!(cfg.base.value, Some(Active));
-        // select some
-        cfg.with_lines(&[7, 2, 6, 1]);
-        assert_eq!(cfg.offsets, &[7, 2, 6, 1]);
-        assert_eq!(cfg.selected, &[7, 2, 6, 1]);
-        assert_eq!(cfg.lcfg.len(), 4);
-        assert!(cfg.lcfg.contains_key(&1));
-        assert!(cfg.lcfg.contains_key(&2));
-        assert!(cfg.lcfg.contains_key(&6));
-        assert!(cfg.lcfg.contains_key(&7));
-        // add another
-        cfg.with_lines(&[1, 2, 9]);
-        assert_eq!(cfg.offsets, &[7, 2, 6, 1, 9]);
-        assert_eq!(cfg.selected, &[1, 2, 9]);
-        assert_eq!(cfg.lcfg.len(), 5);
-        assert!(cfg.lcfg.contains_key(&6));
-        assert!(cfg.lcfg.contains_key(&7));
-        assert!(cfg.lcfg.contains_key(&1));
-        assert!(cfg.lcfg.contains_key(&2));
-        assert!(cfg.lcfg.contains_key(&9));
-        // select none
-        cfg.with_lines(&[]);
-        assert_eq!(cfg.offsets, &[7, 2, 6, 1, 9]);
-        assert_eq!(cfg.selected.len(), 0);
-        assert_eq!(cfg.lcfg.len(), 5);
-        assert!(cfg.lcfg.contains_key(&1));
-        assert!(cfg.lcfg.contains_key(&2));
-        assert!(cfg.lcfg.contains_key(&6));
-        assert!(cfg.lcfg.contains_key(&7));
-        assert!(cfg.lcfg.contains_key(&9));
-    }
-    #[test]
-    fn config_without_lines() {
-        let mut cfg = Config::default();
-        cfg.with_lines(&[1, 2, 3, 4]).with_lines(&[5, 6, 7, 8]);
-        // from selected and unselected
-        cfg.without_lines(&[1, 4, 6, 7]);
-        assert_eq!(cfg.selected, &[5, 8]);
-        assert_eq!(cfg.lcfg.len(), 4);
-        assert!(!cfg.lcfg.contains_key(&1));
-        assert!(cfg.lcfg.contains_key(&2));
-        assert!(cfg.lcfg.contains_key(&3));
-        assert!(!cfg.lcfg.contains_key(&4));
-        assert!(cfg.lcfg.contains_key(&5));
-        assert!(!cfg.lcfg.contains_key(&6));
-        assert!(!cfg.lcfg.contains_key(&7));
-        assert!(cfg.lcfg.contains_key(&8));
-    }
-    #[test]
-    fn config_with_value() {
-        let mut cfg = Config::default();
-        assert_eq!(cfg.base.value, None);
-        cfg.as_input().with_value(Active);
-        assert_eq!(cfg.base.value, Some(Active));
-        cfg.as_input().with_value(Inactive);
-        assert_eq!(cfg.base.value, Some(Inactive));
-    }
-    #[test]
-    fn config_from_line_config() {
-        let d_us = Duration::from_micros(1234);
-        let lc = line::Config {
-            direction: Some(Output),
-            active_low: true,
-            bias: Some(Disabled),
-            drive: Some(OpenSource),
-            edge_detection: Some(BothEdges),
-            event_clock: Some(Realtime),
-            debounce_period: Some(d_us),
-            value: Some(Active),
-        };
-        // base
-        let mut cfg = Config::default();
-        cfg.from_line_config(&lc);
-        assert!(cfg.lcfg.is_empty());
-        assert!(cfg.selected.is_empty());
-        assert_eq!(cfg.base.direction, Some(Output));
-        assert!(cfg.base.active_low);
-        assert_eq!(cfg.base.drive, Some(OpenSource));
-        assert_eq!(cfg.base.edge_detection, Some(BothEdges));
-        assert_eq!(cfg.base.event_clock, Some(Realtime));
-        assert_eq!(cfg.base.value, Some(Active));
-        assert_eq!(cfg.base.debounce_period, Some(d_us));
-        // select
-        let mut cfg = Config::default();
-        cfg.with_line(1).from_line_config(&lc);
-        assert_eq!(cfg.selected, &[1]);
-        assert_eq!(cfg.lcfg.len(), 1);
-        let select = cfg.lcfg.get(&1).unwrap();
-        assert_eq!(select.direction, Some(Output));
-        assert!(select.active_low);
-        assert_eq!(select.direction, Some(Output));
-        assert_eq!(select.drive, Some(OpenSource));
-        assert_eq!(select.edge_detection, Some(BothEdges));
-        assert_eq!(select.event_clock, Some(Realtime));
-        assert_eq!(select.value, Some(Active));
-    }
-    #[test]
-    fn config_line_config() {
-        let mut cfg = Config::default();
-        cfg.with_bias(PullDown);
-        // no config
-        assert!(cfg.line_config(2).is_none());
-        // from select
-        cfg.with_line(2);
-        let mut lc = cfg.line_config(2);
-        assert!(lc.is_some());
-        assert_eq!(lc.unwrap().bias, Some(PullDown));
-        // from unselected
-        cfg.with_line(3);
-        lc = cfg.line_config(2);
-        assert!(lc.is_some());
-        let lc = lc.unwrap();
-        assert_eq!(lc.bias, Some(PullDown));
-    }
-    #[test]
-    fn config_lines() {
-        let mut cfg = Config::default();
-        cfg.with_lines(&[1, 2, 4, 6]).with_lines(&[2, 6, 9]);
-        // should have 1,4 unselected and 2,6,9 select
-        assert_eq!(cfg.lines(), &[1, 2, 4, 6, 9]);
-        cfg.without_lines(&[1, 2]);
-        assert_eq!(cfg.lines(), &[4, 6, 9]);
-    }
-    #[test]
-    fn config_num_lines() {
-        let mut cfg = Config::default();
-        cfg.with_lines(&[1, 2, 4, 6]);
-        assert_eq!(cfg.num_lines(), 4);
-        cfg.with_lines(&[2, 6, 9]);
-        // should have 1,4 unselected and 2,6,9 select
-        assert_eq!(cfg.num_lines(), 5);
-        cfg.without_lines(&[1, 2]);
-    }
-    #[test]
-    #[cfg(feature = "uapi_v1")]
-    fn config_unique() {
-        let mut cfg = Config::default();
-        // multiple, but unique
-        cfg.with_lines(&[1, 2, 4, 6]);
-        let lc = cfg.lcfg.get(&1);
-        assert_eq!(cfg.unique().unwrap(), lc.unwrap());
-        // multiple, not unique
-        cfg.with_lines(&[2, 6, 9]).with_bias(PullUp);
-        assert_eq!(
-            cfg.unique().unwrap_err().to_string(),
-            "uAPI ABI v1 requires all lines to share the same configuration."
-        );
-        // reduce to one (line 4), so unique again
-        cfg.without_lines(&[1, 2, 6, 9]);
-        let lc = cfg.lcfg.get(&4);
-        assert_eq!(cfg.unique().unwrap(), lc.unwrap());
-    }
-    #[test]
-    fn config_overlay() {
-        let mut bottom = Config::default();
-        bottom.with_lines(&[1, 4, 7]).as_active_low();
-        assert_eq!(bottom.num_lines(), 3);
-        let mut top = Config::default();
-        top.with_lines(&[3, 4]).as_active_high();
-        let overlay = bottom.overlay(&top);
-        assert_eq!(overlay.num_lines(), 3);
-        let lc = overlay.lcfg.get(&1).unwrap();
-        assert!(lc.active_low);
-        assert_eq!(overlay.lcfg.get(&3), None);
-        let lc = overlay.lcfg.get(&4).unwrap();
-        assert!(!lc.active_low);
-        let lc = overlay.lcfg.get(&7).unwrap();
-        assert!(lc.active_low);
-    }
-    #[test]
-    #[cfg(feature = "uapi_v1")]
-    fn config_to_v1() {
-        let mut cfg = Config::default();
-        cfg.with_line(3)
-            .as_output(Value::Active)
-            .with_line(1)
-            .as_output(Value::Inactive)
-            .with_line(2)
-            .as_output(Value::Active);
-        let hc = cfg.to_v1().unwrap();
-        assert!(hc.flags.contains(v1::HandleRequestFlags::OUTPUT));
-        assert_eq!(hc.values.get(0), 1);
-        assert_eq!(hc.values.get(1), 0);
-        assert_eq!(hc.values.get(2), 1);
-        cfg.with_line(2).as_input();
-        assert_eq!(
-            cfg.to_v1().unwrap_err().to_string(),
-            "uAPI ABI v1 requires all lines to share the same configuration."
-        );
-    }
-    #[test]
-    #[cfg(feature = "uapi_v1")]
-    fn config_to_v1_values() {
-        let mut cfg = Config::default();
-        cfg.with_line(3)
-            .as_output(Value::Active)
-            .with_line(2)
-            .as_input()
-            .with_line(1)
-            .as_output(Value::Inactive);
-        let values = cfg.to_v1_values().unwrap();
-        // in order added to config
-        assert_eq!(values.get(0), 1);
-        assert_eq!(values.get(1), 0);
-        assert_eq!(values.get(2), 0);
-    }
-    #[test]
-    #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn config_to_v2() {
-        let mut cfg = Config::default();
-        cfg.with_line(3)
-            .as_output(Value::Active)
-            .with_line(1)
-            .as_output(Value::Inactive)
-            .with_line(4)
-            .as_input()
-            .as_active_low()
-            .with_debounce_period(Duration::from_millis(10))
-            .with_line(2)
-            .as_output(Value::Active);
-        let lc = cfg.to_v2().unwrap();
-        assert!(lc.flags.contains(v2::LineFlags::OUTPUT));
-        assert_eq!(lc.num_attrs, 3);
-        // first is flags for line 4
-        let lca = lc.attrs.0[0];
-        assert!(!lca.mask.get(0));
-        assert!(!lca.mask.get(1));
-        assert!(lca.mask.get(2));
-        assert!(!lca.mask.get(3));
-        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
-        unsafe {
-            assert!(lca
-                .attr
-                .value
-                .flags
-                .contains(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW));
-        }
-        // second is values for outputs
-        let lca = lc.attrs.0[1];
-        assert!(lca.mask.get(0));
-        assert!(lca.mask.get(1));
-        assert!(!lca.mask.get(2));
-        assert!(lca.mask.get(3));
-        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
-        unsafe {
-            assert!(lca.attr.value.values.get(0));
-            assert!(!lca.attr.value.values.get(1));
-            assert!(!lca.attr.value.values.get(2));
-            assert!(lca.attr.value.values.get(3));
-        }
-        // third is debounce for line 4
-        let lca = lc.attrs.0[2];
-        assert!(!lca.mask.get(0));
-        assert!(!lca.mask.get(1));
-        assert!(lca.mask.get(2));
-        assert!(!lca.mask.get(3));
-        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Debounce);
-        unsafe {
-            assert_eq!(lca.attr.value.debounce_period_us, 10000);
-        }
+    mod request {
+        use super::{AbiVersion, Request};
 
-        // too many attrs required
-        for offset in 10..20 {
-            cfg.with_line(offset)
-                .with_debounce_period(Duration::from_millis(offset as u64));
+        #[test]
+        fn request_builder() {
+            let b = Request::builder();
+            assert_eq!(b.chip.as_os_str(), "");
+            assert_eq!(b.cfg.num_lines(), 0);
+            assert_eq!(b.consumer.as_str(), "");
+            assert_eq!(b.kernel_event_buffer_size, 0);
+            assert_eq!(b.user_event_buffer_size, 0);
+            #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+            assert_eq!(b.abiv, AbiVersion::V2);
         }
-        assert_eq!(
-            cfg.to_v2().unwrap_err().to_string(),
-            // requires 10 attrs in addition to the 3 above -
-            // one for the flags and 9 for additional debounce periods.
-            // (line 10 has debounce in common with line 4)
-            "uAPI ABI v2 supports 10 attrs, configuration requires 13."
-        );
-    }
-
-    #[test]
-    fn request_builder() {
-        let b = Request::builder();
-        assert_eq!(b.chip.as_os_str(), "");
-        assert_eq!(b.cfg.num_lines(), 0);
-        assert_eq!(b.consumer.as_str(), "");
-        assert_eq!(b.kernel_event_buffer_size, 0);
-        assert_eq!(b.user_event_buffer_size, 0);
-        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        assert_eq!(b.abiv, AbiVersion::V2);
     }
 }
