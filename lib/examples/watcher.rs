@@ -16,14 +16,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .request()
         .context("Failed to request line")?;
 
+    /* loop version
     let mut buf = req.new_edge_event_buffer(4);
     loop {
         println!("{:?}", buf.read_event()?);
     }
-    /* iterator version
+    */
     for event in req.edge_events()? {
         println!("{:?}", event?);
     }
     Ok(())
-    */
 }
