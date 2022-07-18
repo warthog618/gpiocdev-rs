@@ -366,11 +366,11 @@ impl Bank {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Hog {
     /// The name of the consumer that appears to be using the line.
-    name: String,
+    pub name: String,
 
     /// The requested direction for the hogged line, and if an
     /// output then the pull.
-    direction: Direction,
+    pub direction: Direction,
 }
 
 /// The direction, and for outputs the pulled value, of a hogged line.
@@ -532,7 +532,7 @@ pub enum Error {
     IoError(#[from] std::io::Error),
 
     /// An error detected while executing an external command.
-    #[error("command {0} returned error {1}")]
+    #[error("Command {0} returned error {1}")]
     CommandError(String, Box<dyn std::error::Error>),
 }
 
