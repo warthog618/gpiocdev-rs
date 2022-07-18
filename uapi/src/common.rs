@@ -104,7 +104,7 @@ pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
         ioctl(
             cfd,
             nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::UnwatchLineInfo, size_of::<u32>()),
-            offset,
+            &offset,
         )
     } {
         0 => Ok(()),
