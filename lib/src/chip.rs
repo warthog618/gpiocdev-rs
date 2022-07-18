@@ -88,6 +88,7 @@ impl Iterator for ChipIterator {
 }
 
 /// A GPIO character device.
+#[derive(Debug)]
 pub struct Chip {
     /// The resolved path of the GPIO character device.
     path: PathBuf,
