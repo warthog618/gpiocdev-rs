@@ -19,22 +19,28 @@ use std::time::Duration;
 pub struct Config {
     /// The direction setting for the line.
     pub direction: Option<Direction>,
+
     /// The active low setting for the line.
     pub active_low: bool,
+
     /// The bias setting for the line.
     pub bias: Option<Bias>,
+
     /// The drive setting for the line.
     ///
     /// Only relevant for output lines.
     pub drive: Option<Drive>,
+
     /// The edge detection setting for the line.
     ///
     /// Only relevant for input lines.
     pub edge_detection: Option<EdgeDetection>,
+
     /// The source clock for edge event timestamps.
     ///
     /// Only relevant for input lines with edge detection enabled.
     pub event_clock: Option<EventClock>,
+
     /// The debounce period.
     ///
     /// Setting the debounce period filters edges occuring at a rate faster than
@@ -42,6 +48,7 @@ pub struct Config {
     ///
     /// Only relevant for input lines with edge detection enabled.
     pub debounce_period: Option<Duration>,
+
     /// The logical value to be applied to the line if it is an output.
     pub value: Option<Value>,
 }
@@ -62,6 +69,7 @@ impl Config {
         }
         false
     }
+
     /// return the effective value specified by the config
     pub(crate) fn value(&self) -> Value {
         match self.value {
@@ -115,6 +123,7 @@ impl From<&Config> for v2::LineFlags {
                         Some(EventClock::Realtime) => {
                             flags.set(v2::LineFlags::EVENT_CLOCK_REALTIME, true)
                         }
+                        Some(EventClock::HTE) => flags.set(v2::LineFlags::EVENT_CLOCK_HTE, true),
                     };
                 }
             }
@@ -171,37 +180,47 @@ impl From<&Config> for v1::HandleRequestFlags {
 pub struct Info {
     /// The line offset on the GPIO chip.
     pub offset: Offset,
+
     /// The name of this GPIO line, such as the output pin of the line on
     /// the chip, a rail or a pin header name on a board, as specified by the
     /// GPIO chip.
     ///
     /// May be empty.
     pub name: String,
+
     /// A functional name for the consumer of this GPIO line as set
     /// by whatever is using it.
     ///
     /// May be empty if not set by the user or the line is unused.
     pub consumer: String,
+
     /// When true the line is used and not available for request.
     pub used: bool,
+
     /// When true the line active state corresponds to a physical low.
     pub active_low: bool,
+
     /// The direction of the line.
     pub direction: Direction,
+
     /// The bias state of the line.
     pub bias: Option<Bias>,
+
     /// The drive applied to output lines.
     ///
     /// Only relevant for output lines.
     pub drive: Option<Drive>,
+
     /// The edge detection state for the line.
     ///
     /// Only relevant for input lines.
     pub edge_detection: Option<EdgeDetection>,
+
     /// The source clock for edge event timestamps.
     ///
     /// Only relevant for input lines with edge detection.
     pub event_clock: Option<EventClock>,
+
     /// The debounce period.
     ///
     /// Only relevant for input lines with edge detection.
@@ -458,6 +477,7 @@ impl Values {
 pub enum Direction {
     /// The line is an input.
     Input,
+
     /// The line is an output.
     Output,
 }
@@ -490,8 +510,10 @@ impl From<v2::LineFlags> for Direction {
 pub enum Bias {
     /// The line has pull-up enabled.
     PullUp,
+
     /// The line has pull-down enabled.
     PullDown,
+
     /// The line has bias disabled and will float unless externally driven.
     Disabled,
 }
@@ -536,8 +558,10 @@ impl TryFrom<v2::LineFlags> for Bias {
 pub enum Drive {
     /// The line is driven when both active and inactive.
     PushPull,
+
     /// The line is driven when low and set high impedance when high.
     OpenDrain,
+
     /// The line is driven when high and set high impedance when low.
     OpenSource,
 }
@@ -588,10 +612,12 @@ pub enum EdgeDetection {
     ///
     /// A rising edge means a transition from an inactive state to an active state.
     RisingEdge,
+
     /// Edge detection is only enabled on falling edges.
     ///
     /// A falling edge means a transition from an active state to an inactive state.
     FallingEdge,
+
     /// Edge detection is enabled on both rising and falling edges.
     BothEdges,
 }
@@ -620,8 +646,12 @@ pub enum EventClock {
     ///
     /// This is the default for ABI v2.
     Monotonic,
+
     /// The **CLOCK_REALTIME** is used as the source for edge event timestamps.
     Realtime,
+
+    /// The hardware timestamping engine provides event timestamps.
+    HTE,
 }
 impl Default for EventClock {
     fn default() -> Self {
@@ -633,6 +663,9 @@ impl From<v2::LineFlags> for EventClock {
     fn from(flags: v2::LineFlags) -> Self {
         if flags.contains(v2::LineFlags::EVENT_CLOCK_REALTIME) {
             return EventClock::Realtime;
+        }
+        if flags.contains(v2::LineFlags::EVENT_CLOCK_HTE) {
+            return EventClock::HTE;
         }
         EventClock::Monotonic
     }
@@ -653,13 +686,17 @@ pub struct EdgeEvent {
     /// **CLOCK_MONOTONIC** is intended for comparing times between events and
     /// should be converted to [`Duration`].
     pub timestamp_ns: u64,
+
     /// The event trigger identifier.
     pub kind: EdgeKind,
+
     /// The offset of the line that triggered the event.
     pub offset: Offset,
+
     /// The sequence number for this event in the sequence of events for all
     /// the lines in this line request.
     pub seqno: u32,
+
     /// The sequence number for this event in the sequence of events on this
     /// particular line.
     pub line_seqno: u32,
@@ -695,6 +732,7 @@ impl From<&v2::LineEdgeEvent> for EdgeEvent {
 pub enum EdgeKind {
     /// Indicates the line transitioned from inactive to active.
     Rising = 1,
+
     /// Indicates the line transitioned from active to inactive.
     Falling = 2,
 }
@@ -712,10 +750,12 @@ impl From<uapi::LineEdgeEventKind> for EdgeKind {
 pub struct InfoChangeEvent {
     /// The updated line info.
     pub info: Info,
+
     /// The best estimate of time of event occurrence.
     ///
     /// The **CLOCK_MONOTONIC** is used as the source for info change timestamps.
     pub timestamp_ns: u64,
+
     /// The trigger for the change.
     pub kind: InfoChangeKind,
 }
@@ -745,8 +785,10 @@ impl From<&v2::LineInfoChangeEvent> for InfoChangeEvent {
 pub enum InfoChangeKind {
     /// Line has been requested.
     Requested = 1,
+
     /// Line has been released.
     Released = 2,
+
     /// Line has been reconfigured.
     Reconfigured = 3,
 }
@@ -871,7 +913,7 @@ mod tests {
                 bias: Some(Bias::PullUp),
                 drive: Some(Drive::OpenSource), // ignored for input
                 edge_detection: None,
-                event_clock: Some(EventClock::Realtime), // ignored for no edges
+                event_clock: Some(EventClock::HTE), // ignored for no edges
                 debounce_period: None,
                 value: None,
             };
@@ -886,7 +928,7 @@ mod tests {
             assert!(!flags.contains(v2::LineFlags::EDGE_FALLING));
             assert!(!flags.contains(v2::LineFlags::OPEN_DRAIN));
             assert!(!flags.contains(v2::LineFlags::OPEN_SOURCE));
-            assert!(!flags.contains(v2::LineFlags::EVENT_CLOCK_REALTIME));
+            assert!(!flags.contains(v2::LineFlags::EVENT_CLOCK_HTE));
 
             let cfg = Config {
                 direction: Some(Direction::Output),

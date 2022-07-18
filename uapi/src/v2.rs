@@ -4,6 +4,7 @@
 
 use bitflags::bitflags;
 use bitmaps::Bitmap;
+use errno::errno;
 use libc::ioctl;
 use std::convert::TryFrom;
 use std::fmt;
@@ -11,7 +12,6 @@ use std::fs::File;
 use std::mem::size_of;
 use std::os::unix::prelude::{FromRawFd, RawFd};
 use std::time::Duration;
-use errno::errno;
 
 use super::common::{ValidationResult, IOCTL_MAGIC};
 
@@ -71,6 +71,9 @@ bitflags! {
 
         /// The line events contain **CLOCK_REALTIME** timestamps.
         const EVENT_CLOCK_REALTIME = 2048;
+
+        /// The line events contain **HTE** timestamps.
+        const EVENT_CLOCK_HTE = 4096;
     }
 }
 

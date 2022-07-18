@@ -363,6 +363,7 @@ pub fn stringify_attrs(li: &gpiocdev::line::Info) -> String {
         None => (),                        // Not present for v1.
         Some(EventClock::Monotonic) => (), // default for ABI v2
         Some(EventClock::Realtime) => attrs.push("event-clock-realtime"),
+        Some(EventClock::HTE) => attrs.push("event-clock-hte"),
     }
     let db;
     if li.debounce_period.is_some() {
