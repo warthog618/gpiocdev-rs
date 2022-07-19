@@ -98,10 +98,6 @@ pub struct Builder {
     abiv: AbiVersion,
 }
 
-fn default_consumer() -> String {
-    format!("gpiocdev-p{}", std::process::id())
-}
-
 impl Builder {
     /// Start building a new request using the provided config.
     fn from_config(cfg: Config) -> Self {
@@ -487,6 +483,10 @@ impl Builder {
             ..Default::default()
         }))
     }
+}
+
+fn default_consumer() -> String {
+    format!("gpiocdev-p{}", std::process::id())
 }
 
 #[derive(Debug)]

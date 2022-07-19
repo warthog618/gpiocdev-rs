@@ -557,6 +557,8 @@ impl TryFrom<v2::LineFlags> for Bias {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Drive {
     /// The line is driven when both active and inactive.
+    ///
+    /// This is the default if drive is not specified.
     PushPull,
 
     /// The line is driven when low and set high impedance when high.
@@ -651,6 +653,9 @@ pub enum EventClock {
     Realtime,
 
     /// The hardware timestamping engine provides event timestamps.
+    ///
+    /// This source requires a Linux kernel v5.19 or later with CONFIG_HTE
+    /// enabled and suitable supporting hardware.
     HTE,
 }
 impl Default for EventClock {

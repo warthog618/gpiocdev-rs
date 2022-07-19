@@ -97,7 +97,7 @@ impl fmt::Display for AbiVersion {
 pub struct Timestamp(DateTime<Utc>);
 
 impl Timestamp {
-    /// Create a Timestamp from the numner of nanoseconds.
+    /// Create a Timestamp from the number of nanoseconds.
     ///
     /// Suitable for  **CLOCK_REALTIME** clock sources.
     pub fn from_nanos(t: u64) -> Self {
