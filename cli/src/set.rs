@@ -554,7 +554,7 @@ impl Completer for InteractiveHelper {
     ) -> Result<(usize, Vec<Pair>), ReadlineError> {
         const CMD_SET: [&str; 5] = ["exit", "help", "set ", "sleep ", "toggle "];
         let cmd_pos = line.len() - line.trim_start().len();
-        let mut words = line[..pos].trim_start().split_whitespace();
+        let mut words = line[..pos].split_whitespace();
         let mut candidates = Vec::new();
         match words.next() {
             Some(cmd) => {
