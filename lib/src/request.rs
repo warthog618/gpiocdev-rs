@@ -2625,7 +2625,9 @@ mod tests {
     }
 
     mod request {
-        use super::{AbiVersion, Request};
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        use super::AbiVersion;
+        use super::Request;
 
         #[test]
         fn request_builder() {

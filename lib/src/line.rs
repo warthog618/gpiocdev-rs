@@ -1217,7 +1217,7 @@ mod tests {
         }
     }
     mod values {
-        use super::{v1, v2, Value, Values};
+        use super::*;
 
         #[test]
         #[cfg(feature = "uapi_v1")]
@@ -1311,7 +1311,7 @@ mod tests {
     }
 
     mod direction {
-        use super::{v1, v2, Direction};
+        use super::*;
 
         #[test]
         #[cfg(feature = "uapi_v1")]
@@ -1335,7 +1335,7 @@ mod tests {
     }
 
     mod bias {
-        use super::{v1, v2, Bias};
+        use super::*;
 
         #[test]
         #[cfg(feature = "uapi_v1")]
@@ -1375,7 +1375,7 @@ mod tests {
     }
 
     mod drive {
-        use super::{v1, v2, Drive};
+        use super::*;
 
         #[test]
         #[cfg(feature = "uapi_v1")]
@@ -1451,7 +1451,7 @@ mod tests {
     }
 
     mod edge_event {
-        use super::{v1, v2, EdgeEvent, EdgeKind};
+        use super::*;
 
         #[test]
         #[cfg(feature = "uapi_v1")]
@@ -1489,7 +1489,7 @@ mod tests {
     }
 
     mod info_change_event {
-        use super::{v1, v2, Drive, InfoChangeEvent, InfoChangeKind};
+        use super::*;
 
         #[test]
         #[cfg(feature = "uapi_v1")]
