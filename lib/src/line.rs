@@ -355,15 +355,6 @@ impl From<u8> for Value {
 pub struct Values(IntMap<Offset, Value>);
 impl Values {
     /// overlays the values from src over the values in the dst.
-    #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-    pub(crate) fn overlay_from_uapi(&mut self, offsets: &[Offset], src: &uapi::LineValues) {
-        self.overlay_from_v1(offsets, src)
-    }
-    #[cfg(not(feature = "uapi_v1"))]
-    pub(crate) fn overlay_from_uapi(&mut self, offsets: &[Offset], src: &uapi::LineValues) {
-        self.overlay_from_v2(offsets, src)
-    }
-    /// overlays the values from src over the values in the dst.
     #[cfg(feature = "uapi_v1")]
     pub(crate) fn overlay_from_v1(&mut self, offsets: &[Offset], src: &v1::LineValues) {
         for (idx, offset) in offsets.iter().enumerate() {
@@ -379,14 +370,7 @@ impl Values {
             }
         }
     }
-    #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
-    pub(crate) fn to_uapi(&self, offsets: &[Offset]) -> uapi::LineValues {
-        self.to_v1(offsets)
-    }
-    #[cfg(not(feature = "uapi_v1"))]
-    pub(crate) fn to_uapi(&self, offsets: &[Offset]) -> uapi::LineValues {
-        self.to_v2(offsets)
-    }
+
     // v1 values are a contiguous list.  If a list shorter than offsets
     // is presented to the kernel then the missing lines default to zero.
     // Build the complete values list here with any missing values being zero filled.
@@ -469,6 +453,12 @@ impl Values {
     /// An iterator to visit all values.
     pub fn iter(&self) -> Iter<'_, Offset, Value> {
         self.0.iter()
+    }
+
+    /// Return true if values contains a matching key.
+    #[cfg(feature = "uapi_v1")]
+    pub(crate) fn contains(&self, offset: &Offset) -> bool {
+        self.0.contains_key(offset)
     }
 }
 

@@ -1128,26 +1128,40 @@ impl Request {
     /// ```
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn values(&self, values: &mut Values) -> Result<()> {
-        let offsets = &self.offsets;
-        let res = match self.abiv {
-            AbiVersion::V1 => {
-                let mut vals = values.to_v1(offsets);
-                v1::get_line_values(self.fd, &mut vals)
-                    .map(|_| values.overlay_from_v1(offsets, &vals))
-            }
-            AbiVersion::V2 => {
-                let mut vals = values.to_v2(offsets);
-                v2::get_line_values(self.fd, &mut vals)
-                    .map(|_| values.overlay_from_v2(offsets, &vals))
-            }
-        };
-        res.map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))
+        match self.abiv {
+            AbiVersion::V1 => self.do_values_v1(values),
+            AbiVersion::V2 => self.do_values_v2(values),
+        }
     }
-    #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
+    #[cfg(not(feature = "uapi_v2"))]
     pub fn values(&self, values: &mut Values) -> Result<()> {
-        let mut vals = values.to_uapi(&self.offsets);
-        uapi::get_line_values(self.fd, &mut vals)
-            .map(|_| values.overlay_from_uapi(&self.offsets, &vals))
+        self.do_values_v1(values)
+    }
+    #[cfg(not(feature = "uapi_v1"))]
+    pub fn values(&self, values: &mut Values) -> Result<()> {
+        self.do_values_v2(values)
+    }
+    #[cfg(feature = "uapi_v1")]
+    fn do_values_v1(&self, values: &mut Values) -> Result<()> {
+        let mut vals = v1::LineValues::default();
+        v1::get_line_values(self.fd, &mut vals)
+            .map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))?;
+        if values.is_empty() {
+            values.overlay_from_v1(&self.offsets, &vals);
+            return Ok(());
+        }
+        for i in 0..self.offsets.len() {
+            if values.contains(&self.offsets[i]) {
+                values.set(self.offsets[i], vals.get(i).into());
+            }
+        }
+        Ok(())
+    }
+    #[cfg(feature = "uapi_v2")]
+    fn do_values_v2(&self, values: &mut Values) -> Result<()> {
+        let mut vals = values.to_v2(&self.offsets);
+        v2::get_line_values(self.fd, &mut vals)
+            .map(|_| values.overlay_from_v2(&self.offsets, &vals))
             .map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))
     }
 
@@ -1169,6 +1183,11 @@ impl Request {
     /// # }
     /// ```
     pub fn value(&self, offset: Offset) -> Result<Value> {
+        if !self.offsets.contains(&offset) {
+            return Err(Error::InvalidArgument(
+                "offset is not a requested line.".to_string(),
+            ));
+        }
         let mut values = Values::default();
         values.set(offset, Value::Inactive);
         self.values(&mut values)?;
@@ -1199,24 +1218,39 @@ impl Request {
     /// # }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn set_values(&self, values: &Values) -> Result<()> {
-        let res = match self.abiv {
-            AbiVersion::V1 => v1::set_line_values(self.fd, &values.to_v1(&self.offsets)),
-            AbiVersion::V2 => {
-                let lv = &values.to_v2(&self.offsets);
-                if lv.mask.is_empty() {
-                    return Err(Error::InvalidArgument(
-                        "No requested lines in set values.".to_string(),
-                    ));
-                }
-                v2::set_line_values(self.fd, lv)
-            }
-        };
-        res.map_err(|e| Error::UapiError(UapiCall::SetLineValues, e))
+        match self.abiv {
+            AbiVersion::V1 => self.do_set_values_v1(values),
+            AbiVersion::V2 => self.do_set_values_v2(values),
+        }
     }
-    #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
+    #[cfg(not(feature = "uapi_v2"))]
     pub fn set_values(&self, values: &Values) -> Result<()> {
-        uapi::set_line_values(self.fd, &values.to_uapi(&self.offsets))
+        self.do_set_values_v1(values)
+    }
+    #[cfg(not(feature = "uapi_v1"))]
+    pub fn set_values(&self, values: &Values) -> Result<()> {
+        self.do_set_values_v2(values)
+    }
+    #[cfg(feature = "uapi_v1")]
+    fn do_set_values_v1(&self, values: &Values) -> Result<()> {
+        if self.offsets.iter().any(|o| !values.contains(o)) {
+            return Err(Error::AbiLimitation(
+                AbiVersion::V1,
+                "requires all requested lines".to_string(),
+            ));
+        }
+        v1::set_line_values(self.fd, &values.to_v1(&self.offsets))
             .map_err(|e| Error::UapiError(UapiCall::SetLineValues, e))
+    }
+    #[cfg(feature = "uapi_v2")]
+    fn do_set_values_v2(&self, values: &Values) -> Result<()> {
+        let lv = &values.to_v2(&self.offsets);
+        if lv.mask.is_empty() {
+            return Err(Error::InvalidArgument(
+                "no requested lines in set values.".to_string(),
+            ));
+        }
+        v2::set_line_values(self.fd, lv).map_err(|e| Error::UapiError(UapiCall::SetLineValues, e))
     }
 
     /// Set the value for one line in the request.
@@ -1237,6 +1271,11 @@ impl Request {
     /// # Ok(())
     /// # }
     pub fn set_value(&self, offset: Offset, value: Value) -> Result<()> {
+        if !self.offsets.contains(&offset) {
+            return Err(Error::InvalidArgument(
+                "offset is not a requested line.".to_string(),
+            ));
+        }
         let mut values = Values::default();
         values.set(offset, value);
         self.set_values(&values)
@@ -1429,7 +1468,7 @@ impl Request {
     /// * `capacity` - The number of events that can be buffered.
     pub fn new_edge_event_buffer(&self, capacity: usize) -> EdgeEventBuffer {
         let event_size = self.edge_event_size();
-        let mut buf = Vec::with_capacity(capacity * event_size);
+        let mut buf = Vec::with_capacity(max(capacity, 1) * event_size);
         buf.resize(buf.capacity(), 0);
         EdgeEventBuffer {
             req: self,
@@ -1440,7 +1479,8 @@ impl Request {
         }
     }
 }
-/// A helper for reading edge events from a [`Request`].
+
+/// A user space buffer for reading edge events in bulk from a [`Request`].
 ///
 /// Reads edge events from the kernel in bulk, where possible, while providing them
 /// serially to the caller.
@@ -1461,6 +1501,26 @@ pub struct EdgeEventBuffer<'a> {
 }
 
 impl<'a> EdgeEventBuffer<'a> {
+    /// The number of events that can be stored in the buffer.
+    pub fn capacity(&self) -> usize {
+        self.buf.capacity() / self.event_size
+    }
+
+    /// The number of unread events currently stored in this buffer.
+    ///
+    /// This does not include events which may be buffered in the kernel.
+    pub fn len(&self) -> usize {
+        (self.filled - self.read) / self.event_size
+    }
+
+    /// Returns true if there are no unread events in the buffer.
+    ///
+    /// This does not check whether events are available in the kernel buffer,
+    /// only if there are events currently stored in this buffer.
+    pub fn is_empty(&self) -> bool {
+        self.read >= self.filled
+    }
+
     /// Returns true when either the buffer, or the request, has edge events available to read.
     pub fn has_event(&mut self) -> Result<bool> {
         if self.read < self.filled {
