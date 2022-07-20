@@ -167,15 +167,18 @@ impl Name {
     pub fn is_empty(&self) -> bool {
         self.0[0] == 0
     }
+
     /// The length of the contained name.
     #[inline]
     pub fn strlen(&self) -> usize {
         self.0.iter().position(|&x| x == 0).unwrap_or(self.0.len())
     }
+
     /// Convert the contained name to a OsString slice.
     pub fn as_os_str(&self) -> &OsStr {
         unsafe { OsStr::from_bytes(slice::from_raw_parts(&self.0[0], self.strlen())) }
     }
+
     /// Construct a Name from byte slice.
     ///
     /// Slice will be truncated if longer than the Name size.
