@@ -60,7 +60,7 @@ use std::time::Duration;
 ///     .on_chip("/dev/gpiochip0")
 ///     .with_lines(offsets)
 ///     .request()?;
-/// let mut values = Values::from_lines(offsets);
+/// let mut values = Values::from_offsets(offsets);
 /// ll.values(&mut values)?;
 /// # Ok(())
 /// # }
@@ -1036,12 +1036,19 @@ impl<'a> Iterator for SelectedIterator<'a> {
 pub struct Request {
     /// The request file, as returned by chip.get_line.
     _f: File,
+
     /// Cached copy of _f.as_raw_fd() for syscalls, to avoid Arc<Mutex<>> overheads for ops.
     fd: RawFd,
+
+    /// The offsets of the requested lines.
     offsets: Vec<Offset>,
+
+    /// A snapshot of the active configuration for the request.
     cfg: Arc<RwLock<Config>>,
+
     /// The size of the user buffer created for the edge_events() iterator.
     user_event_buffer_size: usize,
+
     /// The ABI version used to create the request, and so determines how to decode events.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     abiv: AbiVersion,
@@ -1096,6 +1103,7 @@ impl Request {
     /// Get the values for a subset of the requested lines.
     ///
     /// The keys indicate the lines to get.
+    /// Keys that are not requested offsets are ignored.
     /// If no keys are set then all requested lines are returned.
     ///
     /// # Examples
@@ -1110,7 +1118,7 @@ impl Request {
     ///     .with_lines(&[3,5,6,8])
     ///     .request()?;
     /// // subset of lines
-    /// let mut values = Values::from_lines(&[3,8]);
+    /// let mut values = Values::from_offsets(&[3,8]);
     /// ll.values(&mut values)?;
     /// // all requested lines
     /// let mut values = Values::default();
@@ -1438,12 +1446,16 @@ impl Request {
 /// serially to the caller.
 pub struct EdgeEventBuffer<'a> {
     req: &'a Request,
+
     /// The size of an individual edge event stored in the buffer.
     event_size: usize,
+
     /// The number of bytes currently written into the buffer
     filled: usize,
+
     /// The number of bytes currently read from the buffer.
     read: usize,
+
     /// The buffer for uAPI edge events, sized by event size and capacity
     buf: Vec<u8>,
 }

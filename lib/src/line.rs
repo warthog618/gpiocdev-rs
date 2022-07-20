@@ -452,13 +452,13 @@ impl Values {
         self.0.is_empty()
     }
 
-    /// Construct a `Values` collection for a set of lines.
+    /// Construct a `Values` collection for a set of line offsets.
     ///
     /// Typically used to create a values template to be populated via a call to
     /// [`crate::request::Request::values()`].
     ///
     /// All lines are set to inactive.
-    pub fn from_lines(offsets: &[Offset]) -> Values {
+    pub fn from_offsets(offsets: &[Offset]) -> Values {
         let mut values = Values::default();
         for offset in offsets {
             values.set(*offset, Value::Inactive);
@@ -1295,8 +1295,8 @@ mod tests {
         }
 
         #[test]
-        fn from_lines() {
-            let values = Values::from_lines(&[1, 6, 3, 9]);
+        fn from_offsets() {
+            let values = Values::from_offsets(&[1, 6, 3, 9]);
             assert_eq!(values.get(0), None);
             assert_eq!(values.get(1), Some(Value::Inactive));
             assert_eq!(values.get(2), None);
