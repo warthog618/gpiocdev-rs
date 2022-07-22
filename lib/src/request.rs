@@ -86,7 +86,8 @@ use std::time::Duration;
 ///
 /// ```
 ///
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Default, Eq, PartialEq)]
+#[cfg_attr(test, derive(Debug))]
 pub struct Builder {
     chip: PathBuf,
     cfg: Config,
@@ -218,11 +219,13 @@ impl Builder {
     /// This method is only required in unusual circumstances.
     ///
     /// The size defines the number of events that may be buffered in user space by the
-    /// edge_events() iterator.  The user space buffer is a performance optimisation to
+    /// [`Request.edge_events`] iterator.  The user space buffer is a performance optimisation to
     /// reduce the number of system calls required to read events.
     ///
     /// Altering the buffer size does NOT affect latency.
     /// In all cases the events are provided to user space as fast as user space allows.
+    ///
+    /// [`Request.edge_events`]: struct.Request.html#method.edge_events
     pub fn with_user_event_buffer_size(&mut self, event_buffer_size: usize) -> &mut Self {
         self.user_event_buffer_size = event_buffer_size;
         self
@@ -489,7 +492,7 @@ fn default_consumer() -> String {
     format!("gpiocdev-p{}", std::process::id())
 }
 
-#[derive(Debug)]
+#[cfg_attr(test, derive(Debug))]
 #[allow(clippy::large_enum_variant)]
 enum UapiRequest {
     #[cfg(feature = "uapi_v1")]
@@ -526,8 +529,8 @@ enum UapiRequest {
 ///
 /// ```
 ///
-/// Note that the configuration is applied to hardware via a [`Builder.request`] or
-/// [`Request.reconfigure`] call.  Any changes to the `Config` object, either before or after that
+/// Note that the configuration is applied to hardware via a call to [`Builder.request`] or
+/// [`Request.reconfigure`].  Changes to the `Config` object, either before or after that
 /// only update the configuration in memory in preparation for the next application.
 ///
 /// [`Builder.request`]: struct.Builder.html#method.request
@@ -995,6 +998,7 @@ type LineSet = Bitmap<64>;
 struct SelectedIterator<'a> {
     // the config being iterated over.
     cfg: &'a mut Config,
+
     // the index into the selected vector.
     index: usize,
 }
@@ -1033,6 +1037,16 @@ impl<'a> Iterator for SelectedIterator<'a> {
 }
 
 /// An active request of a set of lines.
+///
+///
+/// # Event Buffering
+///
+/// Some buffering description here:
+///  - kernel
+///  - user space EdgeEventBuffer
+///  - external byte buffer
+///
+#[derive(Debug)]
 pub struct Request {
     /// The request file, as returned by chip.get_line.
     _f: File,
@@ -1046,7 +1060,7 @@ pub struct Request {
     /// A snapshot of the active configuration for the request.
     cfg: Arc<RwLock<Config>>,
 
-    /// The size of the user buffer created for the edge_events() iterator.
+    /// The size of the user buffer created for the `edge_events` iterator.
     user_event_buffer_size: usize,
 
     /// The ABI version used to create the request, and so determines how to decode events.
@@ -1370,23 +1384,30 @@ impl Request {
     }
 
     /// An iterator for events from the request.
+    ///
+    /// By default the events are read from the kernel individually.
+    ///
+    /// The iterator can be backed by a user space buffer using the
+    /// [`Builder.with_user_event_buffer_size`] option in the builder.
+    ///
+    /// [`Builder.with_user_event_buffer_size`]: struct.Builder.html#method.with_user_event_buffer_size
+
     pub fn edge_events(&self) -> Result<EdgeEventBuffer> {
         Ok(self.new_edge_event_buffer(self.user_event_buffer_size))
     }
 
-    // This will read in v1:LineEdgeEvent or v2::LineEdgeEvent sized chunks so buf must be at least
-    // as large as one event.
-    fn read_event(&self, buf: &mut [u8]) -> Result<usize> {
-        gpiocdev_uapi::read_event(self.fd, buf)
-            .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))
-    }
-
-    /// Returns true when the request has edge events available to read.
+    /// Returns true when the request has edge events available to read using [`read_edge_event`].
+    ///
+    /// [`read_edge_event`]: #method.read_edge_event
     pub fn has_edge_event(&self) -> Result<bool> {
         gpiocdev_uapi::has_event(self.fd).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
     }
 
     /// Wait for an edge event to be available.
+    ///
+    /// Returns true if ['read_edge_event'] will return an event without blocking.
+    ///
+    /// [`read_edge_event`]: #method.read_edge_event
     pub fn wait_edge_event(&self, timeout: Duration) -> Result<bool> {
         gpiocdev_uapi::wait_event(self.fd, timeout)
             .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
@@ -1395,17 +1416,70 @@ impl Request {
     /// Read a single edge event from the request.
     ///
     /// Will block until an edge event is available.
+    ///
+    /// This is a convenience function.
+    /// Reading events using a [`edge_events`] or a buffer created using [`new_edge_event_buffer`]
+    /// is more performant.
+    ///
+    /// [`edge_events`]: #method.edge_events
+    /// [`new_edge_event_buffer`]: #method.new_edge_event_buffer
     pub fn read_edge_event(&self) -> Result<EdgeEvent> {
         let mut buf = Vec::with_capacity(self.edge_event_size());
         buf.resize(buf.capacity(), 0);
-        self.read_event(&mut buf)?;
+        self.read_edge_events_into_slice(&mut buf)?;
         self.do_edge_event_from_buf(&buf)
     }
 
-    /// Read an edge event from a buffer.
+    /// Create an edge event buffer.
     ///
-    /// Assumes the buffer has been previously populated by a call to read on the request.
-    pub fn edge_event_from_buf(&self, buf: &[u8]) -> Result<EdgeEvent> {
+    /// * `capacity` - The number of events that can be buffered.
+    pub fn new_edge_event_buffer(&self, capacity: usize) -> EdgeEventBuffer {
+        let event_size = self.edge_event_size();
+        let mut buf = Vec::with_capacity(max(capacity, 1) * event_size);
+        buf.resize(buf.capacity(), 0);
+        EdgeEventBuffer {
+            req: self,
+            event_size,
+            filled: 0,
+            read: 0,
+            buf,
+        }
+    }
+
+    // External buffer/slice methods.
+
+    /// Read edge events from the kernel into a user space `[u8]` slice.
+    ///
+    /// This is a helper function for the special case where the user prefers to
+    /// manage the buffer containing raw events, e.g. to place it in a specific
+    /// location in memory.
+    ///
+    /// This will read in [`edge_event_size`] sized chunks so buf must be at least
+    /// as large as one event.
+    ///
+    /// This function will block if no events are available to read.
+    ///
+    /// * `buf` - The slice to contain the raw events.
+    ///
+    /// [`edge_event_size`]: #method.edge_event_size
+    pub fn read_edge_events_into_slice(&self, buf: &mut [u8]) -> Result<usize> {
+        gpiocdev_uapi::read_event(self.fd, buf)
+            .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))
+    }
+
+    /// Read an edge event from a `[u8]` slice.
+    ///
+    /// This is a helper function for the special case where the user prefers to
+    /// manage the buffer containing raw events, e.g. to place it in a specific
+    /// location in memory.
+    ///
+    /// Assumes the buffer has been previously populated by a call to
+    /// [`read_edge_events_into_slice`].
+    ///
+    /// * `buf` - The slice containing the raw event.
+    ///
+    /// [`read_edge_events_into_slice`]: #method.read_edge_events_into_slice
+    pub fn edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
         self.do_edge_event_from_buf(buf)
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -1413,7 +1487,7 @@ impl Request {
         match self.abiv {
             AbiVersion::V1 => {
                 let mut ee = EdgeEvent::from(
-                    uapi::LineEdgeEvent::from_buf(buf)
+                    v1::LineEdgeEvent::from_buf(buf)
                         .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
                 );
                 // populate offset for v1
@@ -1446,8 +1520,8 @@ impl Request {
 
     /// The number of bytes required to buffer a single event read from the request.
     ///
-    /// This can be used to size a [u8] buffer to read events into - the buffer size
-    /// should be a multiple of this size.
+    /// This can be used to size an external [u8] slice to read events into.
+    /// The slice size should be a multiple of this size.
     pub fn edge_event_size(&self) -> usize {
         self.do_edge_event_size()
     }
@@ -1461,22 +1535,6 @@ impl Request {
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_edge_event_size(&self) -> usize {
         size_of::<uapi::LineEdgeEvent>()
-    }
-
-    /// Create an edge event buffer.
-    ///
-    /// * `capacity` - The number of events that can be buffered.
-    pub fn new_edge_event_buffer(&self, capacity: usize) -> EdgeEventBuffer {
-        let event_size = self.edge_event_size();
-        let mut buf = Vec::with_capacity(max(capacity, 1) * event_size);
-        buf.resize(buf.capacity(), 0);
-        EdgeEventBuffer {
-            req: self,
-            event_size,
-            filled: 0,
-            read: 0,
-            buf,
-        }
     }
 }
 
@@ -1542,18 +1600,19 @@ impl<'a> EdgeEventBuffer<'a> {
             let evt_end = self.read + self.event_size;
             let evt = &self.buf[self.read..evt_end];
             self.read = evt_end;
-            return self.req.edge_event_from_buf(evt);
+            return self.req.edge_event_from_slice(evt);
         }
         self.read = 0;
         self.filled = 0;
-        let n = self.req.read_event(&mut self.buf)?;
+        let n = self.req.read_edge_events_into_slice(&mut self.buf)?;
         // Could turn these into run-time errors, but they should never happen
         // so make them asserts to keep it simple.
         assert!(n > 0);
         assert_eq!(n % self.event_size, 0);
         self.filled = n;
         self.read = self.event_size;
-        self.req.edge_event_from_buf(&self.buf[0..self.event_size])
+        self.req
+            .edge_event_from_slice(&self.buf[0..self.event_size])
     }
 
     /// Wait for an edge event from the request.
