@@ -69,11 +69,11 @@ mod chip {
         assert_eq!(c.get_pull(5).unwrap(), gpiosim::Level::Low);
         assert_eq!(req.value(5).unwrap(), line::Value::Inactive);
 
-        assert!(c.set_pull(5, &gpiosim::Level::High).is_ok());
+        assert!(c.set_pull(5, gpiosim::Level::High).is_ok());
         assert_eq!(c.get_pull(5).unwrap(), gpiosim::Level::High);
         assert_eq!(req.value(5).unwrap(), line::Value::Active);
 
-        assert!(c.set_pull(5, &gpiosim::Level::Low).is_ok());
+        assert!(c.set_pull(5, gpiosim::Level::Low).is_ok());
         assert_eq!(c.get_pull(5).unwrap(), gpiosim::Level::Low);
         assert_eq!(req.value(5).unwrap(), line::Value::Inactive);
     }

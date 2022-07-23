@@ -144,7 +144,7 @@ pub struct Chip {
 
 impl Chip {
     /// Pull a line to simulate the line being externally driven.
-    pub fn set_pull(&self, offset: Offset, pull: &Level) -> Result<()> {
+    pub fn set_pull(&self, offset: Offset, pull: Level) -> Result<()> {
         let value = match pull {
             Level::Low => "pull-down",
             Level::High => "pull-up",
@@ -155,12 +155,12 @@ impl Chip {
 
     /// Pull a line up to simulate the line being externally driven high.
     pub fn pullup(&self, offset: Offset) -> Result<()> {
-        self.set_pull(offset, &Level::High)
+        self.set_pull(offset, Level::High)
     }
 
     /// Pull a line down to simulate the line being externally driven low.
     pub fn pulldown(&self, offset: Offset) -> Result<()> {
-        self.set_pull(offset, &Level::Low)
+        self.set_pull(offset, Level::Low)
     }
 
     /// Toggle the pull on a line.
@@ -169,7 +169,7 @@ impl Chip {
             Level::High => Level::Low,
             Level::Low => Level::High,
         };
-        self.set_pull(offset, &value)?;
+        self.set_pull(offset, value)?;
         Ok(value)
     }
 
@@ -374,7 +374,7 @@ pub struct Hog {
 }
 
 /// The direction, and for outputs the pulled value, of a hogged line.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Direction {
     /// Hogged line is requested as an input.
     Input,
@@ -397,7 +397,7 @@ impl std::string::ToString for Direction {
 }
 
 /// The physical value of a line.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Level {
     /// The line is  physically high.
     High,
