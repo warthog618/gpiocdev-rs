@@ -138,3 +138,7 @@ SUBCOMMANDS:
 The [gpiocdev-uapi](https://warthog618.github.io/gpiocdev-rs/gpiocdev_uapi/) crate provides a minimal safe Rust wrapper around the character device ioctls.
 
 The gpiocdev crate provides a higher level abstraction, so you should use that unless you have some particular interest in calling the ioctls directly.
+
+## gpiosim
+
+The [gpiosim](https://warthog618.github.io/gpiocdev-rs/gpiosim/) crate provides GPIO chip simulators for testing gpiocdev, or apps that use it.
