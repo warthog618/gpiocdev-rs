@@ -265,6 +265,12 @@ impl Builder {
     }
 
     /// Take the builder config live and return the created simulator.
+    ///
+    /// If no name has been provided for the builder then one is generated
+    /// in the format `<app>-p<pid>-<N>` where:
+    ///  - the app name is drawn from `argv[0]` of the executable
+    ///  - pid is the process id
+    ///  - N is a counter of sims taken live by this process, starting at 0
     pub fn live(&mut self) -> Result<Sim> {
         let name = match &self.name {
             Some(n) => n.clone(),
@@ -406,13 +412,14 @@ pub enum Level {
     Low,
 }
 
-/// Create a unique, but predicatable, name for the simulator.
+/// Create a unique, but predictable, name for the simulator.
 ///
-/// The name format is "<app>-p<pid>-<N>[-<instance>]"
+/// The name format is `<app>-p<pid>-<N>[-<instance>]`
 /// where:
-///   - the app is drawn from argv if None
+///   - the app name provided by the caller
 ///   - pid is the process id
-///   - N is a counter of the sims created, starting at 0.
+///   - N is a counter of the sims created, starting at 0
+///   - instance is optionally provided by the caller
 pub fn unique_name(app: &str, instance: Option<&str>) -> String {
     global_counter!(SIM_COUNT, u32, 0);
 
