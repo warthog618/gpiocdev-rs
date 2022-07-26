@@ -12,6 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request multiple output lines
     let req = Request::builder()
         .on_chip("/dev/gpiochip0")
+        .with_consumer("set_many")
         .with_lines(&[17, 22])
         .as_output(Value::Active)
         .request()?;
