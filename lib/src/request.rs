@@ -1424,8 +1424,7 @@ impl Request {
     /// [`edge_events`]: #method.edge_events
     /// [`new_edge_event_buffer`]: #method.new_edge_event_buffer
     pub fn read_edge_event(&self) -> Result<EdgeEvent> {
-        let mut buf = Vec::with_capacity(self.edge_event_size());
-        buf.resize(buf.capacity(), 0);
+        let mut buf = vec![0; self.edge_event_size()];
         self.read_edge_events_into_slice(&mut buf)?;
         self.do_edge_event_from_buf(&buf)
     }
@@ -1435,14 +1434,12 @@ impl Request {
     /// * `capacity` - The number of events that can be buffered.
     pub fn new_edge_event_buffer(&self, capacity: usize) -> EdgeEventBuffer {
         let event_size = self.edge_event_size();
-        let mut buf = Vec::with_capacity(max(capacity, 1) * event_size);
-        buf.resize(buf.capacity(), 0);
         EdgeEventBuffer {
             req: self,
             event_size,
             filled: 0,
             read: 0,
-            buf,
+            buf: vec![0; max(capacity, 1) * event_size],
         }
     }
 

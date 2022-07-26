@@ -612,8 +612,6 @@ mod request {
             #[cfg(feature = "uapi_v2")]
             builder.using_abi_version(gpiocdev::AbiVersion::V1);
             let req = builder.request().unwrap();
-            let mut buf = Vec::with_capacity(req.edge_event_size() * 3);
-            buf.resize(buf.capacity(), 0);
 
             // create four events
             simc.toggle(offset).unwrap();
@@ -673,8 +671,7 @@ mod request {
                 .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
                 .request()
                 .unwrap();
-            let mut buf = Vec::with_capacity(req.edge_event_size() * 3);
-            buf.resize(buf.capacity(), 0);
+            let mut buf = vec![0; req.edge_event_size() * 3];
 
             // create four events
             simc.toggle(offset).unwrap();
@@ -907,8 +904,7 @@ mod request {
                 .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
                 .request()
                 .unwrap();
-            let mut buf = Vec::with_capacity(req.edge_event_size() * 3);
-            buf.resize(buf.capacity(), 0);
+            let mut buf = vec![0; req.edge_event_size() * 3];
 
             // create four events
             simc.toggle(1).unwrap();
@@ -1389,8 +1385,7 @@ mod request {
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
             .request()
             .unwrap();
-        let mut buf = Vec::with_capacity(req.edge_event_size() * 3);
-        buf.resize(buf.capacity(), 0);
+        let mut buf = vec![0; req.edge_event_size() * 3];
 
         // create four events
         simc.toggle(offset).unwrap();

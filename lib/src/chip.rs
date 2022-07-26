@@ -215,8 +215,7 @@ impl Chip {
     ///
     /// Will block until an edge event is available.
     pub fn read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
-        let mut buf = Vec::with_capacity(self.line_info_change_event_size());
-        buf.resize(buf.capacity(), 0);
+        let mut buf = vec![0; self.line_info_change_event_size()];
         let n = gpiocdev_uapi::read_event(self.fd, &mut buf)
             .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))?;
         assert_eq!(n, self.line_info_change_event_size());
@@ -226,12 +225,10 @@ impl Chip {
     /// An iterator for info change events from the chip.
     pub fn info_change_events(&self) -> Result<InfoChangeIterator> {
         let event_size = self.line_info_change_event_size();
-        let mut buf = Vec::with_capacity(event_size);
-        buf.resize(buf.capacity(), 0);
         Ok(InfoChangeIterator {
             chip: self,
             event_size,
-            buf,
+            buf: vec![0; event_size],
         })
     }
 
