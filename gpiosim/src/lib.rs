@@ -2,6 +2,20 @@
 //
 // SPDX-License-Identifier: MIT
 
+//! A library for creating controlling GPIO simulators on Linux platforms
+//! using the gpio-sim module.
+//!
+//! Simulators can be built using the [`Builder`].
+//!
+//! For simple tests that only require one chip and control of line values,
+//! but not line info, the [`Simpleton`] provides a simplified interface.
+//!
+//! The library controls the simulators via configfs and sysfs, so using it
+//! generally requires root permissions.
+//!
+//! [`Builder`]: fn.builder.html
+//! [`Simpleton`]: fn.simpleton.html
+
 use nohash_hasher::IntMap;
 use std::env;
 use std::ffi::OsString;
