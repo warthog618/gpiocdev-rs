@@ -358,7 +358,7 @@ impl Bank {
         self
     }
 
-    /// Add a hog on a line on the chipp.
+    /// Add a hog on a line on the chip.
     pub fn hog<N: Into<String>>(
         &mut self,
         offset: Offset,
