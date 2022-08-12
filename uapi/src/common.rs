@@ -123,7 +123,7 @@ pub type ValidationResult = std::result::Result<(), ValidationError>;
 /// Errors returned by [`gpiocdev_uapi`] functions.
 ///
 /// [`gpiocdev_uapi`]: crate
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, Eq, PartialEq)]
 pub enum Error {
     /// An error returned from an underlying system call.
     #[error(transparent)]

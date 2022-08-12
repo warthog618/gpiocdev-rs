@@ -468,25 +468,35 @@ mod builder {
         let sim = gpiosim::simpleton(3);
         let simc = sim.chip();
 
-        let res = Request::builder()
-            .on_chip(&simc.dev_path)
-            .with_line(5)
-            .as_input()
-            .request();
+        let mut builder = Request::builder();
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        builder.using_abi_version(abiv);
+        builder.on_chip(&simc.dev_path).with_line(5).as_input();
+        let res = builder.request().unwrap_err();
         if abiv == AbiVersion::V2 {
             assert_eq!(
-                res.unwrap_err(),
+                res,
                 gpiocdev::Error::UapiError(
                     gpiocdev::UapiCall::GetLine,
                     gpiocdev_uapi::Error::Os(Errno(22))
                 )
             );
         } else {
-            #[cfg(not(feature = "uapi_v2"))]
             assert_eq!(
-                res.unwrap_err(),
+                res,
                 gpiocdev::Error::UapiError(
                     gpiocdev::UapiCall::GetLineHandle,
+                    gpiocdev_uapi::Error::Os(Errno(22))
+                )
+            );
+            let res = builder
+                .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
+                .request()
+                .unwrap_err();
+            assert_eq!(
+                res,
+                gpiocdev::Error::UapiError(
+                    gpiocdev::UapiCall::GetLineEvent,
                     gpiocdev_uapi::Error::Os(Errno(22))
                 )
             );
@@ -575,6 +585,31 @@ mod request {
         #[test]
         fn reconfigure() {
             super::reconfigure(V1);
+        }
+
+        #[test]
+        fn reconfigure_edge_detection_change() {
+            let sim = gpiosim::simpleton(20);
+            let simc = sim.chip();
+            let offsets = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+
+            let mut builder = Request::builder();
+            #[cfg(feature = "uapi_v2")]
+            builder.using_abi_version(gpiocdev::AbiVersion::V1);
+            let req = builder
+                .on_chip(&simc.dev_path)
+                .with_lines(offsets)
+                .as_input()
+                .request()
+                .unwrap();
+
+            let mut cfg = req.config();
+            cfg.with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
+            let res = req.reconfigure(&cfg);
+            assert_eq!(
+                res.unwrap_err().to_string(),
+                "uAPI ABI v1 cannot reconfigure edge detection."
+            );
         }
 
         #[test]
@@ -1080,7 +1115,7 @@ mod request {
         assert_eq!(vals.get(0), None);
         assert_eq!(vals.get(3), Some(Value::Active));
 
-        // invalid offset - unaltered
+        // invalid offset - ignored and unaltered
         let mut vals = Values::from_offsets(&[1, 2]);
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), None);
@@ -1194,6 +1229,13 @@ mod request {
             assert_eq!(simc.get_level(0).unwrap(), Level::High);
             assert_eq!(simc.get_level(1).unwrap(), Level::Low);
             assert_eq!(simc.get_level(3).unwrap(), Level::Low);
+
+            // empty set
+            let mut vals = Values::default();
+            assert!(req.set_values(&vals).is_ok());
+            assert_eq!(simc.get_level(0).unwrap(), Level::Low);
+            assert_eq!(simc.get_level(1).unwrap(), Level::Low);
+            assert_eq!(simc.get_level(3).unwrap(), Level::Low);
         } else {
             // subset
             let mut vals = Values::default();
@@ -1216,6 +1258,16 @@ mod request {
                     gpiocdev::AbiVersion::V1,
                     "requires all requested lines".to_string(),
                 )
+            );
+
+            // empty set
+            let mut vals = Values::default();
+            assert_eq!(
+                req.set_values(&vals),
+                Err(gpiocdev::Error::AbiLimitation(
+                    gpiocdev::AbiVersion::V1,
+                    "requires all requested lines".to_string()
+                ))
             );
         }
 

@@ -116,7 +116,7 @@ impl From<Timestamp> for DateTime<Utc> {
 /// Errors returned by [`gpiocdev`] functions.
 ///
 /// [`gpiocdev`]: crate
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, Eq, PartialEq)]
 pub enum Error {
     /// An operation cannot be performed due to a limitation in the ABI version being used.
     #[error("{0} {1}.")]
@@ -238,4 +238,77 @@ pub fn supports_abi_version(abiv: AbiVersion) -> Result<()> {
         }
     }
     Err(Error::NoGpioChips())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod timestamp {
+        use super::Timestamp;
+        use chrono::{DateTime, Utc};
+
+        #[test]
+        fn from_nanos() {
+            let t = Timestamp::from_nanos(123);
+            assert_eq!(t.0.timestamp_nanos(), 123);
+        }
+
+        #[test]
+        fn into_datetime() {
+            let t = Timestamp::from_nanos(678);
+            let dt: DateTime<Utc> = t.into();
+            assert_eq!(dt.timestamp_nanos(), 678);
+        }
+    }
+
+    mod uapi_call {
+
+        #[test]
+        fn display() {
+            use super::UapiCall;
+            let uc = UapiCall::GetChipInfo;
+            assert_eq!(format!("{}", uc), "get_chip_info");
+            let uc = UapiCall::GetLine;
+            assert_eq!(format!("{}", uc), "get_line");
+            let uc = UapiCall::GetLineEvent;
+            assert_eq!(format!("{}", uc), "get_line_event");
+            let uc = UapiCall::GetLineHandle;
+            assert_eq!(format!("{}", uc), "get_line_handle");
+            let uc = UapiCall::GetLineInfo;
+            assert_eq!(format!("{}", uc), "get_line_info");
+            let uc = UapiCall::GetLineValues;
+            assert_eq!(format!("{}", uc), "get_line_values");
+            let uc = UapiCall::HasEvent;
+            assert_eq!(format!("{}", uc), "has_event");
+            let uc = UapiCall::LEEFromBuf;
+            assert_eq!(format!("{}", uc), "LineEdgeEvent::from_buf");
+            let uc = UapiCall::LICEFromBuf;
+            assert_eq!(format!("{}", uc), "LineInfoChangeEvent::from_buf");
+            let uc = UapiCall::ReadEvent;
+            assert_eq!(format!("{}", uc), "read_event");
+            let uc = UapiCall::SetLineConfig;
+            assert_eq!(format!("{}", uc), "set_line_config");
+            let uc = UapiCall::SetLineValues;
+            assert_eq!(format!("{}", uc), "set_line_values");
+            let uc = UapiCall::WaitEvent;
+            assert_eq!(format!("{}", uc), "wait_event");
+            let uc = UapiCall::WatchLineInfo;
+            assert_eq!(format!("{}", uc), "watch_line_info");
+            let uc = UapiCall::UnwatchLineInfo;
+            assert_eq!(format!("{}", uc), "unwatch_line_info");
+        }
+    }
+
+    mod abi_support_kind {
+
+        #[test]
+        fn display() {
+            use super::AbiSupportKind;
+            let ask = AbiSupportKind::Library;
+            assert_eq!(format!("{}", ask), "library");
+            let ask = AbiSupportKind::Platform;
+            assert_eq!(format!("{}", ask), "platform");
+        }
+    }
 }

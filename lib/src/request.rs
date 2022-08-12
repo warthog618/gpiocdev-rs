@@ -1165,7 +1165,7 @@ impl Request {
             return Ok(());
         }
         for i in 0..self.offsets.len() {
-            if values.contains(&self.offsets[i]) {
+            if values.contains_key(&self.offsets[i]) {
                 values.set(self.offsets[i], vals.get(i).into());
             }
         }
@@ -1247,7 +1247,7 @@ impl Request {
     }
     #[cfg(feature = "uapi_v1")]
     fn do_set_values_v1(&self, values: &Values) -> Result<()> {
-        if self.offsets.iter().any(|o| !values.contains(o)) {
+        if self.offsets.iter().any(|o| !values.contains_key(o)) {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
                 "requires all requested lines".to_string(),
@@ -1352,6 +1352,12 @@ impl Request {
                         "cannot reconfigure lines with edge detection".to_string(),
                     ));
                 }
+                if cfg.unique()?.edge_detection.is_some() {
+                    return Err(Error::AbiLimitation(
+                        AbiVersion::V1,
+                        "cannot reconfigure edge detection".to_string(),
+                    ));
+                }
                 v1::set_line_config(self.fd, cfg.to_v1()?)
                     .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
             }
@@ -1372,6 +1378,12 @@ impl Request {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
                 "cannot reconfigure lines with edge detection".to_string(),
+            ));
+        }
+        if cfg.unique()?.edge_detection.is_some() {
+            return Err(Error::AbiLimitation(
+                AbiVersion::V1,
+                "cannot reconfigure edge detection".to_string(),
             ));
         }
         v1::set_line_config(self.fd, cfg.to_v1()?)

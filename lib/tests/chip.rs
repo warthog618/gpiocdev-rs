@@ -260,6 +260,16 @@ mod chip {
         let mut builder = Request::builder();
         builder.on_chip(&simc.dev_path).with_line(offset);
 
+        let cdevc = new_chip(&simc.dev_path, abiv);
+        let res = cdevc.line_info(11);
+        assert_eq!(
+            res,
+            Err(gpiocdev::Error::UapiError(
+                gpiocdev::UapiCall::GetLineInfo,
+                gpiocdev_uapi::Error::Os(Errno(22))
+            ))
+        );
+
         let req = builder
             .as_active_low()
             .with_bias(gpiocdev::line::Bias::PullDown)
@@ -267,7 +277,6 @@ mod chip {
             .request()
             .unwrap();
 
-        let cdevc = new_chip(&simc.dev_path, abiv);
         let info = cdevc.line_info(offset).unwrap();
         assert!(info.active_low);
         assert_eq!(info.direction, gpiocdev::line::Direction::Output);
@@ -474,6 +483,14 @@ mod chip {
         let cdevc = new_chip(&simc.dev_path, abiv);
         let offset = 2;
 
+        assert_eq!(
+            cdevc.watch_line_info(5),
+            Err(gpiocdev::Error::UapiError(
+                gpiocdev::UapiCall::WatchLineInfo,
+                gpiocdev_uapi::Error::Os(Errno(22))
+            ))
+        );
+
         let req = Request::builder()
             .on_chip(&simc.dev_path)
             .with_consumer("watch info")
@@ -504,6 +521,14 @@ mod chip {
         let simc = sim.chip();
         let cdevc = Chip::from_path(&simc.dev_path).unwrap();
         let offset = 3;
+
+        assert_eq!(
+            cdevc.unwatch_line_info(5),
+            Err(gpiocdev::Error::UapiError(
+                gpiocdev::UapiCall::UnwatchLineInfo,
+                gpiocdev_uapi::Error::Os(Errno(22))
+            ))
+        );
 
         let req = Request::builder()
             .on_chip(&simc.dev_path)
@@ -584,14 +609,18 @@ mod chip {
 
             // reconfigure
             let mut cfg = req.config();
-            cfg.with_edge_detection(gpiocdev::line::EdgeDetection::RisingEdge)
-                .with_debounce_period(Duration::from_millis(10));
+            cfg.with_bias(gpiocdev::line::Bias::PullUp);
+            if abiv == gpiocdev::AbiVersion::V2 {
+                cfg.with_edge_detection(gpiocdev::line::EdgeDetection::RisingEdge)
+                    .with_debounce_period(Duration::from_millis(10));
+            }
             req.reconfigure(&cfg).unwrap();
             assert_eq!(cdevc.has_line_info_change_event(), Ok(true));
             let evt = cdevc.read_line_info_change_event().unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Reconfigured);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
+            assert_eq!(evt.info.bias, Some(gpiocdev::line::Bias::PullUp));
             if abiv == gpiocdev::AbiVersion::V2 {
                 assert_eq!(
                     evt.info.edge_detection,
@@ -717,9 +746,6 @@ mod chip {
 
     #[test]
     fn supports_abi_version() {
-        #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-        use gpiocdev::{AbiSupportKind, AbiVersion, Error};
-
         // assumes a kernel with both v1 and v2 supported.
         let sim = gpiosim::simpleton(4);
         let simc = sim.chip();
@@ -729,9 +755,9 @@ mod chip {
         #[cfg(not(feature = "uapi_v1"))]
         assert_eq!(
             cdevc.supports_abi_version(gpiocdev::AbiVersion::V1),
-            Err(Error::UnsupportedAbi(
-                AbiVersion::V1,
-                AbiSupportKind::Library
+            Err(gpiocdev::Error::UnsupportedAbi(
+                gpiocdev::AbiVersion::V1,
+                gpiocdev::AbiSupportKind::Library
             ))
         );
         #[cfg(feature = "uapi_v2")]
@@ -739,9 +765,9 @@ mod chip {
         #[cfg(not(feature = "uapi_v2"))]
         assert_eq!(
             cdevc.supports_abi_version(gpiocdev::AbiVersion::V2),
-            Err(Error::UnsupportedAbi(
-                AbiVersion::V2,
-                AbiSupportKind::Library
+            Err(gpiocdev::Error::UnsupportedAbi(
+                gpiocdev::AbiVersion::V2,
+                gpiocdev::AbiSupportKind::Library
             ))
         );
     }

@@ -702,238 +702,280 @@ impl LineEdgeEvent {
 mod tests {
     use super::*;
 
-    #[test]
-    fn size_of_line_values() {
-        assert_eq!(
-            size_of::<LineValues>(),
-            16usize,
-            concat!("Size of: ", stringify!(LineValues))
-        );
-    }
+    mod line_attribute {
+        use super::LineAttribute;
 
-    #[test]
-    fn size_of_line_attribute() {
-        assert_eq!(
-            size_of::<LineAttribute>(),
-            16usize,
-            concat!("Size of: ", stringify!(LineAttribute))
-        );
-    }
-
-    #[test]
-    fn size_of_line_attribute_value() {
-        assert_eq!(
-            size_of::<LineAttributeValueUnion>(),
-            8usize,
-            concat!("Size of: ", stringify!(LineAttributeValue))
-        );
-    }
-
-    #[test]
-    fn size_of_line_config_attribute() {
-        assert_eq!(
-            size_of::<LineConfigAttribute>(),
-            24usize,
-            concat!("Size of: ", stringify!(LineConfigAttribute))
-        );
-    }
-
-    #[test]
-    fn size_of_line_config() {
-        assert_eq!(
-            size_of::<LineConfig>(),
-            272usize,
-            concat!("Size of: ", stringify!(LineConfig))
-        );
-    }
-
-    #[test]
-    fn size_of_line_request() {
-        assert_eq!(
-            size_of::<LineRequest>(),
-            592usize,
-            concat!("Size of: ", stringify!(LineRequest))
-        );
-    }
-
-    #[test]
-    fn size_of_line_info() {
-        assert_eq!(
-            size_of::<LineInfo>(),
-            256usize,
-            concat!("Size of: ", stringify!(LineInfo))
-        );
-    }
-
-    #[test]
-    fn size_of_line_info_changed() {
-        assert_eq!(
-            size_of::<LineInfoChangeEvent>(),
-            288usize,
-            concat!("Size of: ", stringify!(LineInfoChangeEvent))
-        );
-    }
-
-    #[test]
-    fn size_of_line_event() {
-        assert_eq!(
-            size_of::<LineEdgeEvent>(),
-            48usize,
-            concat!("Size of: ", stringify!(LineEdgeEvent))
-        );
-    }
-
-    #[test]
-    fn line_values_get() {
-        let mut a = LineValues::default();
-        for idx in [0, 2] {
-            assert!(!a.bits.get(idx), "idx: {}", idx);
-            assert!(a.get(idx).is_none(), "idx: {}", idx);
-
-            a.mask.set(idx, true);
-            assert!(!a.get(idx).unwrap(), "idx: {}", idx);
-
-            a.bits.set(idx, true);
-            assert!(a.get(idx).unwrap(), "idx: {}", idx);
+        #[test]
+        fn size() {
+            assert_eq!(
+                super::size_of::<LineAttribute>(),
+                16usize,
+                concat!("Size of: ", stringify!(LineAttribute))
+            );
         }
     }
 
-    #[test]
-    fn line_values_set() {
-        let mut a = LineValues::default();
-        for idx in [0, 2] {
-            a.set(idx, false);
-            assert!(a.mask.get(idx), "idx: {}", idx);
-            assert!(!a.bits.get(idx), "idx: {}", idx);
+    mod line_attribute_value_union {
+        use super::LineAttributeValueUnion;
 
-            a.set(idx, true);
-            assert!(a.mask.get(idx), "idx: {}", idx);
-            assert!(a.bits.get(idx), "idx: {}", idx);
+        #[test]
+        fn size() {
+            assert_eq!(
+                super::size_of::<LineAttributeValueUnion>(),
+                8usize,
+                concat!("Size of: ", stringify!(LineAttributeValueUnion))
+            );
         }
     }
 
-    #[test]
-    fn line_values_unset_mask() {
-        let mut a = LineValues {
-            mask: Bitmap::mask(6),
-            ..Default::default()
-        };
-        assert_eq!(a.mask.len(), 6);
-        assert!(a.mask.get(0));
+    mod line_config_attribute {
+        use super::LineConfigAttribute;
 
-        a.unset_mask(0);
-        assert!(!a.mask.get(0));
-        assert_eq!(a.mask.len(), 5);
-        assert!(a.mask.get(3));
-
-        a.unset_mask(3);
-        assert!(!a.mask.get(3));
-        assert_eq!(a.mask.len(), 4);
-        assert!(a.mask.get(5));
-
-        a.unset_mask(5);
-        assert!(!a.mask.get(5));
-        assert_eq!(a.mask.len(), 3);
-        assert!(!a.mask.get(6));
-
-        a.unset_mask(5);
-        assert!(!a.mask.get(5));
-        assert_eq!(a.mask.len(), 3);
-    }
-    #[test]
-    fn line_attribute_kind_validate() {
-        let mut a = LineAttributeKind::Flags;
-        assert!(a.validate().is_ok());
-
-        a = LineAttributeKind::Unused;
-        assert!(a.validate().is_ok());
-
-        unsafe {
-            a = *(&4 as *const i32 as *const LineAttributeKind);
-            assert_eq!(a.validate().unwrap_err(), "invalid value: 4");
-            a = *(&3 as *const i32 as *const LineAttributeKind);
-            assert!(a.validate().is_ok());
+        #[test]
+        fn line_config_attribute() {
+            assert_eq!(
+                super::size_of::<LineConfigAttribute>(),
+                24usize,
+                concat!("Size of: ", stringify!(LineConfigAttribute))
+            );
         }
     }
-    #[test]
-    fn line_info_validate() {
-        let mut a = LineInfo::default();
-        assert!(a.validate().is_ok());
 
-        a.num_attrs = NUM_ATTRS_MAX as u32;
-        assert!(a.validate().is_ok());
+    mod line_config {
+        use super::LineConfig;
 
-        a.num_attrs += 1;
-        let e = a.validate().unwrap_err();
-        assert_eq!(e.field, "num_attrs");
-        assert_eq!(e.msg, "out of range: 11");
+        #[test]
+        fn line_config() {
+            assert_eq!(
+                super::size_of::<LineConfig>(),
+                272usize,
+                concat!("Size of: ", stringify!(LineConfig))
+            );
+        }
+    }
 
-        a.num_attrs = NUM_ATTRS_MAX as u32;
-        for idx in [0, 1, 4, 7] {
-            unsafe {
-                a.attrs.0[idx].kind = *(&4 as *const i32 as *const LineAttributeKind);
+    mod line_request {
+        use super::LineRequest;
+
+        #[test]
+        fn line_request() {
+            assert_eq!(
+                super::size_of::<LineRequest>(),
+                592usize,
+                concat!("Size of: ", stringify!(LineRequest))
+            );
+        }
+    }
+
+    mod line_values {
+        use super::{Bitmap, LineValues};
+
+        #[test]
+        fn get() {
+            let mut a = LineValues::default();
+            for idx in [0, 2] {
+                assert!(!a.bits.get(idx), "idx: {}", idx);
+                assert!(a.get(idx).is_none(), "idx: {}", idx);
+
+                a.mask.set(idx, true);
+                assert!(!a.get(idx).unwrap(), "idx: {}", idx);
+
+                a.bits.set(idx, true);
+                assert!(a.get(idx).unwrap(), "idx: {}", idx);
             }
-            let e = a.validate().unwrap_err();
-            assert_eq!(e.field, format!("attrs[{}].kind", idx));
-            assert_eq!(e.msg, "invalid value: 4");
-            a.attrs.0[idx].kind = LineAttributeKind::Unused;
+        }
+
+        #[test]
+        fn set() {
+            let mut a = LineValues::default();
+            for idx in [0, 2] {
+                a.set(idx, false);
+                assert!(a.mask.get(idx), "idx: {}", idx);
+                assert!(!a.bits.get(idx), "idx: {}", idx);
+
+                a.set(idx, true);
+                assert!(a.mask.get(idx), "idx: {}", idx);
+                assert!(a.bits.get(idx), "idx: {}", idx);
+            }
+        }
+
+        #[test]
+        fn unset_mask() {
+            let mut a = LineValues {
+                mask: Bitmap::mask(6),
+                ..Default::default()
+            };
+            assert_eq!(a.mask.len(), 6);
+            assert!(a.mask.get(0));
+
+            a.unset_mask(0);
+            assert!(!a.mask.get(0));
+            assert_eq!(a.mask.len(), 5);
+            assert!(a.mask.get(3));
+
+            a.unset_mask(3);
+            assert!(!a.mask.get(3));
+            assert_eq!(a.mask.len(), 4);
+            assert!(a.mask.get(5));
+
+            a.unset_mask(5);
+            assert!(!a.mask.get(5));
+            assert_eq!(a.mask.len(), 3);
+            assert!(!a.mask.get(6));
+
+            a.unset_mask(5);
+            assert!(!a.mask.get(5));
+            assert_eq!(a.mask.len(), 3);
+        }
+
+        #[test]
+        fn size() {
+            assert_eq!(
+                super::size_of::<LineValues>(),
+                16usize,
+                concat!("Size of: ", stringify!(LineValues))
+            );
         }
     }
-    #[test]
-    fn line_info_changed_validate() {
-        let mut a = LineInfoChangeEvent {
-            info: Default::default(),
-            timestamp_ns: 0,
-            kind: LineInfoChangeKind::Released,
-            padding: Default::default(),
-        };
-        assert!(a.validate().is_ok());
 
-        a.timestamp_ns = 1234;
-        assert!(a.validate().is_ok());
-        unsafe {
-            a.kind = *(&0 as *const i32 as *const LineInfoChangeKind);
-            let e = a.validate().unwrap_err();
-            assert_eq!(e.field, "kind");
-            assert_eq!(e.msg, "invalid value: 0");
+    mod line_attribute_kind {
+        use super::LineAttributeKind;
 
-            a.kind = *(&4 as *const i32 as *const LineInfoChangeKind);
-            let e = a.validate().unwrap_err();
-            assert_eq!(e.field, "kind");
-            assert_eq!(e.msg, "invalid value: 4");
-
-            a.kind = *(&1 as *const i32 as *const LineInfoChangeKind);
+        #[test]
+        fn validate() {
+            let mut a = LineAttributeKind::Flags;
             assert!(a.validate().is_ok());
+
+            a = LineAttributeKind::Unused;
+            assert!(a.validate().is_ok());
+
+            unsafe {
+                a = *(&4 as *const i32 as *const LineAttributeKind);
+                assert_eq!(a.validate().unwrap_err(), "invalid value: 4");
+                a = *(&3 as *const i32 as *const LineAttributeKind);
+                assert!(a.validate().is_ok());
+            }
         }
     }
 
-    #[test]
-    fn line_event_validate() {
-        let mut a = LineEdgeEvent {
-            timestamp_ns: 0,
-            kind: LineEdgeEventKind::RisingEdge,
-            offset: 0,
-            seqno: 0,
-            line_seqno: 0,
-            padding: Default::default(),
-        };
-        assert!(a.validate().is_ok());
+    mod line_info {
+        use super::{LineAttributeKind, LineInfo, NUM_ATTRS_MAX};
 
-        a.timestamp_ns = 1234;
-        assert!(a.validate().is_ok());
-        unsafe {
-            a.kind = *(&0 as *const i32 as *const LineEdgeEventKind);
-            let e = a.validate().unwrap_err();
-            assert_eq!(e.field, "kind");
-            assert_eq!(e.msg, "invalid value: 0");
-
-            a.kind = *(&3 as *const i32 as *const LineEdgeEventKind);
-            let e = a.validate().unwrap_err();
-            assert_eq!(e.field, "kind");
-            assert_eq!(e.msg, "invalid value: 3");
-
-            a.kind = *(&1 as *const i32 as *const LineEdgeEventKind);
+        #[test]
+        fn validate() {
+            let mut a = LineInfo::default();
             assert!(a.validate().is_ok());
+
+            a.num_attrs = NUM_ATTRS_MAX as u32;
+            assert!(a.validate().is_ok());
+
+            a.num_attrs += 1;
+            let e = a.validate().unwrap_err();
+            assert_eq!(e.field, "num_attrs");
+            assert_eq!(e.msg, "out of range: 11");
+
+            a.num_attrs = NUM_ATTRS_MAX as u32;
+            for idx in [0, 1, 4, 7] {
+                unsafe {
+                    a.attrs.0[idx].kind = *(&4 as *const i32 as *const LineAttributeKind);
+                }
+                let e = a.validate().unwrap_err();
+                assert_eq!(e.field, format!("attrs[{}].kind", idx));
+                assert_eq!(e.msg, "invalid value: 4");
+                a.attrs.0[idx].kind = LineAttributeKind::Unused;
+            }
+        }
+
+        #[test]
+        fn size() {
+            assert_eq!(
+                super::size_of::<LineInfo>(),
+                256usize,
+                concat!("Size of: ", stringify!(LineInfo))
+            );
+        }
+    }
+
+    mod line_info_changed {
+        use super::{LineInfoChangeEvent, LineInfoChangeKind};
+
+        #[test]
+        fn validate() {
+            let mut a = LineInfoChangeEvent {
+                info: Default::default(),
+                timestamp_ns: 0,
+                kind: LineInfoChangeKind::Released,
+                padding: Default::default(),
+            };
+            assert!(a.validate().is_ok());
+
+            a.timestamp_ns = 1234;
+            assert!(a.validate().is_ok());
+            unsafe {
+                a.kind = *(&0 as *const i32 as *const LineInfoChangeKind);
+                let e = a.validate().unwrap_err();
+                assert_eq!(e.field, "kind");
+                assert_eq!(e.msg, "invalid value: 0");
+
+                a.kind = *(&4 as *const i32 as *const LineInfoChangeKind);
+                let e = a.validate().unwrap_err();
+                assert_eq!(e.field, "kind");
+                assert_eq!(e.msg, "invalid value: 4");
+
+                a.kind = *(&1 as *const i32 as *const LineInfoChangeKind);
+                assert!(a.validate().is_ok());
+            }
+        }
+        #[test]
+        fn size() {
+            assert_eq!(
+                super::size_of::<LineInfoChangeEvent>(),
+                288usize,
+                concat!("Size of: ", stringify!(LineInfoChangeEvent))
+            );
+        }
+    }
+
+    mod line_event {
+        use super::{LineEdgeEvent, LineEdgeEventKind};
+
+        #[test]
+        fn validate() {
+            let mut a = LineEdgeEvent {
+                timestamp_ns: 0,
+                kind: LineEdgeEventKind::RisingEdge,
+                offset: 0,
+                seqno: 0,
+                line_seqno: 0,
+                padding: Default::default(),
+            };
+            assert!(a.validate().is_ok());
+
+            a.timestamp_ns = 1234;
+            assert!(a.validate().is_ok());
+            unsafe {
+                a.kind = *(&0 as *const i32 as *const LineEdgeEventKind);
+                let e = a.validate().unwrap_err();
+                assert_eq!(e.field, "kind");
+                assert_eq!(e.msg, "invalid value: 0");
+
+                a.kind = *(&3 as *const i32 as *const LineEdgeEventKind);
+                let e = a.validate().unwrap_err();
+                assert_eq!(e.field, "kind");
+                assert_eq!(e.msg, "invalid value: 3");
+
+                a.kind = *(&1 as *const i32 as *const LineEdgeEventKind);
+                assert!(a.validate().is_ok());
+            }
+        }
+
+        #[test]
+        fn size() {
+            assert_eq!(
+                super::size_of::<LineEdgeEvent>(),
+                48usize,
+                concat!("Size of: ", stringify!(LineEdgeEvent))
+            );
         }
     }
 }

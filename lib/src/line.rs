@@ -457,7 +457,7 @@ impl Values {
 
     /// Return true if values contains a matching key.
     #[cfg(feature = "uapi_v1")]
-    pub(crate) fn contains(&self, offset: &Offset) -> bool {
+    pub(crate) fn contains_key(&self, offset: &Offset) -> bool {
         self.0.contains_key(offset)
     }
 }
@@ -1206,6 +1206,52 @@ mod tests {
             assert!(info.debounce_period.is_none());
         }
     }
+
+    mod value {
+        use super::*;
+
+        #[test]
+        fn default() {
+            let v = Value::default();
+            assert_eq!(v, Value::Inactive);
+        }
+
+        #[test]
+        fn not() {
+            assert_eq!(Value::Active.not(), Value::Inactive);
+            assert_eq!(Value::Inactive.not(), Value::Active);
+        }
+
+        #[test]
+        fn from_bool() {
+            assert_eq!(Value::from(true), Value::Active);
+            assert_eq!(Value::from(false), Value::Inactive);
+        }
+
+        #[test]
+        fn into_bool() {
+            let b: bool = Value::Active.into();
+            assert!(b);
+            let b: bool = Value::Inactive.into();
+            assert!(!b);
+        }
+
+        #[test]
+        fn from_u8() {
+            assert_eq!(Value::from(1), Value::Active);
+            assert_eq!(Value::from(2), Value::Active);
+            assert_eq!(Value::from(0), Value::Inactive);
+        }
+
+        #[test]
+        fn into_u8() {
+            let u: u8 = Value::Active.into();
+            assert_eq!(u, 1);
+            let u: u8 = Value::Inactive.into();
+            assert_eq!(u, 0);
+        }
+    }
+
     mod values {
         use super::*;
 
@@ -1298,10 +1344,116 @@ mod tests {
             assert_eq!(values.get(8), None);
             assert_eq!(values.get(9), Some(Value::Inactive));
         }
+
+        #[test]
+        fn get() {
+            let mut vv = Values::from_offsets(&[1, 2, 3]);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+
+            vv.set(2, Value::Active);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Active));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+        }
+
+        #[test]
+        fn set() {
+            let mut vv = Values::from_offsets(&[1, 2, 3]);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+
+            vv.set(2, Value::Active);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Active));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+
+            vv.set(2, Value::Inactive);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+        }
+
+        #[test]
+        fn unset() {
+            let mut vv = Values::from_offsets(&[1, 2, 3]);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+            vv.unset(2);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), None);
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+        }
+
+        #[test]
+        fn toggle() {
+            let mut vv = Values::from_offsets(&[1, 2, 3]);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+            vv.toggle(1);
+            assert_eq!(vv.get(1), Some(Value::Active));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+            vv.toggle(2);
+            assert_eq!(vv.get(1), Some(Value::Active));
+            assert_eq!(vv.get(2), Some(Value::Active));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+            vv.toggle(1);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Active));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+            vv.toggle(3);
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Active));
+            assert_eq!(vv.get(3), Some(Value::Active));
+        }
+
+        #[test]
+        fn len() {
+            assert_eq!(Values::default().len(), 0);
+            assert_eq!(Values::from_offsets(&[1, 2, 3]).len(), 3);
+        }
+
+        #[test]
+        fn is_empty() {
+            assert!(Values::default().is_empty());
+            assert!(!Values::from_offsets(&[1, 2, 3]).is_empty());
+        }
+
+        #[test]
+        fn iter() {
+            let mut vv = Values::from_offsets(&[1, 2, 3]);
+            vv.set(2, Value::Active);
+            let mut i = vv.iter();
+            // assumes keys returned in order...
+            assert_eq!(i.next(), Some((&1, &Value::Inactive)));
+            assert_eq!(i.next(), Some((&2, &Value::Active)));
+            assert_eq!(i.next(), Some((&3, &Value::Inactive)));
+            assert_eq!(i.next(), None);
+        }
+
+        #[test]
+        fn contains_key() {
+            let vv = Values::from_offsets(&[1, 2, 3]);
+            assert!(!vv.contains_key(&0));
+            assert!(vv.contains_key(&1));
+            assert!(vv.contains_key(&2));
+            assert!(vv.contains_key(&3));
+            assert!(!vv.contains_key(&4));
+        }
     }
 
     mod direction {
         use super::*;
+
+        #[test]
+        fn default() {
+            assert_eq!(Direction::default(), Direction::Input);
+        }
 
         #[test]
         #[cfg(feature = "uapi_v1")]
@@ -1368,6 +1520,11 @@ mod tests {
         use super::*;
 
         #[test]
+        fn default() {
+            assert_eq!(Drive::default(), Drive::PushPull);
+        }
+
+        #[test]
         #[cfg(feature = "uapi_v1")]
         fn try_from_v1_line_info_flags() {
             assert_eq!(Drive::try_from(v1::LineInfoFlags::ACTIVE_LOW), Err(()));
@@ -1426,6 +1583,11 @@ mod tests {
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     mod event_clock {
         use super::{v2, EventClock};
+
+        #[test]
+        fn default() {
+            assert_eq!(EventClock::default(), EventClock::Monotonic);
+        }
 
         #[test]
         fn from_v2_line_flags() {
