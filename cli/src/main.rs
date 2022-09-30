@@ -35,16 +35,16 @@ fn main() {
 }
 
 #[derive(Parser)]
-#[clap(
+#[command(
     name = "gpiocdev",
     about = "A utility to control GPIO lines on Linux using GPIO character devices."
 )]
 struct Opts {
     /// Provide more detailed error messages.
-    #[clap(short = 'v', long)]
+    #[arg(short = 'v', long)]
     pub verbose: bool,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     cmd: Command,
 }
 

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use gpiocdev::chip::{chips, Chip};
 use gpiocdev::line::Offset;
 use gpiocdev::request::Config;
@@ -16,7 +16,6 @@ use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use strum::{EnumString, EnumVariantNames, VariantNames};
 
 // common helper functions
 
@@ -49,19 +48,19 @@ pub fn abi_version_from_opts(abiv: u8) -> Result<AbiVersion> {
     Ok(abiv)
 }
 
-pub fn parse_chip_path(s: &str) -> PathBuf {
+pub fn parse_chip_path(s: &str) -> Result<PathBuf> {
     if s.chars().all(char::is_numeric) {
         // from number
-        return format!("/dev/gpiochip{}", s).into();
+        return Ok(format!("/dev/gpiochip{}", s).into());
     }
     if !s.chars().any(|x| x == '/') {
         // from name
         let mut p: PathBuf = "/dev".into();
         p.push(s);
-        return p;
+        return Ok(p);
     }
     // from raw path
-    s.into()
+    Ok(s.into())
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -190,13 +189,13 @@ pub struct LineOpts {
     ///     --chip 0
     ///     --chip gpiochip0
     ///     --chip /dev/gpiochip0
-    #[clap(short, long, name="chip", parse(from_str = parse_chip_path), verbatim_doc_comment)]
+    #[arg(short, long, name = "chip", value_parser = parse_chip_path, verbatim_doc_comment)]
     pub chip: Option<PathBuf>,
     /// Provided line names must be unique or the command will abort.
     ///
     /// If --chip is also specified then provided line names must only be unique to the
     /// lines on that chip.
-    #[clap(short = 's', long)]
+    #[arg(short = 's', long)]
     pub strict: bool,
     /// Lines are strictly identified by name.
     ///
@@ -204,7 +203,7 @@ pub struct LineOpts {
     /// fallback to names if the line does not parse as an offset.
     ///
     /// With --by-name set the lines are always identified by name, never as offsets.
-    #[clap(short = 'N', long)]
+    #[arg(long)]
     pub by_name: bool,
 }
 
@@ -214,14 +213,14 @@ pub struct UapiOpts {
     ///
     /// The default option detects the uAPI versions supported by the kernel and uses the latest.
     // This is primarily aimed at debugging and so is a hidden option.
-    #[clap(long, default_value = "0", hide = true, env = "GPIOD_ABI_VERSION")]
+    #[arg(long, default_value = "0", hide = true, env = "GPIOD_ABI_VERSION")]
     pub abiv: u8,
 }
 
 #[derive(Debug, Parser)]
 pub struct ActiveLowOpts {
     /// Treat the line as active-low when determining value.
-    #[clap(short = 'l', long)]
+    #[arg(short = 'l', long)]
     pub active_low: bool,
 }
 impl ActiveLowOpts {
@@ -233,8 +232,7 @@ impl ActiveLowOpts {
     }
 }
 
-#[derive(EnumString, EnumVariantNames, Copy, Clone, Debug)]
-#[strum(serialize_all = "kebab_case")]
+#[derive(Copy, Clone, Debug, ValueEnum)]
 pub enum BiasFlags {
     PullUp,
     PullDown,
@@ -253,7 +251,7 @@ impl From<BiasFlags> for gpiocdev::line::Bias {
 #[derive(Copy, Clone, Debug, Parser)]
 pub struct BiasOpts {
     /// The bias to be applied to the lines.
-    #[clap(short, long, name = "bias", possible_values = BiasFlags::VARIANTS, ignore_case = true)]
+    #[arg(short, long, name = "bias", value_enum, ignore_case = true)]
     pub bias: Option<BiasFlags>,
 }
 impl BiasOpts {
@@ -265,8 +263,7 @@ impl BiasOpts {
     }
 }
 
-#[derive(EnumString, EnumVariantNames, Copy, Clone, Debug)]
-#[strum(serialize_all = "kebab_case")]
+#[derive(Copy, Clone, Debug, ValueEnum)]
 pub enum DriveFlags {
     PushPull,
     OpenDrain,
@@ -284,7 +281,7 @@ impl From<DriveFlags> for gpiocdev::line::Drive {
 #[derive(Copy, Clone, Debug, Parser)]
 pub struct DriveOpts {
     /// How the lines should be driven.
-    #[clap(short, long, name = "drive", possible_values = DriveFlags::VARIANTS, ignore_case = true)]
+    #[arg(short, long, name = "drive", value_enum, ignore_case = true)]
     pub drive: Option<DriveFlags>,
 }
 impl DriveOpts {
@@ -296,31 +293,37 @@ impl DriveOpts {
     }
 }
 
-#[derive(EnumString, EnumVariantNames, Copy, Clone, Debug)]
-#[strum(serialize_all = "kebab_case")]
+#[derive(Copy, Clone, Debug, ValueEnum)]
 pub enum EdgeFlags {
-    RisingEdge,
-    FallingEdge,
-    BothEdges,
+    Rising,
+    Falling,
+    Both,
 }
 impl From<EdgeFlags> for gpiocdev::line::EdgeDetection {
     fn from(b: EdgeFlags) -> Self {
         match b {
-            EdgeFlags::RisingEdge => gpiocdev::line::EdgeDetection::RisingEdge,
-            EdgeFlags::FallingEdge => gpiocdev::line::EdgeDetection::FallingEdge,
-            EdgeFlags::BothEdges => gpiocdev::line::EdgeDetection::BothEdges,
+            EdgeFlags::Rising => gpiocdev::line::EdgeDetection::RisingEdge,
+            EdgeFlags::Falling => gpiocdev::line::EdgeDetection::FallingEdge,
+            EdgeFlags::Both => gpiocdev::line::EdgeDetection::BothEdges,
         }
     }
 }
 #[derive(Copy, Clone, Debug, Parser)]
 pub struct EdgeOpts {
     /// Which edges should be detected and reported.
-    #[clap(short, long, name = "edge", possible_values = EdgeFlags::VARIANTS, default_value="both-edges", ignore_case = true)]
-    pub edge: EdgeFlags,
+    #[arg(
+        short,
+        long,
+        name = "edges",
+        value_enum,
+        default_value = "both",
+        ignore_case = true
+    )]
+    pub edges: EdgeFlags,
 }
 impl EdgeOpts {
     pub fn apply(self, r: &mut Config) -> &mut Config {
-        r.with_edge_detection(Some(self.edge.into()))
+        r.with_edge_detection(Some(self.edges.into()))
     }
 }
 
@@ -335,42 +338,48 @@ pub fn stringify_attrs(li: &gpiocdev::line::Info) -> String {
         gpiocdev::line::Direction::Input => attrs.push("input"),
         Direction::Output => attrs.push("output"),
     }
-    if li.used {
-        attrs.push("used");
-    }
     if li.active_low {
         attrs.push("active-low");
     }
     match li.drive {
         None => (),
         Some(Drive::PushPull) => (),
-        Some(Drive::OpenDrain) => attrs.push("open-drain"),
-        Some(Drive::OpenSource) => attrs.push("open-source"),
+        Some(Drive::OpenDrain) => attrs.push("drive=open-drain"),
+        Some(Drive::OpenSource) => attrs.push("drive=open-source"),
     }
     match li.bias {
         None => (),
-        Some(Bias::PullUp) => attrs.push("pull-up"),
-        Some(Bias::PullDown) => attrs.push("pull-down"),
-        Some(Bias::Disabled) => attrs.push("bias-disabled"),
+        Some(Bias::PullUp) => attrs.push("bias=pull-up"),
+        Some(Bias::PullDown) => attrs.push("bias=pull-down"),
+        Some(Bias::Disabled) => attrs.push("bias=disabled"),
     }
     match li.edge_detection {
         None => (),
-        Some(EdgeDetection::RisingEdge) => attrs.push("rising-edge"),
-        Some(EdgeDetection::FallingEdge) => attrs.push("falling-edge"),
-        Some(EdgeDetection::BothEdges) => attrs.push("both-edges"),
+        Some(EdgeDetection::RisingEdge) => attrs.push("edges=rising"),
+        Some(EdgeDetection::FallingEdge) => attrs.push("edges=falling"),
+        Some(EdgeDetection::BothEdges) => attrs.push("edges=both"),
     }
     match li.event_clock {
         None => (),                        // Not present for v1.
         Some(EventClock::Monotonic) => (), // default for ABI v2
-        Some(EventClock::Realtime) => attrs.push("event-clock-realtime"),
-        Some(EventClock::HTE) => attrs.push("event-clock-hte"),
+        Some(EventClock::Realtime) => attrs.push("event-clock=realtime"),
+        Some(EventClock::HTE) => attrs.push("event-clock=hte"),
     }
     let db;
     if li.debounce_period.is_some() {
-        db = format!("debounce_period={:?}", li.debounce_period.unwrap());
+        db = format!("debounce-period={:?}", li.debounce_period.unwrap());
         attrs.push(&db);
     }
-    attrs.join(", ")
+    let consumer;
+    if li.used {
+        if li.consumer.is_empty() {
+            consumer = String::from("consumer=kernel");
+        } else {
+            consumer = format!("consumer={}", li.consumer);
+        }
+        attrs.push(&consumer);
+    }
+    attrs.join(" ")
 }
 
 #[derive(Debug)]

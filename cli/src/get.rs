@@ -20,9 +20,9 @@ pub struct Opts {
     ///
     /// The lines are identified by name or optionally by offset
     /// if the --chip option is provided.
-    #[clap(name = "line", min_values = 1, required = true)]
+    #[arg(name = "line", required = true)]
     line: Vec<String>,
-    #[clap(flatten)]
+    #[command(flatten)]
     line_opts: LineOpts,
     /// Request the line as-is rather than as an input.
     ///
@@ -30,18 +30,21 @@ pub struct Opts {
     ///
     /// If specified then the line direction is left as-is, making it
     /// possible to read back the values of output lines.
-    #[clap(short, long)]
+    #[arg(short, long)]
     as_is: bool,
-    #[clap(flatten)]
+    #[command(flatten)]
     active_low_opts: ActiveLowOpts,
-    #[clap(flatten)]
+    #[command(flatten)]
     bias_opts: BiasOpts,
-    #[clap(short = 'p', long, name="period", parse(try_from_str = parse_duration))]
+    #[arg(short = 'p', long, name = "period", value_parser = parse_duration)]
     /// A settling period between requesting the lines and reading the value.
     ///
     /// This allows time for any bias setting to take effect.
     hold_period: Option<Duration>,
-    #[clap(flatten)]
+    /// Display line values as '0' (inactive) or '1' (active).
+    #[arg(long)]
+    pub numeric: bool,
+    #[command(flatten)]
     uapi_opts: UapiOpts,
 }
 
@@ -100,7 +103,12 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     let mut print_values = Vec::new();
     for line_id in &opts.line {
         let value = line_values.get(lines.get(line_id).unwrap()).unwrap();
-        print_values.push(format!("{}={:?}", line_id, value));
+        if opts.numeric {
+            let v: u8 = (*value).into();
+            print_values.push(format!("{}={}", line_id, v));
+        } else {
+            print_values.push(format!("{}={:?}", line_id, value));
+        }
     }
     println!("{}", print_values.join(" "));
 

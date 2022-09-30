@@ -13,31 +13,31 @@ use gpiocdev::request::{Config, Request};
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
-#[clap(alias("mon"))]
+#[command(alias("mon"))]
 pub struct Opts {
     /// The lines to monitor.
     ///
     /// The lines are identified by name or optionally by offset if
     /// the --chip option is specified.
-    #[clap(name = "line", min_values = 1, required = true)]
+    #[arg(name = "line", required = true)]
     lines: Vec<String>,
-    #[clap(flatten)]
+    #[command(flatten)]
     line_opts: LineOpts,
-    #[clap(flatten)]
+    #[command(flatten)]
     active_low_opts: ActiveLowOpts,
-    #[clap(flatten)]
+    #[command(flatten)]
     bias_opts: BiasOpts,
-    #[clap(flatten)]
+    #[command(flatten)]
     edge_opts: EdgeOpts,
     /// The debounce period for the monitored lines.
-    #[clap(short, long, name = "period", parse(try_from_str = parse_duration))]
+    #[arg(short = 'p', long, name = "period", value_parser = parse_duration)]
     debounce_period: Option<Duration>,
     /// Exit after the specified number of events.
     ///
     /// If not specified then the monitor will continue indefinitely.
-    #[clap(short, long, name = "num")]
+    #[arg(short, long, name = "num")]
     num_events: Option<u32>,
-    #[clap(flatten)]
+    #[command(flatten)]
     uapi_opts: UapiOpts,
 }
 

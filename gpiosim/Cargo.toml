@@ -10,7 +10,7 @@ version = "0.1.0"
 
 [dependencies]
 global_counter = "0.2"
-nohash-hasher = "0.2.0"
+nohash-hasher = "0.2"
 thiserror = "1.0"
 
 [dev-dependencies]

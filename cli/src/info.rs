@@ -20,7 +20,7 @@ pub struct Opts {
     /// if the --chip option is provided.
     ///
     /// If not specified then all lines are returned.
-    #[clap(name = "line")]
+    #[arg(name = "line")]
     lines: Vec<String>,
     /// Restrict scope to the lines on this chip.
     ///
@@ -33,7 +33,7 @@ pub struct Opts {
     ///     -c 0
     ///     -c gpiochip0
     ///     -c /dev/gpiochip0
-    #[clap(short, long, name = "chip", parse(from_str = parse_chip_path), verbatim_doc_comment)]
+    #[arg(short, long, name = "chip", value_parser = parse_chip_path, verbatim_doc_comment)]
     chip: Option<PathBuf>,
     /// Lines are strictly identified by name.
     ///
@@ -41,7 +41,7 @@ pub struct Opts {
     /// fallback to names if the line does not parse as an offset.
     ///
     /// With --by-name set the lines are never assumed to be identified by offsets, only names.
-    #[clap(short = 'N', long)]
+    #[arg(short = 'N', long)]
     by_name: bool,
     /// Check all lines - don't assume names are unique.
     ///
@@ -49,9 +49,9 @@ pub struct Opts {
     ///
     /// If specified then all lines with the specified name are returned,
     /// each on a separate line.
-    #[clap(short = 's', long)]
+    #[arg(short = 's', long)]
     strict: bool,
-    #[clap(flatten)]
+    #[command(flatten)]
     uapi_opts: UapiOpts,
 }
 

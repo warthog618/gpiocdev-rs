@@ -35,24 +35,24 @@ pub struct Opts {
     /// e.g.
     ///     GPIO17=on GPIO22=inactive
     ///     --chip gpiochip0 17=1 22=0
-    #[clap(name = "line=value", required = true, parse(try_from_str = parse_key_val), verbatim_doc_comment)]
+    #[arg(name = "line=value", required = true, value_parser = parse_key_val::<String, LineValue>, verbatim_doc_comment)]
     line_values: Vec<(String, LineValue)>,
-    #[clap(flatten)]
+    #[command(flatten)]
     line_opts: LineOpts,
-    #[clap(flatten)]
+    #[command(flatten)]
     active_low_opts: ActiveLowOpts,
-    #[clap(flatten)]
+    #[command(flatten)]
     bias_opts: BiasOpts,
-    #[clap(flatten)]
+    #[command(flatten)]
     drive_opts: DriveOpts,
     /// Set the lines then wait for additional set commands for the requested lines.
     ///
     /// Use the "help" command at the interactive prompt to get help for
     /// the supported commands.
-    #[clap(short, long, group = "mode")]
+    #[arg(short, long, group = "mode")]
     interactive: bool,
     /// The minimum time period to hold lines at the requested values.
-    #[clap(short = 'p', long, name = "period", parse(try_from_str = parse_duration))]
+    #[arg(short = 'p', long, name = "period", value_parser=parse_duration)]
     hold_period: Option<Duration>,
     /// Toggle the lines after the specified time periods.
     ///
@@ -70,9 +70,9 @@ pub struct Opts {
     ///
     /// A 0s period elsewhere in the sequence is toggled as fast as possible,
     /// allowing for any specified --hold-period.
-    #[clap(short = 't', long, name="periods", parse(try_from_str = parse_time_sequence), group = "mode", verbatim_doc_comment)]
+    #[arg(short = 't', long, name="periods", value_parser=parse_time_sequence, group = "mode", verbatim_doc_comment)]
     toggle: Option<TimeSequence>,
-    #[clap(flatten)]
+    #[command(flatten)]
     uapi_opts: UapiOpts,
 }
 
@@ -174,7 +174,7 @@ impl Setter {
             .max_history_size(20)
             .history_ignore_space(true)
             .build();
-        let mut rl = Editor::with_config(config);
+        let mut rl = Editor::with_config(config)?;
         rl.set_helper(Some(helper));
         loop {
             let readline = rl.readline("gpiocdev-set> ");
@@ -377,7 +377,7 @@ where
     Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct TimeSequence(Vec<Duration>);
 
 fn parse_time_sequence(s: &str) -> std::result::Result<TimeSequence, ParseDurationError> {
@@ -388,7 +388,7 @@ fn parse_time_sequence(s: &str) -> std::result::Result<TimeSequence, ParseDurati
     Ok(ts)
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct LineValue(Value);
 
 impl FromStr for LineValue {

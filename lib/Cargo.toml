@@ -9,9 +9,9 @@ name = "gpiocdev"
 version = "0.1.0"
 
 [dependencies]
-bitmaps = {version = "3.1.0"}
+bitmaps = {version = "3.2"}
 chrono = "0.4"
-errno = "0.2.8"
+errno = "0.2"
 gpiocdev-uapi = {version = "0.1.0", path = "../uapi", features = ["uapi_v1", "uapi_v2"], optional = true}
 nohash-hasher = "0.2.0"
 thiserror = "1.0"

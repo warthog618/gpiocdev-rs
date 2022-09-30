@@ -8,15 +8,15 @@ use clap::Parser;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
-    #[clap(flatten)]
+    #[command(flatten)]
     line_opts: LineOpts,
     /// The lines to watch.
     ///
     /// The lines are identified by name or optionally by
     /// offset if the --chip option is specified.
-    #[clap(name = "line", min_values = 1, required = true)]
+    #[arg(name = "line", required = true)]
     lines: Vec<String>,
-    #[clap(flatten)]
+    #[command(flatten)]
     uapi_opts: UapiOpts,
 }
 

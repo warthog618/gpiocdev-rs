@@ -19,7 +19,7 @@ pub struct Opts {
     ///     0
     ///     gpiochip0
     ///     /dev/gpiochip0
-    #[clap(name="chip", parse(from_str = parse_chip_path), verbatim_doc_comment)]
+    #[arg(name = "chip", value_parser = parse_chip_path, verbatim_doc_comment)]
     chips: Vec<PathBuf>,
 }
 

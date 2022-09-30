@@ -21,10 +21,10 @@ pub struct Opts {
     ///     -c 0
     ///     -c gpiochip0
     ///     -c /dev/gpiochip0
-    #[clap(short, long, name="chip", parse(from_str = parse_chip_path), verbatim_doc_comment)]
+    #[arg(short, long, name = "chip", value_parser = parse_chip_path, verbatim_doc_comment)]
     chip: Option<PathBuf>,
     /// The name of the line to find.
-    #[clap(name = "line")]
+    #[arg(name = "line")]
     line: String,
     /// Check all lines - don't assume names are unique.
     ///
@@ -32,12 +32,12 @@ pub struct Opts {
     ///
     /// If specified then all lines with the specified name are returned,
     /// each on a separate line.
-    #[clap(short = 's', long)]
+    #[arg(short = 's', long)]
     strict: bool,
     /// Print the info for found lines.
-    #[clap(short, long)]
+    #[arg(short, long)]
     pub info: bool,
-    #[clap(flatten)]
+    #[command(flatten)]
     uapi_opts: UapiOpts,
 }
 

@@ -14,10 +14,9 @@ path="src/main.rs"
 
 [dependencies]
 anyhow = "1.0"
-clap = {version = "3.1", features = ["derive", "env"]}
+clap = {version = "4.0", features = ["derive", "env"]}
 colored = "2"
 gpiocdev = {path = "../lib", features = ["uapi_v1", "uapi_v2"]}
-rustyline = "9.1.0"
-rustyline-derive = "0.6.0"
-strum = {version = "0.24", features = ["derive"]}
+rustyline = "10.0"
+rustyline-derive = "0.7"
 thiserror = "1.0"
