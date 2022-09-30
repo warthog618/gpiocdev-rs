@@ -105,8 +105,13 @@ fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
                 chip.path()
             )
         })?;
-        print_line_info(li);
-    }
+        println!(
+            "\tline {:>3}:\t{:16}\t{}",
+            li.offset,
+            string_or_default(&li.name, "unnamed"),
+            stringify_attrs(&li),
+        );
+        }
     Ok(())
 }
 
@@ -114,12 +119,6 @@ fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
     let ci = chip
         .info()
         .with_context(|| format!("Failed to read info from chip {:?}.", chip.path()))?;
-    println!(
-        "{} - {} lines (displaying {})",
-        string_or_default(&ci.name, "??"),
-        ci.num_lines,
-        lines.len(),
-    );
     for &offset in lines {
         let li = chip.line_info(offset).with_context(|| {
             format!(
@@ -128,17 +127,13 @@ fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
                 chip.path()
             )
         })?;
-        print_line_info(li);
-    }
+        println!(
+            "{} {}\t{:16}\t{}",
+            string_or_default(&ci.name, "??"),
+            li.offset,
+            string_or_default(&li.name, "unnamed"),
+            stringify_attrs(&li),
+        );
+        }
     Ok(())
-}
-
-fn print_line_info(li: gpiocdev::line::Info) {
-    println!(
-        "\tline {:>3}:\t{:16}\t{:11} [{}]",
-        li.offset,
-        string_or_default(&li.name, "unnamed"),
-        string_or_default(&li.consumer, "unused"),
-        stringify_attrs(&li),
-    );
 }
