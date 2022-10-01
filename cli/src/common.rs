@@ -191,9 +191,9 @@ pub struct LineOpts {
     ///     --chip /dev/gpiochip0
     #[arg(short, long, name = "chip", value_parser = parse_chip_path, verbatim_doc_comment)]
     pub chip: Option<PathBuf>,
-    /// Provided line names must be unique or the command will abort.
+    /// Requested line names must be unique or the command will abort.
     ///
-    /// If --chip is also specified then provided line names must only be unique to the
+    /// If --chip is also specified then requested line names must only be unique to the
     /// lines on that chip.
     #[arg(short = 's', long)]
     pub strict: bool,
@@ -251,6 +251,8 @@ impl From<BiasFlags> for gpiocdev::line::Bias {
 #[derive(Copy, Clone, Debug, Parser)]
 pub struct BiasOpts {
     /// The bias to be applied to the lines.
+    ///
+    /// By default the bias is left unchanged.
     #[arg(short, long, name = "bias", value_enum, ignore_case = true)]
     pub bias: Option<BiasFlags>,
 }

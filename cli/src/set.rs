@@ -9,6 +9,7 @@ use super::common::{
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use colored::*;
+use daemonize::Daemonize;
 use gpiocdev::line::{Offset, Value, Values};
 use gpiocdev::request::{Config, Request};
 use rustyline::completion::{Completer, Pair};
@@ -35,7 +36,7 @@ pub struct Opts {
     /// e.g.
     ///     GPIO17=on GPIO22=inactive
     ///     --chip gpiochip0 17=1 22=0
-    #[arg(name = "line=value", required = true, value_parser = parse_key_val::<String, LineValue>, verbatim_doc_comment)]
+    #[arg(name = "line=value", required = true, value_parser = parse_line_value, verbatim_doc_comment)]
     line_values: Vec<(String, LineValue)>,
     #[command(flatten)]
     line_opts: LineOpts,
@@ -49,10 +50,10 @@ pub struct Opts {
     ///
     /// Use the "help" command at the interactive prompt to get help for
     /// the supported commands.
-    #[arg(short, long, group = "mode")]
+    #[arg(short, long, groups = ["mode", "terminal"])]
     interactive: bool,
     /// The minimum time period to hold lines at the requested values.
-    #[arg(short = 'p', long, name = "period", value_parser=parse_duration)]
+    #[arg(short = 'p', long, name = "period", value_parser = parse_duration)]
     hold_period: Option<Duration>,
     /// Toggle the lines after the specified time periods.
     ///
@@ -70,8 +71,11 @@ pub struct Opts {
     ///
     /// A 0s period elsewhere in the sequence is toggled as fast as possible,
     /// allowing for any specified --hold-period.
-    #[arg(short = 't', long, name="periods", value_parser=parse_time_sequence, group = "mode", verbatim_doc_comment)]
+    #[arg(short = 't', long, name = "periods", value_parser = parse_time_sequence, group = "mode", verbatim_doc_comment)]
     toggle: Option<TimeSequence>,
+    /// Set line values then detach from the controlling terminal.
+    #[arg(short = 'z', long, group = "terminal")]
+    daemonize: bool,
     #[command(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -91,6 +95,9 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         ..Default::default()
     };
     setter.request(opts)?;
+    if opts.daemonize {
+        Daemonize::new().start()?;
+    }
     if let Some(ts) = &opts.toggle {
         return setter.toggle(ts);
     }
@@ -183,6 +190,7 @@ impl Setter {
                     let mut words = line.trim().split_ascii_whitespace();
                     if let Err(err) = match words.next() {
                         None => continue,
+                        Some("get") => self.do_get(words),
                         Some("set") => self.do_set(words),
                         Some("sleep") => self.do_sleep(words.next()),
                         Some("toggle") => self.do_toggle(words),
@@ -210,9 +218,32 @@ impl Setter {
         }
     }
 
+    fn do_get(&mut self, lines: std::str::SplitAsciiWhitespace) -> Result<()> {
+        let mut have_lines = false;
+        let mut print_values = Vec::new();
+        for line_id in lines {
+            match self.lines.get(line_id) {
+                Some(line) => {
+                    print_values.push(format!("{}={:?}", line_id, line.value));
+                    have_lines = true;
+                }
+                None => return Err(anyhow!("Not a requested line: {:?}", line_id)),
+            }
+        }
+        if !have_lines {
+            // no lines specified, so toggle all lines
+            for (name, line) in &self.lines {
+                print_values.push(format!("{}={:?}", name, line.value));
+            }
+        }
+        println!("{}", print_values.join(" "));
+
+        Ok(())
+    }
+
     fn do_set(&mut self, changes: std::str::SplitAsciiWhitespace) -> Result<()> {
         for lv in changes {
-            match parse_key_val::<String, LineValue>(lv) {
+            match parse_line_value(lv) {
                 Err(e) => {
                     return Err(anyhow!("Invalid value: {}", e));
                 }
@@ -331,21 +362,25 @@ impl Setter {
 fn print_interactive_help() -> Result<()> {
     let cmds = [
         (
+            "get <line>...",
+            "Display the current values of the given requested lines.",
+        ),
+        (
             "set <line=value>...",
-            "Update the values of the given requested lines",
+            "Update the values of the given requested lines.",
         ),
         (
             "toggle [line]...",
             "Toggle the values of the given requested lines.\n\
-            If no lines are specified then all requested lines are toggled",
+            If no lines are specified then all requested lines are toggled.",
         ),
-        ("sleep <period>", "Sleep for the specified period"),
-        ("help", "Print this help"),
-        ("exit", "Exit the program"),
+        ("sleep <period>", "Sleep for the specified period."),
+        ("help", "Print this help."),
+        ("exit", "Exit the program."),
     ];
-    println!("{}", "COMMANDS:".yellow());
+    println!("{}", "COMMANDS:".underline());
     for (cmd, help) in cmds {
-        print!("\n    {}", cmd.green());
+        print!("\n    {}", cmd.bold());
         for line in help.split('\n') {
             println!("\n            {}", line);
         }
@@ -361,19 +396,13 @@ struct Line {
     dirty: bool,
 }
 
-/// Parse a single key-value pair
-fn parse_key_val<T, U>(
+/// Parse a single line=value pair
+fn parse_line_value(
     s: &str,
-) -> std::result::Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
-where
-    T: std::str::FromStr,
-    T::Err: Error + Send + Sync + 'static,
-    U: std::str::FromStr,
-    U::Err: Error + Send + Sync + 'static,
-{
+) -> std::result::Result<(String, LineValue), Box<dyn Error + Send + Sync + 'static>> {
     let pos = s
         .find('=')
-        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{}`.", s))?;
+        .ok_or_else(|| format!("invalid line=value: no `=` found in `{}`.", s))?;
     Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
 
@@ -552,7 +581,7 @@ impl Completer for InteractiveHelper {
         pos: usize,
         _ctx: &rustyline::Context<'_>,
     ) -> Result<(usize, Vec<Pair>), ReadlineError> {
-        const CMD_SET: [&str; 5] = ["exit", "help", "set ", "sleep ", "toggle "];
+        const CMD_SET: [&str; 6] = ["exit", "get", "help", "set ", "sleep ", "toggle "];
         let cmd_pos = line.len() - line.trim_start().len();
         let mut words = line[..pos].split_whitespace();
         let mut candidates = Vec::new();

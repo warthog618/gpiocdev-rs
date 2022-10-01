@@ -16,6 +16,7 @@ path="src/main.rs"
 anyhow = "1.0"
 clap = {version = "4.0", features = ["derive", "env"]}
 colored = "2"
+daemonize = "0.4.1"
 gpiocdev = {path = "../lib", features = ["uapi_v1", "uapi_v2"]}
 rustyline = "10.0"
 rustyline-derive = "0.7"
