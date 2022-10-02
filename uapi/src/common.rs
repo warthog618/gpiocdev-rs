@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
-use errno::{errno, Errno};
-use libc::{c_long, ioctl, pollfd, ppoll, read, sigset_t, time_t, timespec, POLLIN};
+use errno::{self, Errno};
+use libc::{self, c_long, pollfd, sigset_t, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
-use std::mem::{size_of, MaybeUninit};
+use std::mem::{self, MaybeUninit};
 use std::os::unix::prelude::{OsStrExt, RawFd};
-use std::ptr::null;
+use std::ptr;
 use std::slice;
 use std::time::Duration;
 
@@ -20,8 +20,8 @@ pub fn has_event(fd: RawFd) -> Result<bool> {
 pub fn read_event(fd: RawFd, buf: &mut [u8]) -> Result<usize> {
     unsafe {
         let bufptr: *mut libc::c_void = std::ptr::addr_of_mut!(*buf) as *mut libc::c_void;
-        match read(fd, bufptr, buf.len()) {
-            -1 => Err(Error::from(errno())),
+        match libc::read(fd, bufptr, buf.len()) {
+            -1 => Err(Error::from(errno::errno())),
             x => Ok(x.try_into().unwrap()),
         }
     }
@@ -39,13 +39,13 @@ pub fn wait_event(fd: RawFd, d: Duration) -> Result<bool> {
         tv_nsec: d.subsec_nanos() as c_long,
     };
     unsafe {
-        match ppoll(
+        match libc::ppoll(
             std::ptr::addr_of_mut!(pfd),
             1,
             std::ptr::addr_of!(timeout),
-            null() as *const sigset_t,
+            ptr::null() as *const sigset_t,
         ) {
-            -1 => Err(Error::from(errno())),
+            -1 => Err(Error::from(errno::errno())),
             0 => Ok(false),
             _ => Ok(true),
         }
@@ -82,13 +82,13 @@ pub struct ChipInfo {
 pub fn get_chip_info(cfd: RawFd) -> Result<ChipInfo> {
     let mut chip = MaybeUninit::<ChipInfo>::uninit();
     unsafe {
-        match ioctl(
+        match libc::ioctl(
             cfd,
-            nix::request_code_read!(IOCTL_MAGIC, Ioctl::GetChipInfo, size_of::<ChipInfo>()),
+            nix::request_code_read!(IOCTL_MAGIC, Ioctl::GetChipInfo, mem::size_of::<ChipInfo>()),
             chip.as_mut_ptr(),
         ) {
             0 => Ok(chip.assume_init()),
-            _ => Err(Error::from(errno())),
+            _ => Err(Error::from(errno::errno())),
         }
     }
 }
@@ -101,14 +101,18 @@ pub fn get_chip_info(cfd: RawFd) -> Result<ChipInfo> {
 /// [`LineInfo`]: struct.LineInfo.html
 pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
     match unsafe {
-        ioctl(
+        libc::ioctl(
             cfd,
-            nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::UnwatchLineInfo, size_of::<u32>()),
+            nix::request_code_readwrite!(
+                IOCTL_MAGIC,
+                Ioctl::UnwatchLineInfo,
+                mem::size_of::<u32>()
+            ),
             &offset,
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -296,11 +300,10 @@ impl TryFrom<u32> for LineInfoChangeKind {
     type Error = String;
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
-        use LineInfoChangeKind::*;
         match v {
-            x if x == Requested as u32 => Ok(Requested),
-            x if x == Released as u32 => Ok(Released),
-            x if x == Reconfigured as u32 => Ok(Reconfigured),
+            x if x == LineInfoChangeKind::Requested as u32 => Ok(LineInfoChangeKind::Requested),
+            x if x == LineInfoChangeKind::Released as u32 => Ok(LineInfoChangeKind::Released),
+            x if x == LineInfoChangeKind::Reconfigured as u32 => Ok(LineInfoChangeKind::Reconfigured),
             x => Err(format!("invalid value: {}", x)),
         }
     }
@@ -330,10 +333,9 @@ impl TryFrom<u32> for LineEdgeEventKind {
     type Error = String;
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
-        use LineEdgeEventKind::*;
         match v {
-            x if x == RisingEdge as u32 => Ok(RisingEdge),
-            x if x == FallingEdge as u32 => Ok(FallingEdge),
+            x if x == LineEdgeEventKind::RisingEdge as u32 => Ok(LineEdgeEventKind::RisingEdge),
+            x if x == LineEdgeEventKind::FallingEdge as u32 => Ok(LineEdgeEventKind::FallingEdge),
             _ => Err(format!("invalid value: {}", v)),
         }
     }
@@ -353,7 +355,7 @@ mod tests {
     #[test]
     fn size_of_chip_info() {
         assert_eq!(
-            size_of::<ChipInfo>(),
+            mem::size_of::<ChipInfo>(),
             68usize,
             concat!("Size of: ", stringify!(ChipInfo))
         );
@@ -511,7 +513,7 @@ mod tests {
     #[test]
     fn size_of_name() {
         assert_eq!(
-            size_of::<Name>(),
+            mem::size_of::<Name>(),
             NAME_LEN_MAX,
             concat!("Size of: ", stringify!(Name))
         );
@@ -520,7 +522,7 @@ mod tests {
     #[test]
     fn size_of_offsets() {
         assert_eq!(
-            size_of::<Offsets>(),
+            mem::size_of::<Offsets>(),
             256usize,
             concat!("Size of: ", stringify!(Offsets))
         );
@@ -529,17 +531,17 @@ mod tests {
     #[test]
     fn size_of_padding() {
         assert_eq!(
-            size_of::<Padding<1>>(),
+            mem::size_of::<Padding<1>>(),
             4usize,
             concat!("Size of: ", stringify!(Padding<1>))
         );
         assert_eq!(
-            size_of::<Padding<2>>(),
+            mem::size_of::<Padding<2>>(),
             8usize,
             concat!("Size of: ", stringify!(Padding<2>))
         );
         assert_eq!(
-            size_of::<Padding<5>>(),
+            mem::size_of::<Padding<5>>(),
             20usize,
             concat!("Size of: ", stringify!(Padding<5>))
         );

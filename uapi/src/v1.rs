@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use bitflags::bitflags;
-use errno::errno;
-use libc::ioctl;
 use std::fs::File;
-use std::mem::size_of;
+use std::mem;
 use std::os::unix::prelude::{FromRawFd, RawFd};
 
 use super::common::{ValidationResult, IOCTL_MAGIC};
@@ -97,15 +95,20 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         offset,
         ..Default::default()
     };
+    // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
     match unsafe {
-        ioctl(
+        libc::ioctl(
             cfd,
-            nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::GetLineInfo, size_of::<LineInfo>()),
+            nix::request_code_readwrite!(
+                IOCTL_MAGIC,
+                Ioctl::GetLineInfo,
+                mem::size_of::<LineInfo>()
+            ),
             &li,
         )
     } {
         0 => Ok(li),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -122,15 +125,20 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         offset,
         ..Default::default()
     };
+    // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
     match unsafe {
-        ioctl(
+        libc::ioctl(
             cfd,
-            nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::WatchLineInfo, size_of::<LineInfo>()),
+            nix::request_code_readwrite!(
+                IOCTL_MAGIC,
+                Ioctl::WatchLineInfo,
+                mem::size_of::<LineInfo>()
+            ),
             &li,
         )
     } {
         0 => Ok(li),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -158,6 +166,7 @@ impl LineInfoChangeEvent {
     /// The buffer is assumed to have been populated by a read of the chip File,
     /// so the content is validated before being returned.
     pub fn from_buf(d: &[u8]) -> Result<&LineInfoChangeEvent> {
+        // SAFETY: event is validated before being returned
         let le = unsafe { &*(d as *const [u8] as *const LineInfoChangeEvent) };
         le.validate().map(|_| le).map_err(Error::from)
     }
@@ -247,18 +256,19 @@ bitflags! {
 /// * 'cfd' - The fd of the open chip.
 /// * `hr` - The line handle request.
 pub fn get_line_handle(cfd: RawFd, hr: HandleRequest) -> Result<File> {
+    // SAFETY: hr is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match ioctl(
+        match libc::ioctl(
             cfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::GetLineHandle,
-                size_of::<HandleRequest>()
+                mem::size_of::<HandleRequest>()
             ),
             &hr,
         ) {
             0 => Ok(File::from_raw_fd(hr.fd)),
-            _ => Err(Error::from(errno())),
+            _ => Err(Error::from(errno::errno())),
         }
     }
 }
@@ -288,14 +298,19 @@ pub struct HandleConfig {
 /// * `lf` - The file returned by [`get_line_handle`].
 /// * `hc` - The configuration to be applied.
 pub fn set_line_config(cfd: RawFd, hc: HandleConfig) -> Result<()> {
+    // SAFETY: hc is consumed.
     unsafe {
-        match ioctl(
+        match libc::ioctl(
             cfd,
-            nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::SetConfig, size_of::<HandleConfig>()),
+            nix::request_code_readwrite!(
+                IOCTL_MAGIC,
+                Ioctl::SetConfig,
+                mem::size_of::<HandleConfig>()
+            ),
             &hc,
         ) {
             0 => Ok(()),
-            _ => Err(Error::from(errno())),
+            _ => Err(Error::from(errno::errno())),
         }
     }
 }
@@ -367,19 +382,20 @@ impl Default for LineValues {
 /// * `lf` - The file returned by [`get_line_handle`] or [`get_line_event`].
 /// * `vals` - The line values to be populated.
 pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
+    // SAFETY: vals are raw integers that are safe to decode.
     match unsafe {
-        ioctl(
+        libc::ioctl(
             lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::GetLineValues,
-                size_of::<LineValues>()
+                mem::size_of::<LineValues>()
             ),
             vals.0.as_mut_ptr(),
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -388,19 +404,20 @@ pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
 /// * `lf` - The file returned by [`get_line_handle`].
 /// * `vals` - The line values to be set.
 pub fn set_line_values(lfd: RawFd, vals: &LineValues) -> Result<()> {
+    // SAFETY: vals is not modified.
     match unsafe {
-        ioctl(
+        libc::ioctl(
             lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::SetLineValues,
-                size_of::<LineValues>()
+                mem::size_of::<LineValues>()
             ),
             vals.0.as_ptr(),
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -452,18 +469,19 @@ bitflags! {
 /// * 'cfd' - The fd of the open chip.
 /// * `er` - The line event request.
 pub fn get_line_event(cfd: RawFd, er: EventRequest) -> Result<File> {
+    // SAFETY: er is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match ioctl(
+        match libc::ioctl(
             cfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::GetLineEvent,
-                size_of::<EventRequest>()
+                mem::size_of::<EventRequest>()
             ),
             &er,
         ) {
             0 => Ok(File::from_raw_fd(er.fd)),
-            _ => Err(Error::from(errno())),
+            _ => Err(Error::from(errno::errno())),
         }
     }
 }
@@ -484,6 +502,7 @@ impl LineEdgeEvent {
     /// The buffer is assumed to have been populated by a read of the line request File,
     /// so the content is validated before being returned.
     pub fn from_buf(d: &[u8]) -> Result<&LineEdgeEvent> {
+        // SAFETY: returned struct is explicitly validated before being returned.
         let le = unsafe { &*(d as *const [u8] as *const LineEdgeEvent) };
         le.validate().map(|_| le).map_err(Error::from)
     }
@@ -506,7 +525,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineInfo>(),
+                super::mem::size_of::<LineInfo>(),
                 72usize,
                 concat!("Size of: ", stringify!(LineInfo))
             );
@@ -519,7 +538,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineInfoChangeEvent>(),
+                super::mem::size_of::<LineInfoChangeEvent>(),
                 104usize,
                 concat!("Size of: ", stringify!(LineInfoChangeEvent))
             );
@@ -559,7 +578,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<HandleRequest>(),
+                super::mem::size_of::<HandleRequest>(),
                 364usize,
                 concat!("Size of: ", stringify!(HandleRequest))
             );
@@ -572,7 +591,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<HandleConfig>(),
+                super::mem::size_of::<HandleConfig>(),
                 84usize,
                 concat!("Size of: ", stringify!(HandleConfig))
             );
@@ -585,7 +604,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<EventRequest>(),
+                super::mem::size_of::<EventRequest>(),
                 48usize,
                 concat!("Size of: ", stringify!(EventRequest))
             );
@@ -598,7 +617,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineEdgeEvent>(),
+                super::mem::size_of::<LineEdgeEvent>(),
                 16usize,
                 concat!("Size of: ", stringify!(LineEdgeEvent))
             );
@@ -661,7 +680,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineValues>(),
+                super::mem::size_of::<LineValues>(),
                 64usize,
                 concat!("Size of: ", stringify!(LineValues))
             );

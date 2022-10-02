@@ -6,7 +6,7 @@ use anyhow::Context;
 use gpiocdev::line::Value;
 use gpiocdev::request::Request;
 use std::result::Result;
-use std::thread::sleep;
+use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .context("Failed to request line")?;
 
     loop {
-        sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(500));
         value = value.not();
         println!("{:?}", value);
         req.set_value(22, value).context("Failed to toggle value")?;

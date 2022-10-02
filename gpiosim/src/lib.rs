@@ -19,7 +19,7 @@
 use nohash_hasher::IntMap;
 use std::env;
 use std::ffi::OsString;
-use std::fs::{create_dir, read_to_string, remove_dir, write, File};
+use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::os::unix::ffi::OsStringExt;
@@ -75,38 +75,38 @@ impl Sim {
             for offset in c.cfg.hogs.keys() {
                 let line_dir = bank_dir.join(&format!("line{}", offset));
                 let hog_dir = line_dir.join("hog");
-                _ = remove_dir(hog_dir);
-                _ = remove_dir(line_dir);
+                _ = fs::remove_dir(hog_dir);
+                _ = fs::remove_dir(line_dir);
             }
             for offset in c.cfg.names.keys() {
                 let line_dir = bank_dir.join(&format!("line{}", offset));
-                _ = remove_dir(line_dir);
+                _ = fs::remove_dir(line_dir);
             }
-            _ = remove_dir(bank_dir);
+            _ = fs::remove_dir(bank_dir);
         }
-        _ = remove_dir(&self.dir);
+        _ = fs::remove_dir(&self.dir);
         while self.dir.exists() {}
     }
 
     fn setup_configfs(&mut self) -> Result<()> {
         for (i, c) in self.chips.iter().enumerate() {
             let bank_dir = self.dir.join(format!("bank{}", i));
-            create_dir(&bank_dir)?;
+            fs::create_dir(&bank_dir)?;
             write_attr(&bank_dir, "label", c.cfg.label.as_bytes())?;
             write_attr(&bank_dir, "num_lines", &format!("{}", c.cfg.num_lines))?;
 
             for (offset, name) in &c.cfg.names {
                 let line_dir = bank_dir.join(&format!("line{}", offset));
-                create_dir(&line_dir)?;
+                fs::create_dir(&line_dir)?;
                 write_attr(&line_dir, "name", &name.as_bytes())?;
             }
             for (offset, hog) in &c.cfg.hogs {
                 let line_dir = bank_dir.join(&format!("line{}", offset));
                 if !line_dir.exists() {
-                    create_dir(&line_dir)?;
+                    fs::create_dir(&line_dir)?;
                 }
                 let hog_dir = line_dir.join("hog");
-                create_dir(&hog_dir)?;
+                fs::create_dir(&hog_dir)?;
                 write_attr(&hog_dir, "name", &hog.name.as_bytes())?;
                 write_attr(&hog_dir, "direction", &hog.direction.to_string())?;
             }
@@ -294,7 +294,7 @@ impl Builder {
         if sim_dir.exists() {
             return Err(Error::SimulatorExists(name));
         }
-        create_dir(&sim_dir)?;
+        fs::create_dir(&sim_dir)?;
 
         let mut sim = Sim {
             name,
@@ -448,13 +448,13 @@ pub fn unique_name(app: &str, instance: Option<&str>) -> String {
 // Helper to write to simulator configuration files.
 fn write_attr<D: AsRef<[u8]>>(p: &Path, file: &str, data: D) -> Result<()> {
     let path = p.join(file);
-    write(path, data).map_err(Error::IoError)
+    fs::write(path, data).map_err(Error::IoError)
 }
 
 // Helper to read from simulator attribute files.
 fn read_attr(p: &Path, file: &str) -> Result<String> {
     let path = p.join(file);
-    read_to_string(path)
+    fs::read_to_string(path)
         .map(|s| s.trim().to_string())
         .map_err(Error::IoError)
 }

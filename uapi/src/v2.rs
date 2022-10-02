@@ -4,12 +4,10 @@
 
 use bitflags::bitflags;
 use bitmaps::Bitmap;
-use errno::errno;
-use libc::ioctl;
 use std::convert::TryFrom;
 use std::fmt;
 use std::fs::File;
-use std::mem::size_of;
+use std::mem;
 use std::os::unix::prelude::{FromRawFd, RawFd};
 use std::time::Duration;
 
@@ -154,19 +152,20 @@ impl LineValues {
 /// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lv` - The line values to be populated.
 pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
+    // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
     match unsafe {
-        ioctl(
+        libc::ioctl(
             lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::GetLineValues,
-                size_of::<LineValues>()
+                mem::size_of::<LineValues>()
             ),
             lv,
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -177,19 +176,20 @@ pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
 /// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lv` - The line values to be set.
 pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
+    // SAFETY: lv is not modified.
     match unsafe {
-        ioctl(
+        libc::ioctl(
             lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::SetLineValues,
-                size_of::<LineValues>()
+                mem::size_of::<LineValues>()
             ),
             lv,
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -276,14 +276,15 @@ impl LineAttribute {
     ///
     /// Converts the unsafe kind/union into a safe enum.
     pub fn to_value(&self) -> Option<LineAttributeValue> {
+        // SAFETY: checks kind before accessing union
         unsafe {
             match self.kind {
+                LineAttributeKind::Unused => None,
                 LineAttributeKind::Flags => Some(LineAttributeValue::Flags(self.value.flags)),
                 LineAttributeKind::Values => Some(LineAttributeValue::Values(self.value.values)),
                 LineAttributeKind::Debounce => Some(LineAttributeValue::DebouncePeriod(
                     Duration::from_micros(self.value.debounce_period_us as u64),
                 )),
-                LineAttributeKind::Unused => None,
             }
         }
     }
@@ -291,15 +292,15 @@ impl LineAttribute {
 
 impl fmt::Debug for LineAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use LineAttributeKind::*;
+        // SAFETY: checks kind before accessing union
         unsafe {
             match self.kind {
-                Unused => write!(f, "unused"),
-                Flags => write!(f, "flags: {:?}", self.value.flags),
-                Values => {
+                LineAttributeKind::Unused => write!(f, "unused"),
+                LineAttributeKind::Flags => write!(f, "flags: {:?}", self.value.flags),
+                LineAttributeKind::Values => {
                     write!(f, "values: {:08x}", self.value.values.as_value())
                 }
-                Debounce => {
+                LineAttributeKind::Debounce => {
                     write!(f, "debounce_period_us: {}", self.value.debounce_period_us)
                 }
             }
@@ -309,16 +310,18 @@ impl fmt::Debug for LineAttribute {
 
 impl PartialEq for LineAttribute {
     fn eq(&self, other: &Self) -> bool {
-        use LineAttributeKind::*;
         if self.kind != other.kind {
             return false;
         }
+        // SAFETY: checks kind before accessing union
         unsafe {
             match self.kind {
-                Unused => true,
-                Flags => self.value.flags == other.value.flags,
-                Values => self.value.values == other.value.values,
-                Debounce => self.value.debounce_period_us == other.value.debounce_period_us,
+                LineAttributeKind::Unused => true,
+                LineAttributeKind::Flags => self.value.flags == other.value.flags,
+                LineAttributeKind::Values => self.value.values == other.value.values,
+                LineAttributeKind::Debounce => {
+                    self.value.debounce_period_us == other.value.debounce_period_us
+                }
             }
         }
     }
@@ -427,18 +430,19 @@ impl LineConfig {
 /// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lc` - The configuration to be applied.
 pub fn set_line_config(lfd: RawFd, lc: LineConfig) -> Result<()> {
+    // SAFETY: lc is consumed.
     unsafe {
-        match ioctl(
+        match libc::ioctl(
             lfd,
             nix::request_code_readwrite!(
                 IOCTL_MAGIC,
                 Ioctl::SetLineConfig,
-                size_of::<LineConfig>()
+                mem::size_of::<LineConfig>()
             ),
             &lc,
         ) {
             0 => Ok(()),
-            _ => Err(Error::from(errno())),
+            _ => Err(Error::from(errno::errno())),
         }
     }
 }
@@ -486,14 +490,19 @@ pub struct LineRequest {
 /// * `cfd` - The fd of the open chip.
 /// * `lr` - The line request.
 pub fn get_line(cfd: RawFd, lr: LineRequest) -> Result<File> {
+    // SAFETY: lr is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match ioctl(
+        match libc::ioctl(
             cfd,
-            nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::GetLine, size_of::<LineRequest>()),
+            nix::request_code_readwrite!(
+                IOCTL_MAGIC,
+                Ioctl::GetLine,
+                mem::size_of::<LineRequest>()
+            ),
             &lr,
         ) {
             0 => Ok(File::from_raw_fd(lr.fd)),
-            _ => Err(Error::from(errno())),
+            _ => Err(Error::from(errno::errno())),
         }
     }
 }
@@ -579,15 +588,20 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         offset,
         ..Default::default()
     };
+    // SAFETY: returned struct is explicitly validated before being returned.
     match unsafe {
-        ioctl(
+        libc::ioctl(
             cfd,
-            nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::GetLineInfo, size_of::<LineInfo>()),
+            nix::request_code_readwrite!(
+                IOCTL_MAGIC,
+                Ioctl::GetLineInfo,
+                mem::size_of::<LineInfo>()
+            ),
             &li,
         )
     } {
         0 => li.validate().map(|_| li).map_err(Error::from),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -605,15 +619,20 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         offset,
         ..Default::default()
     };
+    // SAFETY: returned struct is explicitly validated before being returned.
     match unsafe {
-        ioctl(
+        libc::ioctl(
             cfd,
-            nix::request_code_readwrite!(IOCTL_MAGIC, Ioctl::WatchLineInfo, size_of::<LineInfo>()),
+            nix::request_code_readwrite!(
+                IOCTL_MAGIC,
+                Ioctl::WatchLineInfo,
+                mem::size_of::<LineInfo>()
+            ),
             &li,
         )
     } {
         0 => li.validate().map(|_| li).map_err(Error::from),
-        _ => Err(Error::from(errno())),
+        _ => Err(Error::from(errno::errno())),
     }
 }
 
@@ -638,6 +657,7 @@ pub struct LineInfoChangeEvent {
 impl LineInfoChangeEvent {
     /// Read an info change event from a buffer.
     pub fn from_buf(d: &[u8]) -> Result<&LineInfoChangeEvent> {
+        // SAFETY: returned struct is explicitly validated before being returned.
         let ice = unsafe { &*(d as *const [u8] as *const LineInfoChangeEvent) };
         ice.validate().map(|_| ice).map_err(Error::from)
     }
@@ -686,6 +706,7 @@ pub struct LineEdgeEvent {
 impl LineEdgeEvent {
     /// Read an edge event from a buffer.
     pub fn from_buf(d: &[u8]) -> Result<&LineEdgeEvent> {
+        // SAFETY: returned struct is explicitly validated before being returned.
         let le = unsafe { &*(d as *const [u8] as *const LineEdgeEvent) };
         le.validate().map(|_| le).map_err(Error::from)
     }
@@ -708,7 +729,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineAttribute>(),
+                super::mem::size_of::<LineAttribute>(),
                 16usize,
                 concat!("Size of: ", stringify!(LineAttribute))
             );
@@ -721,7 +742,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineAttributeValueUnion>(),
+                super::mem::size_of::<LineAttributeValueUnion>(),
                 8usize,
                 concat!("Size of: ", stringify!(LineAttributeValueUnion))
             );
@@ -734,7 +755,7 @@ mod tests {
         #[test]
         fn line_config_attribute() {
             assert_eq!(
-                super::size_of::<LineConfigAttribute>(),
+                super::mem::size_of::<LineConfigAttribute>(),
                 24usize,
                 concat!("Size of: ", stringify!(LineConfigAttribute))
             );
@@ -747,7 +768,7 @@ mod tests {
         #[test]
         fn line_config() {
             assert_eq!(
-                super::size_of::<LineConfig>(),
+                super::mem::size_of::<LineConfig>(),
                 272usize,
                 concat!("Size of: ", stringify!(LineConfig))
             );
@@ -760,7 +781,7 @@ mod tests {
         #[test]
         fn line_request() {
             assert_eq!(
-                super::size_of::<LineRequest>(),
+                super::mem::size_of::<LineRequest>(),
                 592usize,
                 concat!("Size of: ", stringify!(LineRequest))
             );
@@ -831,7 +852,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineValues>(),
+                super::mem::size_of::<LineValues>(),
                 16usize,
                 concat!("Size of: ", stringify!(LineValues))
             );
@@ -889,7 +910,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineInfo>(),
+                super::mem::size_of::<LineInfo>(),
                 256usize,
                 concat!("Size of: ", stringify!(LineInfo))
             );
@@ -929,7 +950,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineInfoChangeEvent>(),
+                super::mem::size_of::<LineInfoChangeEvent>(),
                 288usize,
                 concat!("Size of: ", stringify!(LineInfoChangeEvent))
             );
@@ -972,7 +993,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::size_of::<LineEdgeEvent>(),
+                super::mem::size_of::<LineEdgeEvent>(),
                 48usize,
                 concat!("Size of: ", stringify!(LineEdgeEvent))
             );

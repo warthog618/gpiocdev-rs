@@ -245,7 +245,7 @@ mod tests {
     use super::*;
 
     mod timestamp {
-        use super::Timestamp;
+        use crate::Timestamp;
         use chrono::{DateTime, Utc};
 
         #[test]
@@ -304,7 +304,7 @@ mod tests {
 
         #[test]
         fn display() {
-            use super::AbiSupportKind;
+            use crate::AbiSupportKind;
             let ask = AbiSupportKind::Library;
             assert_eq!(format!("{}", ask), "library");
             let ask = AbiSupportKind::Platform;

@@ -5,7 +5,7 @@
 use gpiocdev::line::Value;
 use gpiocdev::request::Request;
 use std::result::Result;
-use std::thread::sleep;
+use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .request()?;
 
     // some time later
-    sleep(Duration::from_secs(2));
+    thread::sleep(Duration::from_secs(2));
     // change the value...
     req.set_value(22, Value::Inactive)?;
 
