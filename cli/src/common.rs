@@ -4,13 +4,11 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
-use gpiocdev::chip::{chips, Chip};
-use gpiocdev::line::Offset;
+use gpiocdev::chip::{self, Chip};
+use gpiocdev::line::{Bias, Drive, EdgeDetection, Info, Offset};
 use gpiocdev::request::Config;
-use gpiocdev::{
-    detect_abi_version,
-    AbiVersion::{self, *},
-};
+use gpiocdev::{self, AbiVersion};
+use nohash_hasher::IntMap;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
@@ -20,7 +18,9 @@ use std::time::Duration;
 // common helper functions
 
 pub fn all_chips() -> Result<Vec<PathBuf>> {
-    let mut cc: Vec<PathBuf> = chips().context("Failed to find any chips.")?.collect();
+    let mut cc: Vec<PathBuf> = chip::chips()
+        .context("Failed to find any chips.")?
+        .collect();
     // sorted for consistent outputs
     cc.sort();
     Ok(cc)
@@ -29,8 +29,8 @@ pub fn all_chips() -> Result<Vec<PathBuf>> {
 pub fn chip_from_opts(p: &Path, abiv: u8) -> Result<Chip> {
     let mut c = Chip::from_path(p).with_context(|| format!("Failed to open chip {:?}.", &p))?;
     let abiv = match abiv {
-        1 => V1,
-        2 => V2,
+        1 => AbiVersion::V1,
+        2 => AbiVersion::V2,
         _ => c
             .detect_abi_version()
             .with_context(|| format!("Failed to detect ABI version on chip {:?}.", &p))?,
@@ -41,9 +41,9 @@ pub fn chip_from_opts(p: &Path, abiv: u8) -> Result<Chip> {
 
 pub fn abi_version_from_opts(abiv: u8) -> Result<AbiVersion> {
     let abiv = match abiv {
-        1 => V1,
-        2 => V2,
-        _ => detect_abi_version().context("Failed to detect ABI version.")?,
+        1 => AbiVersion::V1,
+        2 => AbiVersion::V2,
+        _ => gpiocdev::detect_abi_version().context("Failed to detect ABI version.")?,
     };
     Ok(abiv)
 }
@@ -65,57 +65,68 @@ pub fn parse_chip_path(s: &str) -> Result<PathBuf> {
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct ChipOffset {
-    pub chip: PathBuf,
+    // This is the idx into the Vec<ChipInfo>, not a system gpiochip#.
+    pub chip_idx: usize,
     pub offset: Offset,
 }
 
-pub fn find_lines(
-    lines: &[String],
-    opts: &LineOpts,
-    abiv: u8,
-) -> Result<(HashMap<String, ChipOffset>, Vec<PathBuf>)> {
+#[derive(Debug, Eq, PartialEq)]
+pub struct ChipInfo {
+    pub path: PathBuf,
+    pub name: String,
+    pub named_lines: IntMap<Offset, String>,
+}
+
+pub struct Resolver {
+    pub lines: HashMap<String, ChipOffset>,
+    pub chips: Vec<ChipInfo>,
+}
+
+pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Resolver> {
     let chips = match &opts.chip {
         Some(chip_path) => vec![chip_path.clone()],
         None => all_chips()?,
     };
 
-    let mut found_lines = HashMap::new();
-    let mut fchips = Vec::new();
-    if chips.len() == 1 && !opts.by_name {
-        let chip = chips.get(0).unwrap();
-        for line_id in lines {
-            if let Ok(offset) = line_id.parse::<u32>() {
-                found_lines.insert(
-                    line_id.to_owned(),
-                    ChipOffset {
-                        chip: chip.clone(),
-                        offset,
-                    },
-                );
+    let mut r = Resolver {
+        lines: HashMap::new(),
+        chips: Vec::new(),
+    };
+    let mut chip_idx = 0;
+    for (idx, path) in chips.iter().enumerate() {
+        let found_count = r.lines.len();
+        let chip = chip_from_opts(path, abiv)?;
+        let kci = chip
+            .info()
+            .with_context(|| format!("Failed to read info from {:?}.", path))?;
+        let mut ci = ChipInfo {
+            path: chip.path().to_owned(),
+            name: kci.name,
+            named_lines: IntMap::default(),
+        };
+
+        // first match line by offset - but only when id by offset is possible
+        if idx == 0 && opts.chip.is_some() && !opts.by_name {
+            for id in lines {
+                if let Ok(offset) = id.parse::<u32>() {
+                    r.lines
+                        .insert(id.to_owned(), ChipOffset { chip_idx, offset });
+                }
             }
         }
-    }
-
-    for path in &chips {
-        let chip = chip_from_opts(path, abiv)?;
-        let ci = chip
-            .info()
-            .with_context(|| format!("Failed to info from chip {:?}.", path))?;
-        for offset in 0..ci.num_lines {
+        // match by name
+        for offset in 0..kci.num_lines {
             let li = chip.line_info(offset).with_context(|| {
                 format!("Failed to read line {} info from chip {:?}.", offset, path)
             })?;
             for name in lines {
                 if name.as_str() == li.name.as_str() {
-                    if !found_lines.contains_key(name) {
-                        found_lines.insert(
-                            name.to_owned(),
-                            ChipOffset {
-                                chip: path.to_owned(),
-                                offset,
-                            },
-                        );
-                        if !opts.strict && found_lines.len() == lines.len() {
+                    if !r.lines.contains_key(name) {
+                        r.lines
+                            .insert(name.to_owned(), ChipOffset { chip_idx, offset });
+                        ci.named_lines.insert(offset, name.to_owned());
+
+                        if !opts.strict && r.lines.len() == lines.len() {
                             break;
                         }
                     } else if opts.strict {
@@ -124,17 +135,18 @@ pub fn find_lines(
                 }
             }
         }
-    }
-    for line_id in lines {
-        let co = found_lines
-            .get(line_id)
-            .context(format!("Can't find line {:?}.", line_id))?;
-        if !fchips.contains(&co.chip) {
-            fchips.push(co.chip.clone());
+        if found_count != r.lines.len() {
+            r.chips.push(ci);
+            chip_idx += 1;
         }
     }
+    for id in lines {
+        r.lines
+            .get(id)
+            .context(format!("Can't find line {:?}.", id))?;
+    }
 
-    Ok((found_lines, fchips))
+    Ok(r)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -191,12 +203,14 @@ pub struct LineOpts {
     ///     --chip /dev/gpiochip0
     #[arg(short, long, name = "chip", value_parser = parse_chip_path, verbatim_doc_comment)]
     pub chip: Option<PathBuf>,
+
     /// Requested line names must be unique or the command will abort.
     ///
     /// If --chip is also specified then requested line names must only be unique to the
     /// lines on that chip.
     #[arg(short = 's', long)]
     pub strict: bool,
+
     /// Lines are strictly identified by name.
     ///
     /// If --chip is provided then lines are initially assumed to be offsets, and only
@@ -224,31 +238,30 @@ pub struct ActiveLowOpts {
     pub active_low: bool,
 }
 impl ActiveLowOpts {
-    pub fn apply<'b>(&self, r: &'b mut Config) -> &'b mut Config {
+    pub fn apply(&self, r: &mut Config) {
         if self.active_low {
-            return r.as_active_low();
+            r.as_active_low();
         }
-        r
     }
 }
 
-#[derive(Copy, Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum BiasFlags {
     PullUp,
     PullDown,
     Disabled,
 }
-impl From<BiasFlags> for gpiocdev::line::Bias {
+impl From<BiasFlags> for Bias {
     fn from(b: BiasFlags) -> Self {
         match b {
-            BiasFlags::PullUp => gpiocdev::line::Bias::PullUp,
-            BiasFlags::PullDown => gpiocdev::line::Bias::PullDown,
-            BiasFlags::Disabled => gpiocdev::line::Bias::Disabled,
+            BiasFlags::PullUp => Bias::PullUp,
+            BiasFlags::PullDown => Bias::PullDown,
+            BiasFlags::Disabled => Bias::Disabled,
         }
     }
 }
 
-#[derive(Copy, Clone, Debug, Parser)]
+#[derive(Clone, Copy, Debug, Parser)]
 pub struct BiasOpts {
     /// The bias to be applied to the lines.
     ///
@@ -257,60 +270,58 @@ pub struct BiasOpts {
     pub bias: Option<BiasFlags>,
 }
 impl BiasOpts {
-    pub fn apply(self, r: &mut Config) -> &mut Config {
+    pub fn apply(self, r: &mut Config) {
         if let Some(bias) = self.bias {
             r.with_bias(Some(bias.into()));
         }
-        r
     }
 }
 
-#[derive(Copy, Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum DriveFlags {
     PushPull,
     OpenDrain,
     OpenSource,
 }
-impl From<DriveFlags> for gpiocdev::line::Drive {
+impl From<DriveFlags> for Drive {
     fn from(b: DriveFlags) -> Self {
         match b {
-            DriveFlags::PushPull => gpiocdev::line::Drive::PushPull,
-            DriveFlags::OpenDrain => gpiocdev::line::Drive::OpenDrain,
-            DriveFlags::OpenSource => gpiocdev::line::Drive::OpenSource,
+            DriveFlags::PushPull => Drive::PushPull,
+            DriveFlags::OpenDrain => Drive::OpenDrain,
+            DriveFlags::OpenSource => Drive::OpenSource,
         }
     }
 }
-#[derive(Copy, Clone, Debug, Parser)]
+#[derive(Clone, Copy, Debug, Parser)]
 pub struct DriveOpts {
     /// How the lines should be driven.
     #[arg(short, long, name = "drive", value_enum, ignore_case = true)]
     pub drive: Option<DriveFlags>,
 }
 impl DriveOpts {
-    pub fn apply(self, r: &mut Config) -> &mut Config {
+    pub fn apply(self, r: &mut Config) {
         if let Some(drive) = self.drive {
             r.with_drive(drive.into());
         }
-        r
     }
 }
 
-#[derive(Copy, Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum EdgeFlags {
     Rising,
     Falling,
     Both,
 }
-impl From<EdgeFlags> for gpiocdev::line::EdgeDetection {
+impl From<EdgeFlags> for EdgeDetection {
     fn from(b: EdgeFlags) -> Self {
         match b {
-            EdgeFlags::Rising => gpiocdev::line::EdgeDetection::RisingEdge,
-            EdgeFlags::Falling => gpiocdev::line::EdgeDetection::FallingEdge,
-            EdgeFlags::Both => gpiocdev::line::EdgeDetection::BothEdges,
+            EdgeFlags::Rising => EdgeDetection::RisingEdge,
+            EdgeFlags::Falling => EdgeDetection::FallingEdge,
+            EdgeFlags::Both => EdgeDetection::BothEdges,
         }
     }
 }
-#[derive(Copy, Clone, Debug, Parser)]
+#[derive(Clone, Copy, Debug, Parser)]
 pub struct EdgeOpts {
     /// Which edges should be detected and reported.
     #[arg(
@@ -324,8 +335,8 @@ pub struct EdgeOpts {
     pub edges: EdgeFlags,
 }
 impl EdgeOpts {
-    pub fn apply(self, r: &mut Config) -> &mut Config {
-        r.with_edge_detection(Some(self.edges.into()))
+    pub fn apply(self, r: &mut Config) {
+        r.with_edge_detection(Some(self.edges.into()));
     }
 }
 
@@ -333,7 +344,7 @@ impl EdgeOpts {
 pub struct LinesOpts {}
 
 pub fn stringify_attrs(li: &gpiocdev::line::Info) -> String {
-    use gpiocdev::line::{Bias, Direction, Drive, EdgeDetection, EventClock};
+    use gpiocdev::line::{Direction, EventClock};
 
     let mut attrs = Vec::new();
     match li.direction {
@@ -365,7 +376,7 @@ pub fn stringify_attrs(li: &gpiocdev::line::Info) -> String {
         None => (),                        // Not present for v1.
         Some(EventClock::Monotonic) => (), // default for ABI v2
         Some(EventClock::Realtime) => attrs.push("event-clock=realtime"),
-        Some(EventClock::HTE) => attrs.push("event-clock=hte"),
+        Some(EventClock::Hte) => attrs.push("event-clock=hte"),
     }
     let db;
     if li.debounce_period.is_some() {
@@ -382,6 +393,50 @@ pub fn stringify_attrs(li: &gpiocdev::line::Info) -> String {
         attrs.push(&consumer);
     }
     attrs.join(" ")
+}
+
+pub fn print_line_name(ci: &ChipInfo, offset: &Offset) {
+    if let Some(name) = ci.named_lines.get(offset) {
+        print!("{}", name);
+    } else {
+        print!("unnamed");
+    }
+}
+
+pub fn print_consumer(li: &Info) {
+    if li.used {
+        if li.consumer.is_empty() {
+            print!("kernel");
+        } else {
+            print!("{}", li.consumer);
+        }
+    } else {
+        print!("unused");
+    }
+}
+
+pub enum TimeFmt {
+    Seconds,
+    Localtime,
+    Utc,
+}
+
+pub fn print_time(evtime: u64, timefmt: &TimeFmt) {
+    use chrono::{Local, NaiveDateTime, TimeZone, Utc};
+
+    let ts_sec = (evtime / 1000000000) as i64;
+    let ts_nsec = (evtime % 1000000000) as u32;
+    match timefmt {
+        TimeFmt::Seconds => print!("{}.{}", ts_sec, ts_nsec),
+        TimeFmt::Localtime => {
+            let t = Local.from_utc_datetime(&NaiveDateTime::from_timestamp(ts_sec, ts_nsec));
+            print!("{}", t.format("%FT%T%.9f"));
+        }
+        TimeFmt::Utc => {
+            let t = Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(ts_sec, ts_nsec));
+            print!("{}", t.format("%FT%T%.9fZ"));
+        }
+    }
 }
 
 #[derive(Debug)]

@@ -123,7 +123,7 @@ impl From<&Config> for v2::LineFlags {
                         Some(EventClock::Realtime) => {
                             flags.set(v2::LineFlags::EVENT_CLOCK_REALTIME, true)
                         }
-                        Some(EventClock::HTE) => flags.set(v2::LineFlags::EVENT_CLOCK_HTE, true),
+                        Some(EventClock::Hte) => flags.set(v2::LineFlags::EVENT_CLOCK_HTE, true),
                     };
                 }
             }
@@ -642,11 +642,11 @@ pub enum EventClock {
     /// The **CLOCK_REALTIME** is used as the source for edge event timestamps.
     Realtime,
 
-    /// The hardware timestamping engine provides event timestamps.
+    /// The hardware timestamp engine provides event timestamps.
     ///
     /// This source requires a Linux kernel v5.19 or later with CONFIG_HTE
     /// enabled and suitable supporting hardware.
-    HTE,
+    Hte,
 }
 impl Default for EventClock {
     fn default() -> Self {
@@ -660,7 +660,7 @@ impl From<v2::LineFlags> for EventClock {
             return EventClock::Realtime;
         }
         if flags.contains(v2::LineFlags::EVENT_CLOCK_HTE) {
-            return EventClock::HTE;
+            return EventClock::Hte;
         }
         EventClock::Monotonic
     }
@@ -908,7 +908,7 @@ mod tests {
                 bias: Some(Bias::PullUp),
                 drive: Some(Drive::OpenSource), // ignored for input
                 edge_detection: None,
-                event_clock: Some(EventClock::HTE), // ignored for no edges
+                event_clock: Some(EventClock::Hte), // ignored for no edges
                 debounce_period: None,
                 value: None,
             };

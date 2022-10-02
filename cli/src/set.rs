@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::common::{
-    abi_version_from_opts, find_lines, parse_duration, ActiveLowOpts, BiasOpts, DriveOpts,
-    LineOpts, ParseDurationError, UapiOpts,
+    self, ActiveLowOpts, BiasOpts, ChipInfo, DriveOpts, LineOpts, ParseDurationError, UapiOpts,
 };
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
@@ -17,15 +16,16 @@ use rustyline::config::CompletionType;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use rustyline_derive::{Helper, Highlighter, Hinter, Validator};
-use std::cmp::max;
+use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::path::PathBuf;
 use std::str::{FromStr, SplitWhitespace};
-use std::thread::sleep;
+use std::thread;
 use std::time::Duration;
+
 #[derive(Debug, Parser)]
+#[command(alias("s"))]
 pub struct Opts {
     /// The line values.
     ///
@@ -38,23 +38,30 @@ pub struct Opts {
     ///     --chip gpiochip0 17=1 22=0
     #[arg(name = "line=value", required = true, value_parser = parse_line_value, verbatim_doc_comment)]
     line_values: Vec<(String, LineValue)>,
+
     #[command(flatten)]
     line_opts: LineOpts,
+
     #[command(flatten)]
     active_low_opts: ActiveLowOpts,
+
     #[command(flatten)]
     bias_opts: BiasOpts,
+
     #[command(flatten)]
     drive_opts: DriveOpts,
+
     /// Set the lines then wait for additional set commands for the requested lines.
     ///
     /// Use the "help" command at the interactive prompt to get help for
     /// the supported commands.
     #[arg(short, long, groups = ["mode", "terminal"])]
     interactive: bool,
+
     /// The minimum time period to hold lines at the requested values.
-    #[arg(short = 'p', long, name = "period", value_parser = parse_duration)]
+    #[arg(short = 'p', long, name = "period", value_parser = common::parse_duration)]
     hold_period: Option<Duration>,
+
     /// Toggle the lines after the specified time periods.
     ///
     /// The time periods are a comma separated list.
@@ -69,23 +76,25 @@ pub struct Opts {
     ///
     /// The first two examples repeat, the third exits after 4s.
     ///
-    /// A 0s period elsewhere in the sequence is toggled as fast as possible,
+    /// A 0s period elsewhere in the sequence is toggled as quickly as possible,
     /// allowing for any specified --hold-period.
     #[arg(short = 't', long, name = "periods", value_parser = parse_time_sequence, group = "mode", verbatim_doc_comment)]
     toggle: Option<TimeSequence>,
+
     /// Set line values then detach from the controlling terminal.
     #[arg(short = 'z', long, group = "terminal")]
     daemonize: bool,
+
     #[command(flatten)]
     uapi_opts: UapiOpts,
 }
 
 impl Opts {
     // mutate the config to match the configuration
-    fn apply<'b>(&self, config: &'b mut Config) -> &'b mut Config {
+    fn apply(&self, config: &mut Config) {
         self.active_low_opts.apply(config);
         self.bias_opts.apply(config);
-        self.drive_opts.apply(config)
+        self.drive_opts.apply(config);
     }
 }
 
@@ -112,9 +121,8 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 struct Setter {
     // Map from command line name to top level line details.
     lines: HashMap<String, Line>,
-    // The list of chips containing requested lines,
-    // in the same order as the lines occur  on the command line.
-    chips: Vec<PathBuf>,
+    // The list of chips containing requested lines
+    chips: Vec<ChipInfo>,
     // The request on each chip
     requests: Vec<Request>,
     // The minimum period to hold set values before applying the subsequent set.
@@ -130,16 +138,16 @@ impl Setter {
             .iter()
             .map(|(l, _v)| l.to_owned())
             .collect();
-        let (lines, chips) = find_lines(&line_names, &opts.line_opts, opts.uapi_opts.abiv)?;
-        self.chips = chips;
+        let r = common::resolve_lines(&line_names, &opts.line_opts, opts.uapi_opts.abiv)?;
+        self.chips = r.chips;
 
         // find set of lines for each chip
-        for (line_id, v) in &opts.line_values {
-            let co = lines.get(line_id).unwrap();
+        for (id, v) in &opts.line_values {
+            let co = r.lines.get(id).unwrap();
             self.lines.insert(
-                line_id.to_owned(),
+                id.to_owned(),
                 Line {
-                    chip: co.chip.to_owned(),
+                    chip_idx: co.chip_idx,
                     offset: co.offset,
                     value: v.0,
                     dirty: false,
@@ -148,20 +156,20 @@ impl Setter {
         }
 
         // request the lines
-        for chip in &self.chips {
+        for (idx, ci) in self.chips.iter().enumerate() {
             let mut cfg = Config::default();
             opts.apply(&mut cfg);
             for line in self.lines.values() {
-                if &line.chip == chip {
+                if line.chip_idx == idx {
                     cfg.with_line(line.offset).as_output(line.value);
                 }
             }
             let req = Request::from_config(cfg)
-                .on_chip(&chip)
+                .on_chip(&ci.path)
                 .with_consumer("gpiocdev-set")
-                .using_abi_version(abi_version_from_opts(opts.uapi_opts.abiv)?)
+                .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
                 .request()
-                .with_context(|| format!("Failed to request and set lines on chip {:?}.", chip))?;
+                .with_context(|| format!("Failed to request and set lines on {}.", ci.name))?;
             self.requests.push(req);
         }
         Ok(())
@@ -214,20 +222,20 @@ impl Setter {
     fn hold(&mut self) {
         if let Some(period) = self.hold_period {
             self.last_held = true;
-            sleep(period);
+            thread::sleep(period);
         }
     }
 
     fn do_get(&mut self, lines: std::str::SplitAsciiWhitespace) -> Result<()> {
         let mut have_lines = false;
         let mut print_values = Vec::new();
-        for line_id in lines {
-            match self.lines.get(line_id) {
+        for id in lines {
+            match self.lines.get(id) {
                 Some(line) => {
-                    print_values.push(format!("{}={:?}", line_id, line.value));
+                    print_values.push(format!("{}={:?}", id, line.value));
                     have_lines = true;
                 }
-                None => return Err(anyhow!("Not a requested line: {:?}", line_id)),
+                None => return Err(anyhow!("Not a requested line: {:?}", id)),
             }
         }
         if !have_lines {
@@ -247,12 +255,12 @@ impl Setter {
                 Err(e) => {
                     return Err(anyhow!("Invalid value: {}", e));
                 }
-                Ok((line_id, value)) => match self.lines.get_mut(&line_id) {
+                Ok((id, value)) => match self.lines.get_mut(&id) {
                     Some(line) => {
                         line.value = value.0;
                         line.dirty = true;
                     }
-                    None => return Err(anyhow!("Not a requested line: {:?}", line_id)),
+                    None => return Err(anyhow!("Not a requested line: {:?}", id)),
                 },
             }
         }
@@ -264,7 +272,7 @@ impl Setter {
 
     fn do_sleep(&mut self, duration: Option<&str>) -> Result<()> {
         match duration {
-            Some(period) => match parse_duration(period) {
+            Some(period) => match common::parse_duration(period) {
                 Ok(mut d) => {
                     if self.last_held {
                         self.last_held = false;
@@ -276,7 +284,7 @@ impl Setter {
                             d -= period;
                         }
                     }
-                    sleep(d);
+                    thread::sleep(d);
                 }
                 Err(e) => return Err(anyhow!("Invalid duration: {}", e)),
             },
@@ -287,14 +295,14 @@ impl Setter {
 
     fn do_toggle(&mut self, lines: std::str::SplitAsciiWhitespace) -> Result<()> {
         let mut have_lines = false;
-        for line_id in lines {
-            match self.lines.get_mut(line_id) {
+        for id in lines {
+            match self.lines.get_mut(id) {
                 Some(line) => {
                     line.value = line.value.not();
                     line.dirty = true;
                     have_lines = true;
                 }
-                None => return Err(anyhow!("Not a requested line: {:?}", line_id)),
+                None => return Err(anyhow!("Not a requested line: {:?}", id)),
             }
         }
         if !have_lines {
@@ -317,7 +325,7 @@ impl Setter {
         let mut count = 0;
         let hold_period = self.hold_period.unwrap_or(Duration::ZERO);
         loop {
-            sleep(max(ts.0[count], hold_period));
+            thread::sleep(cmp::max(ts.0[count], hold_period));
             count += 1;
             if count == ts.0.len() - 1 && ts.0[count].is_zero() {
                 return Ok(());
@@ -340,10 +348,9 @@ impl Setter {
     fn update(&mut self) -> Result<bool> {
         let mut updated = false;
         for idx in 0..self.chips.len() {
-            let chip = &self.chips[idx];
             let mut values = Values::default();
             for line in self.lines.values_mut() {
-                if line.dirty && &line.chip == chip {
+                if line.dirty && line.chip_idx == idx {
                     values.set(line.offset, line.value);
                     line.dirty = false;
                 }
@@ -390,7 +397,7 @@ fn print_interactive_help() -> Result<()> {
 
 #[derive(Debug, Default)]
 struct Line {
-    chip: PathBuf,
+    chip_idx: usize,
     offset: Offset,
     value: Value,
     dirty: bool,
@@ -412,7 +419,7 @@ struct TimeSequence(Vec<Duration>);
 fn parse_time_sequence(s: &str) -> std::result::Result<TimeSequence, ParseDurationError> {
     let mut ts = TimeSequence(Vec::new());
     for period in s.split(',') {
-        ts.0.push(parse_duration(period)?);
+        ts.0.push(common::parse_duration(period)?);
     }
     Ok(ts)
 }

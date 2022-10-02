@@ -223,13 +223,13 @@ impl Chip {
     }
 
     /// An iterator for info change events from the chip.
-    pub fn info_change_events(&self) -> Result<InfoChangeIterator> {
+    pub fn info_change_events(&self) -> InfoChangeIterator {
         let event_size = self.line_info_change_event_size();
-        Ok(InfoChangeIterator {
+        InfoChangeIterator {
             chip: self,
             event_size,
             buf: vec![0; event_size],
-        })
+        }
     }
 
     /// Detect the most recent uAPI ABI supported by the library for the chip.

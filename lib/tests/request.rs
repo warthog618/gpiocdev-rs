@@ -206,7 +206,7 @@ mod builder {
 
             drop(req);
 
-            let res = builder.with_event_clock(EventClock::HTE).request();
+            let res = builder.with_event_clock(EventClock::Hte).request();
             assert_eq!(
                 res.unwrap_err(),
                 gpiocdev::Error::UapiError(
@@ -658,7 +658,7 @@ mod request {
             simc.toggle(offset).unwrap();
             propagation_delay();
 
-            let mut iter = req.edge_events().unwrap();
+            let mut iter = req.edge_events();
 
             let evt = iter.next().unwrap().unwrap();
             assert_eq!(evt.offset, offset);
@@ -899,7 +899,7 @@ mod request {
             simc.toggle(2).unwrap();
             propagation_delay();
 
-            let mut iter = req.edge_events().unwrap();
+            let mut iter = req.edge_events();
             let evt = iter.next().unwrap().unwrap();
             assert_eq!(evt.offset, 1);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Rising);

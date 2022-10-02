@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: MIT
 
-use super::common::{all_chips, parse_chip_path};
+use crate::common;
 use anyhow::{Context, Result};
 use clap::Parser;
 use gpiocdev::chip::Chip;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Parser)]
+#[command(alias("d"))]
 pub struct Opts {
     /// The chips to detect.
     ///
@@ -19,13 +20,13 @@ pub struct Opts {
     ///     0
     ///     gpiochip0
     ///     /dev/gpiochip0
-    #[arg(name = "chip", value_parser = parse_chip_path, verbatim_doc_comment)]
+    #[arg(name = "chip", value_parser = common::parse_chip_path, verbatim_doc_comment)]
     chips: Vec<PathBuf>,
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
     let chips = if opts.chips.is_empty() {
-        all_chips()?
+        common::all_chips()?
     } else {
         opts.chips.clone()
     };

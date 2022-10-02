@@ -675,8 +675,7 @@ mod chip {
             drop(req);
         });
         let mut count = 0;
-        let iter = cdevc.info_change_events().unwrap();
-        for res in iter {
+        for res in cdevc.info_change_events() {
             assert!(res.is_ok());
             if let Ok(evt) = res {
                 assert_eq!(evt.info.offset, offset);

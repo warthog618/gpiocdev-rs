@@ -1404,8 +1404,8 @@ impl Request {
     ///
     /// [`Builder.with_user_event_buffer_size`]: struct.Builder.html#method.with_user_event_buffer_size
 
-    pub fn edge_events(&self) -> Result<EdgeEventBuffer> {
-        Ok(self.new_edge_event_buffer(self.user_event_buffer_size))
+    pub fn edge_events(&self) -> EdgeEventBuffer {
+        self.new_edge_event_buffer(self.user_event_buffer_size)
     }
 
     /// Returns true when the request has edge events available to read using [`read_edge_event`].

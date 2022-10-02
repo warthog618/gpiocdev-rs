@@ -6,7 +6,6 @@ use clap::Parser;
 
 mod common;
 mod detect;
-mod find;
 mod get;
 mod info;
 mod monitor;
@@ -17,7 +16,6 @@ fn main() {
     let opt = Opts::parse();
     let res = match opt.cmd {
         Command::Detect(cfg) => detect::cmd(&cfg),
-        Command::Find(cfg) => find::cmd(&cfg),
         Command::Get(cfg) => get::cmd(&cfg),
         Command::Info(cfg) => info::cmd(&cfg),
         Command::Monitor(cfg) => monitor::cmd(&cfg),
@@ -52,16 +50,19 @@ struct Opts {
 enum Command {
     /// Get info about the GPIO chips present on the system.
     Detect(detect::Opts),
-    /// Find a line by name.
-    Find(find::Opts),
+
     /// Read the values of lines.
     Get(get::Opts),
+
     /// Get information for lines.
     Info(info::Opts),
+
     /// Monitor lines for changes in value.
     Monitor(monitor::Opts),
+
     /// Set the value of lines.
     Set(set::Opts),
+
     /// Watch lines for requests and changes to configuration state.
     Watch(watch::Opts),
 }

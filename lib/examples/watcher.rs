@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:?}", buf.read_event()?);
     }
     */
-    for event in req.edge_events()? {
+    for event in req.edge_events() {
         println!("{:?}", event?);
     }
     Ok(())
