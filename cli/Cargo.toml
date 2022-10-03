@@ -20,6 +20,7 @@ colored = "2.0"
 daemonize = "0.4"
 gpiocdev = {path = "../lib", features = ["uapi_v1", "uapi_v2"]}
 libc = "0.2"
+mio = {version = "0.8", features = ["os-ext"]}
 nohash-hasher = "0.2"
 rustyline = "10.0"
 rustyline-derive = "0.7"

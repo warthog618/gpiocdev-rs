@@ -7,6 +7,9 @@ use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{InfoChangeEvent, InfoChangeKind};
 use libc::timespec;
+use mio::unix::SourceFd;
+use mio::{Events, Interest, Poll, Token};
+use std::os::unix::prelude::AsRawFd;
 
 #[derive(Debug, Parser)]
 #[command(alias("w"))]
@@ -27,13 +30,19 @@ pub struct Opts {
     #[arg(short = 'e', long, name = "event")]
     event: Option<Event>,
 
+    /// Exit after the specified number of events.
+    ///
+    /// If not specified then watching will continue indefinitely.
+    #[arg(short, long, name = "num")]
+    num_events: Option<u32>,
+
     /// Specify a custom output format.
     ///
     /// Format specifiers:
     ///   %o   GPIO line offset
     ///   %l   GPIO line name
     ///   %c   GPIO chip path
-    ///   %e   numeric event type ('1' - requested, '2' - released or '3' - reconfigured
+    ///   %e   numeric event type ('1' - requested, '2' - released or '3' - reconfigured)
     ///   %E   event type ('requested', 'released' or 'reconfigured')
     ///   %a   line attributes
     ///   %C   consumer
@@ -57,6 +66,10 @@ pub struct Opts {
     #[arg(long, group = "timefmt")]
     utc: bool,
 
+    /// Don't generate any output
+    #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
+    quiet: bool,
+
     #[command(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -78,6 +91,8 @@ impl From<Event> for InfoChangeKind {
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
+    use std::io::Write;
+
     let timefmt = if opts.localtime {
         TimeFmt::Localtime
     } else if opts.utc {
@@ -86,33 +101,70 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         TimeFmt::Seconds
     };
     let r = common::resolve_lines(&opts.lines, &opts.line_opts, opts.uapi_opts.abiv)?;
-    if r.chips.len() > 1 {
-        panic!("presently only support watching lines on one chip");
-    }
-    // needs multi-threading or async - so will come back to this...
-    //    for chip in &chips { ...
-    let chip = common::chip_from_opts(&r.chips[0].path, opts.uapi_opts.abiv)?;
+    let mut poll = Poll::new()?;
+    let mut chips = Vec::new();
+    for (idx, ci) in r.chips.iter().enumerate() {
+        let chip = common::chip_from_opts(&ci.path, opts.uapi_opts.abiv)?;
 
-    for offset in r
-        .lines
-        .values()
-        .filter(|co| co.chip_idx == 0)
-        .map(|co| co.offset)
-    {
-        chip.watch_line_info(offset)
-            .context("Failed to watch lines.")?;
+        for offset in r
+            .lines
+            .values()
+            .filter(|co| co.chip_idx == idx)
+            .map(|co| co.offset)
+        {
+            chip.watch_line_info(offset)
+                .context(format!("Failed to watch line {} on {}.", offset, ci.name))?;
+        }
+        poll.registry().register(
+            &mut SourceFd(&chip.as_raw_fd()),
+            Token(idx),
+            Interest::READABLE,
+        )?;
+        chips.push(chip);
     }
-
-    for result in chip.info_change_events() {
-        let change = result.context("Failed to read event.")?;
-        if let Some(evtype) = opts.event {
-            if change.kind != evtype.into() {
-                continue;
+    let mut count = 0;
+    let mut stdout = std::io::stdout();
+    let mut events = Events::with_capacity(r.chips.len());
+    loop {
+        match poll.poll(&mut events, None) {
+            Err(e) => {
+                if e.kind() != std::io::ErrorKind::Interrupted {
+                    return Err(anyhow::Error::new(e));
+                }
+            }
+            Ok(()) => {
+                for event in &events {
+                    match event.token() {
+                        Token(idx) => {
+                            // ignore any spurious events
+                            if !chips[idx].has_line_info_change_event()? {
+                                continue;
+                            }
+                            let change = chips[idx].read_line_info_change_event().context(
+                                format!("Failed to read event from {}.", chips[idx].name()),
+                            )?;
+                            if let Some(evtype) = opts.event {
+                                if change.kind != evtype.into() {
+                                    continue;
+                                }
+                            }
+                            if !opts.quiet {
+                                print_change(change, &r.chips[0], opts, &timefmt);
+                                _ = stdout.flush();
+                            }
+                            if let Some(limit) = opts.num_events {
+                                count += 1;
+                                if count >= limit {
+                                    println!("Exited after {} events.", count);
+                                    return Ok(());
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-        print_change(change, &r.chips[0], opts, &timefmt);
     }
-    Ok(())
 }
 
 fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {

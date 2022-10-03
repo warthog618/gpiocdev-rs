@@ -9,6 +9,9 @@ use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{EdgeEvent, EdgeKind, Offset};
 use gpiocdev::request::{Config, Request};
+use mio::unix::SourceFd;
+use mio::{Events, Interest, Poll, Token};
+use std::os::unix::prelude::AsRawFd;
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
@@ -75,6 +78,10 @@ pub struct Opts {
     #[arg(long, group = "timefmt")]
     utc: bool,
 
+    /// Don't generate any output
+    #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
+    quiet: bool,
+
     #[command(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -123,43 +130,73 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         TimeFmt::Seconds
     };
     let r = common::resolve_lines(&opts.lines, &opts.line_opts, opts.uapi_opts.abiv)?;
-    if r.chips.len() > 1 {
-        panic!("presently only support monitoring lines on one chip");
+    let mut poll = Poll::new()?;
+    let mut reqs = Vec::new();
+    for (idx, ci) in r.chips.iter().enumerate() {
+        let mut cfg = Config::default();
+        opts.apply(&mut cfg);
+        let offsets: Vec<Offset> = r
+            .lines
+            .values()
+            .filter(|co| co.chip_idx == idx)
+            .map(|co| co.offset)
+            .collect();
+        cfg.with_lines(&offsets);
+        let req = Request::from_config(cfg)
+            .on_chip(&ci.path)
+            .with_consumer("gpiocdev-monitor")
+            .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
+            .request()
+            .context(format!(
+                "Failed to request lines {:?} from {}.",
+                offsets, ci.name
+            ))?;
+        poll.registry().register(
+            &mut SourceFd(&req.as_raw_fd()),
+            Token(idx),
+            Interest::READABLE,
+        )?;
+        reqs.push(req);
     }
-    // needs multi-threading or async - so will come back to this...
-    //    for chip in &chips { ...
-    let ci = &r.chips[0];
-    let mut cfg = Config::default();
-    opts.apply(&mut cfg);
-    let offsets: Vec<Offset> = r
-        .lines
-        .values()
-        .filter(|co| co.chip_idx == 0)
-        .map(|co| co.offset)
-        .collect();
-    cfg.with_lines(&offsets);
-    let req = Request::from_config(cfg)
-        .on_chip(&ci.path)
-        .with_consumer("gpiocdev-monitor")
-        .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
-        .request()
-        .context("Failed to request lines.")?;
-
     let mut count = 0;
     let mut stdout = std::io::stdout();
-    for result in req.edge_events() {
-        let edge = result.context("Failed to read event.")?;
-        print_edge(&edge, &r.chips[0], opts, &timefmt);
-        if let Some(limit) = opts.num_events {
-            count += 1;
-            if count >= limit {
-                println!("Exited after {} events.", count);
-                break;
+    let mut events = Events::with_capacity(r.chips.len());
+    loop {
+        match poll.poll(&mut events, None) {
+            Err(e) => {
+                if e.kind() != std::io::ErrorKind::Interrupted {
+                    return Err(anyhow::Error::new(e));
+                }
+            }
+            Ok(()) => {
+                for event in &events {
+                    match event.token() {
+                        Token(idx) => {
+                            // ignore any spurious events
+                            if !reqs[idx].has_edge_event()? {
+                                continue;
+                            }
+                            if !opts.quiet {
+                                let edge = reqs[idx].read_edge_event().context(format!(
+                                    "Failed to read event from {}.",
+                                    r.chips[idx].name
+                                ))?;
+                                print_edge(&edge, &r.chips[idx], opts, &timefmt);
+                                _ = stdout.flush();
+                            }
+                            if let Some(limit) = opts.num_events {
+                                count += 1;
+                                if count >= limit {
+                                    println!("Exited after {} events.", count);
+                                    return Ok(());
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-        _ = stdout.flush();
     }
-    Ok(())
 }
 
 fn print_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
