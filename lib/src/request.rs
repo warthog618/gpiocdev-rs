@@ -1546,6 +1546,11 @@ impl Request {
         size_of::<uapi::LineEdgeEvent>()
     }
 }
+impl AsRawFd for Request {
+    fn as_raw_fd(&self) -> i32 {
+        self.fd
+    }
+}
 
 /// A user space buffer for reading edge events in bulk from a [`Request`].
 ///

@@ -323,6 +323,12 @@ impl Chip {
         size_of::<uapi::LineInfoChangeEvent>()
     }
 }
+impl AsRawFd for Chip {
+    fn as_raw_fd(&self) -> i32 {
+        self.fd
+    }
+}
+
 /// The publicly available information for a GPIO chip.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Info {
