@@ -58,25 +58,27 @@ pub struct Opts {
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
-    if opts.lines.is_empty() {
-        if let Some(p) = &opts.chip {
-            let mut c = common::chip_from_opts(p, opts.uapi_opts.abiv)?;
-            print_chip_all_line_info(&mut c)?;
-        } else {
-            for p in common::all_chips()? {
-                let mut c = common::chip_from_opts(&p, opts.uapi_opts.abiv)?;
-                print_chip_all_line_info(&mut c)?;
-            }
-        }
-    } else if opts.strict {
-        print_all_matching_lines(opts)?;
+    if !(opts.lines.is_empty() || opts.strict) {
+        return print_first_matching_lines(opts);
+    }
+
+    let chips = if let Some(p) = &opts.chip {
+        vec![p.clone()]
     } else {
-        print_first_matching_lines(opts)?;
+        common::all_chips()?
+    };
+    for p in chips {
+        let mut c = common::chip_from_opts(&p, opts.uapi_opts.abiv)?;
+        if opts.lines.is_empty() {
+            print_chip_all_lines(&mut c)?;
+        } else {
+            print_chip_matching_lines(&mut c, opts)?;
+        }
     }
     Ok(())
 }
 
-fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
+fn print_chip_all_lines(chip: &mut Chip) -> Result<()> {
     let kci = chip
         .info()
         .with_context(|| format!("Failed to read info from {}.", chip.name()))?;
@@ -90,7 +92,7 @@ fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
             format!(
                 "Failed to read line {} info from chip {:?}.",
                 offset,
-                chip.path()
+                chip.name()
             )
         })?;
         println!(
@@ -99,36 +101,6 @@ fn print_chip_all_line_info(chip: &mut Chip) -> Result<()> {
             common::string_or_default(&li.name, "unnamed"),
             common::stringify_attrs(&li),
         );
-    }
-    Ok(())
-}
-
-fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
-    let kci = chip
-        .info()
-        .with_context(|| format!("Failed to read info from {}.", chip.name()))?;
-    for &offset in lines {
-        let li = chip.line_info(offset).with_context(|| {
-            format!(
-                "Failed to read line {} info from chip {:?}.",
-                offset,
-                chip.path()
-            )
-        })?;
-        print_line_info(&kci.name, li);
-    }
-    Ok(())
-}
-
-fn print_all_matching_lines(opts: &Opts) -> Result<()> {
-    if let Some(p) = &opts.chip {
-        let mut c = common::chip_from_opts(p, opts.uapi_opts.abiv)?;
-        print_chip_matching_lines(&mut c, opts)?;
-    } else {
-        for p in common::all_chips()? {
-            let mut c = common::chip_from_opts(&p, opts.uapi_opts.abiv)?;
-            print_chip_matching_lines(&mut c, opts)?;
-        }
     }
     Ok(())
 }
@@ -170,6 +142,23 @@ fn print_first_matching_lines(opts: &Opts) -> Result<()> {
         offsets.sort_unstable();
         let mut c = common::chip_from_opts(&ci.path, opts.uapi_opts.abiv)?;
         print_chip_line_info(&mut c, &offsets)?;
+    }
+    Ok(())
+}
+
+fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
+    let kci = chip
+        .info()
+        .with_context(|| format!("Failed to read info from {}.", chip.name()))?;
+    for &offset in lines {
+        let li = chip.line_info(offset).with_context(|| {
+            format!(
+                "Failed to read line {} info from chip {:?}.",
+                offset,
+                chip.path()
+            )
+        })?;
+        print_line_info(&kci.name, li);
     }
     Ok(())
 }
