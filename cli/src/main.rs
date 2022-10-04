@@ -35,7 +35,9 @@ fn main() {
 #[derive(Parser)]
 #[command(
     name = "gpiocdev",
-    about = "A utility to control GPIO lines on Linux using GPIO character devices."
+    about = "A utility to control GPIO lines on Linux using GPIO character devices.",
+    version,
+    propagate_version = true
 )]
 struct Opts {
     /// Provide more detailed error messages.
