@@ -315,6 +315,16 @@ impl Default for Value {
         Self::Inactive
     }
 }
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Value::Active => "active",
+            Value::Inactive => "inactive",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 impl From<Value> for bool {
     fn from(l: Value) -> bool {
         match l {

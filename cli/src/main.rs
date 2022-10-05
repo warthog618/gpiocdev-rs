@@ -13,22 +13,29 @@ mod set;
 mod watch;
 
 fn main() {
-    let opt = Opts::parse();
-    let res = match opt.cmd {
-        Command::Detect(cfg) => detect::cmd(&cfg),
-        Command::Get(cfg) => get::cmd(&cfg),
-        Command::Info(cfg) => info::cmd(&cfg),
-        Command::Monitor(cfg) => monitor::cmd(&cfg),
-        Command::Set(cfg) => set::cmd(&cfg),
-        Command::Watch(cfg) => watch::cmd(&cfg),
-    };
-    if let Err(e) = res {
-        if opt.verbose {
-            eprintln!("{:?}", e)
-        } else {
-            eprintln!("{}", e)
+    match Opts::try_parse() {
+        Ok(opt) => {
+            let res = match opt.cmd {
+                Command::Detect(cfg) => detect::cmd(&cfg),
+                Command::Get(cfg) => get::cmd(&cfg),
+                Command::Info(cfg) => info::cmd(&cfg),
+                Command::Monitor(cfg) => monitor::cmd(&cfg),
+                Command::Set(cfg) => set::cmd(&cfg),
+                Command::Watch(cfg) => watch::cmd(&cfg),
+            };
+            if let Err(e) = res {
+                if opt.verbose {
+                    eprintln!("{:?}", e)
+                } else {
+                    eprintln!("{}", e)
+                }
+                std::process::exit(1);
+            }
         }
-        std::process::exit(1);
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
     }
 }
 
@@ -41,7 +48,7 @@ fn main() {
 )]
 struct Opts {
     /// Provide more detailed error messages.
-    #[arg(short = 'v', long)]
+    #[arg(short = 'v', long, global = true, display_order = 800)]
     pub verbose: bool,
 
     #[command(subcommand)]

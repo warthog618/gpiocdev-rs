@@ -18,22 +18,21 @@ use std::time::Duration;
 // common helper functions
 
 pub fn all_chips() -> Result<Vec<PathBuf>> {
-    let mut cc: Vec<PathBuf> = chip::chips()
-        .context("Failed to find any chips.")?
-        .collect();
+    let mut cc: Vec<PathBuf> = chip::chips().context("unable to find any chips")?.collect();
     // sorted for consistent outputs
     cc.sort();
     Ok(cc)
 }
 
-pub fn chip_from_opts(p: &Path, abiv: u8) -> Result<Chip> {
-    let mut c = Chip::from_path(p).with_context(|| format!("Failed to open chip {:?}.", &p))?;
+pub fn chip_from_path(p: &Path, abiv: u8) -> Result<Chip> {
+    let mut c =
+        Chip::from_path(p).with_context(|| format!("unable to open chip '{}'", p.display()))?;
     let abiv = match abiv {
         1 => AbiVersion::V1,
         2 => AbiVersion::V2,
         _ => c
             .detect_abi_version()
-            .with_context(|| format!("Failed to detect ABI version on chip {:?}.", &p))?,
+            .with_context(|| format!("unable to detect ABI version on {}", c.name()))?,
     };
     c.using_abi_version(abiv);
     Ok(c)
@@ -43,24 +42,24 @@ pub fn abi_version_from_opts(abiv: u8) -> Result<AbiVersion> {
     let abiv = match abiv {
         1 => AbiVersion::V1,
         2 => AbiVersion::V2,
-        _ => gpiocdev::detect_abi_version().context("Failed to detect ABI version.")?,
+        _ => gpiocdev::detect_abi_version().context("unable to detect ABI version")?,
     };
     Ok(abiv)
 }
 
-pub fn parse_chip_path(s: &str) -> Result<PathBuf> {
+pub fn chip_path_from_id(s: &str) -> PathBuf {
     if s.chars().all(char::is_numeric) {
         // from number
-        return Ok(format!("/dev/gpiochip{}", s).into());
+        return format!("/dev/gpiochip{}", s).into();
     }
     if !s.chars().any(|x| x == '/') {
         // from name
         let mut p: PathBuf = "/dev".into();
         p.push(s);
-        return Ok(p);
+        return p;
     }
     // from raw path
-    Ok(s.into())
+    s.into()
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -84,7 +83,7 @@ pub struct Resolver {
 
 pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Resolver> {
     let chips = match &opts.chip {
-        Some(chip_path) => vec![chip_path.clone()],
+        Some(chip_id) => vec![chip_path_from_id(chip_id)],
         None => all_chips()?,
     };
 
@@ -95,10 +94,10 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
     let mut chip_idx = 0;
     for (idx, path) in chips.iter().enumerate() {
         let found_count = r.lines.len();
-        let chip = chip_from_opts(path, abiv)?;
+        let chip = chip_from_path(path, abiv)?;
         let kci = chip
             .info()
-            .with_context(|| format!("Failed to read info from {:?}.", path))?;
+            .with_context(|| format!("unable to read info from {}", chip.name()))?;
         let mut ci = ChipInfo {
             path: chip.path().to_owned(),
             name: kci.name,
@@ -109,28 +108,34 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
         if idx == 0 && opts.chip.is_some() && !opts.by_name {
             for id in lines {
                 if let Ok(offset) = id.parse::<u32>() {
-                    r.lines
-                        .insert(id.to_owned(), ChipOffset { chip_idx, offset });
+                    if offset < kci.num_lines {
+                        r.lines
+                            .insert(id.to_owned(), ChipOffset { chip_idx, offset });
+                    }
                 }
             }
         }
         // match by name
         for offset in 0..kci.num_lines {
             let li = chip.line_info(offset).with_context(|| {
-                format!("Failed to read line {} info from chip {:?}.", offset, path)
+                format!(
+                    "unable to read info for line {} from {}",
+                    offset,
+                    chip.name()
+                )
             })?;
-            for name in lines {
-                if name.as_str() == li.name.as_str() {
-                    if !r.lines.contains_key(name) {
+            for id in lines {
+                if id.as_str() == li.name.as_str() {
+                    if !r.lines.contains_key(id) {
                         r.lines
-                            .insert(name.to_owned(), ChipOffset { chip_idx, offset });
-                        ci.named_lines.insert(offset, name.to_owned());
+                            .insert(id.to_owned(), ChipOffset { chip_idx, offset });
+                        ci.named_lines.insert(offset, id.to_owned());
 
                         if !opts.strict && r.lines.len() == lines.len() {
                             break;
                         }
                     } else if opts.strict {
-                        return Err(anyhow::Error::new(DuplicateLineError::new(name)));
+                        return Err(anyhow::Error::new(DuplicateLineError::new(id)));
                     }
                 }
             }
@@ -143,7 +148,7 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
     for id in lines {
         r.lines
             .get(id)
-            .context(format!("Can't find line {:?}.", id))?;
+            .context(format!("cannot find line '{}'", id))?;
     }
 
     Ok(r)
@@ -151,16 +156,22 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseDurationError {
-    #[error("'{0}' missing units - add \"s\", \"ms\", \"us\" or \"ns\".")]
+    #[error("'{0}' missing units - add 's', 'ms', 'us' or 'ns'.")]
     NoUnits(String),
-    #[error("'{0}' unknown units - use \"s\", \"ms\", \"us\" or \"ns\".")]
+    #[error("'{0}' unknown units - use 's', 'ms', 'us' or 'ns'.")]
     Units(String),
     #[error(transparent)]
     Digits(std::num::ParseIntError),
+    #[error("'{0}' must start with a digit")]
+    NoDigits(String),
 }
 
 pub fn parse_duration(s: &str) -> std::result::Result<Duration, ParseDurationError> {
+    if s == "0" {
+        return Ok(Duration::ZERO);
+    }
     let t = match s.find(|c: char| !c.is_ascii_digit()) {
+        Some(0) => return Err(ParseDurationError::NoDigits(s.to_string())),
         Some(n) => {
             let (num, units) = s.split_at(n);
             let t = num.parse::<u64>().map_err(ParseDurationError::Digits)?;
@@ -201,8 +212,8 @@ pub struct LineOpts {
     ///     --chip 0
     ///     --chip gpiochip0
     ///     --chip /dev/gpiochip0
-    #[arg(short, long, name = "chip", value_parser = parse_chip_path, verbatim_doc_comment)]
-    pub chip: Option<PathBuf>,
+    #[arg(short, long, name = "chip", verbatim_doc_comment)]
+    pub chip: Option<String>,
 
     /// Requested line names must be unique or the command will abort.
     ///
@@ -452,7 +463,7 @@ impl DuplicateLineError {
 
 impl fmt::Display for DuplicateLineError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "duplicate line name: `{}`.", self.name)
+        write!(f, "line '{}' is not unique", self.name)
     }
 }
 impl Error for DuplicateLineError {}

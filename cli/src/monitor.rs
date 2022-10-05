@@ -78,6 +78,10 @@ pub struct Opts {
     #[arg(long, group = "timefmt")]
     utc: bool,
 
+    /// Display a banner on successful startup.
+    #[arg(long)]
+    banner: bool,
+
     /// Don't generate any output
     #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
     quiet: bool,
@@ -144,11 +148,11 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         cfg.with_lines(&offsets);
         let req = Request::from_config(cfg)
             .on_chip(&ci.path)
-            .with_consumer("gpiocdev-monitor")
+            .with_consumer("gpiomon")
             .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
             .request()
             .context(format!(
-                "Failed to request lines {:?} from {}.",
+                "failed to request lines {:?} from {}",
                 offsets, ci.name
             ))?;
         poll.registry().register(
@@ -161,6 +165,10 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     let mut count = 0;
     let mut stdout = std::io::stdout();
     let mut events = Events::with_capacity(r.chips.len());
+    if opts.banner {
+        print_banner(&opts.lines);
+        _ = stdout.flush();
+    }
     loop {
         match poll.poll(&mut events, None) {
             Err(e) => {
@@ -178,7 +186,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                             }
                             if !opts.quiet {
                                 let edge = reqs[idx].read_edge_event().context(format!(
-                                    "Failed to read event from {}.",
+                                    "failed to read event from {}",
                                     r.chips[idx].name
                                 ))?;
                                 print_edge(&edge, &r.chips[idx], opts, &timefmt);
@@ -187,7 +195,6 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                             if let Some(limit) = opts.num_events {
                                 count += 1;
                                 if count >= limit {
-                                    println!("Exited after {} events.", count);
                                     return Ok(());
                                 }
                             }
@@ -196,6 +203,20 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                 }
             }
         }
+    }
+}
+
+fn print_banner(lines: &[String]) {
+    if lines.len() > 1 {
+        print!("Monitoring lines ");
+
+        for l in lines.iter().take(lines.len() - 1) {
+            print!("{}, ", l);
+        }
+
+        println!("and {}...", lines[lines.len() - 1]);
+    } else {
+        println!("Monitoring line {}...", lines[0]);
     }
 }
 

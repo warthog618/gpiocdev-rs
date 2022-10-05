@@ -5,7 +5,7 @@
 use super::common::{
     self, ActiveLowOpts, BiasOpts, ChipInfo, DriveOpts, LineOpts, ParseDurationError, UapiOpts,
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use colored::*;
 use daemonize::Daemonize;
@@ -85,6 +85,10 @@ pub struct Opts {
     #[arg(short = 'z', long, group = "terminal")]
     daemonize: bool,
 
+    /// The consumer label applied to requested lines.
+    #[arg(long, name = "consumer", default_value = "gpioset")]
+    consumer: String,
+
     #[command(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -119,26 +123,33 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 
 #[derive(Default)]
 struct Setter {
-    // Map from command line name to top level line details.
+    // IDs of requested lines - in command line order
+    line_ids: Vec<String>,
+
+    // Map from command line name to top level line details
     lines: HashMap<String, Line>,
+
     // The list of chips containing requested lines
     chips: Vec<ChipInfo>,
+
     // The request on each chip
     requests: Vec<Request>,
-    // The minimum period to hold set values before applying the subsequent set.
+
+    // The minimum period to hold set values before applying the subsequent set
     hold_period: Option<Duration>,
+
     // Flag indicating if last operation resulted in a hold
     last_held: bool,
 }
 
 impl Setter {
     fn request(&mut self, opts: &Opts) -> Result<()> {
-        let line_names: Vec<String> = opts
+        self.line_ids = opts
             .line_values
             .iter()
             .map(|(l, _v)| l.to_owned())
             .collect();
-        let r = common::resolve_lines(&line_names, &opts.line_opts, opts.uapi_opts.abiv)?;
+        let r = common::resolve_lines(&self.line_ids, &opts.line_opts, opts.uapi_opts.abiv)?;
         self.chips = r.chips;
 
         // find set of lines for each chip
@@ -166,16 +177,18 @@ impl Setter {
             }
             let req = Request::from_config(cfg)
                 .on_chip(&ci.path)
-                .with_consumer("gpiocdev-set")
+                .with_consumer(&opts.consumer)
                 .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
                 .request()
-                .with_context(|| format!("Failed to request and set lines on {}.", ci.name))?;
+                .with_context(|| format!("unable to request and set lines on {}.", ci.name))?;
             self.requests.push(req);
         }
         Ok(())
     }
 
     fn interact(&mut self, opts: &Opts) -> Result<()> {
+        use std::io::Write;
+
         let helper = InteractiveHelper {
             line_names: opts
                 .line_values
@@ -189,10 +202,18 @@ impl Setter {
             .max_history_size(20)
             .history_ignore_space(true)
             .build();
+        let mut stdout = std::io::stdout();
         let mut rl = Editor::with_config(config)?;
         rl.set_helper(Some(helper));
         loop {
-            let readline = rl.readline("gpiocdev-set> ");
+            /*
+             * manually print the prompt, as rustyline doesn't if stdout
+             * is not a tty.  And fflush to ensure the prompt and any
+             * output buffered from the previous command is sent.
+             */
+            println!("gpiocdev-set> ");
+            _ = stdout.flush();
+            let readline = rl.readline("");
             match readline {
                 Ok(line) => {
                     let mut words = line.trim().split_ascii_whitespace();
@@ -205,7 +226,7 @@ impl Setter {
                         Some("exit") => return Ok(()),
                         Some("help") => print_interactive_help(),
                         Some("?") => print_interactive_help(),
-                        Some(x) => Err(anyhow!("Unknown command: {:?}", x)),
+                        Some(x) => Err(anyhow!("unknown command: '{}'", x)),
                     } {
                         println!("{}", err);
                         // clean in case the error leaves dirty lines.
@@ -214,7 +235,7 @@ impl Setter {
                 }
                 Err(ReadlineError::Interrupted) => return Ok(()),
                 Err(ReadlineError::Eof) => return Ok(()),
-                Err(err) => return Err(anyhow!(err)),
+                Err(err) => bail!(err),
             }
         }
     }
@@ -232,16 +253,16 @@ impl Setter {
         for id in lines {
             match self.lines.get(id) {
                 Some(line) => {
-                    print_values.push(format!("{}={:?}", id, line.value));
+                    print_values.push(format!("{}={}", id, line.value));
                     have_lines = true;
                 }
-                None => return Err(anyhow!("Not a requested line: {:?}", id)),
+                None => bail!("not a requested line: '{}'", id),
             }
         }
         if !have_lines {
-            // no lines specified, so toggle all lines
-            for (name, line) in &self.lines {
-                print_values.push(format!("{}={:?}", name, line.value));
+            // no lines specified, so return all lines
+            for id in &self.line_ids {
+                print_values.push(format!("{}={}", id, self.lines.get(id).unwrap().value));
             }
         }
         println!("{}", print_values.join(" "));
@@ -253,14 +274,14 @@ impl Setter {
         for lv in changes {
             match parse_line_value(lv) {
                 Err(e) => {
-                    return Err(anyhow!("Invalid value: {}", e));
+                    bail!("invalid value: {}", e);
                 }
                 Ok((id, value)) => match self.lines.get_mut(&id) {
                     Some(line) => {
                         line.value = value.0;
                         line.dirty = true;
                     }
-                    None => return Err(anyhow!("Not a requested line: {:?}", id)),
+                    None => bail!("not a requested line: '{}'", id),
                 },
             }
         }
@@ -286,9 +307,9 @@ impl Setter {
                     }
                     thread::sleep(d);
                 }
-                Err(e) => return Err(anyhow!("Invalid duration: {}", e)),
+                Err(e) => bail!("invalid duration: '{}'", e),
             },
-            None => return Err(anyhow!("Invalid command: require duration")),
+            None => bail!("invalid command: require duration"),
         }
         Ok(())
     }
@@ -302,7 +323,7 @@ impl Setter {
                     line.dirty = true;
                     have_lines = true;
                 }
-                None => return Err(anyhow!("Not a requested line: {:?}", id)),
+                None => bail!("not a requested line: '{}'", id),
             }
         }
         if !have_lines {
@@ -369,7 +390,7 @@ impl Setter {
 fn print_interactive_help() -> Result<()> {
     let cmds = [
         (
-            "get <line>...",
+            "get [line]...",
             "Display the current values of the given requested lines.",
         ),
         (
@@ -458,7 +479,7 @@ impl InvalidLineValue {
 
 impl fmt::Display for InvalidLineValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "invalid line value: `{}`.", self.value)
+        write!(f, "invalid line value: '{}'.", self.value)
     }
 }
 impl Error for InvalidLineValue {}

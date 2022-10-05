@@ -66,6 +66,10 @@ pub struct Opts {
     #[arg(long, group = "timefmt")]
     utc: bool,
 
+    /// Display a banner on successful startup.
+    #[arg(long)]
+    banner: bool,
+
     /// Don't generate any output
     #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
     quiet: bool,
@@ -104,7 +108,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     let mut poll = Poll::new()?;
     let mut chips = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
-        let chip = common::chip_from_opts(&ci.path, opts.uapi_opts.abiv)?;
+        let chip = common::chip_from_path(&ci.path, opts.uapi_opts.abiv)?;
 
         for offset in r
             .lines
@@ -113,7 +117,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             .map(|co| co.offset)
         {
             chip.watch_line_info(offset)
-                .context(format!("Failed to watch line {} on {}.", offset, ci.name))?;
+                .context(format!("failed to watch line {} on {}", offset, ci.name))?;
         }
         poll.registry().register(
             &mut SourceFd(&chip.as_raw_fd()),
@@ -125,6 +129,10 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     let mut count = 0;
     let mut stdout = std::io::stdout();
     let mut events = Events::with_capacity(r.chips.len());
+    if opts.banner {
+        print_banner(&opts.lines);
+        _ = stdout.flush();
+    }
     loop {
         match poll.poll(&mut events, None) {
             Err(e) => {
@@ -141,7 +149,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                                 continue;
                             }
                             let change = chips[idx].read_line_info_change_event().context(
-                                format!("Failed to read event from {}.", chips[idx].name()),
+                                format!("failed to read event from {}", chips[idx].name()),
                             )?;
                             if let Some(evtype) = opts.event {
                                 if change.kind != evtype.into() {
@@ -155,7 +163,6 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                             if let Some(limit) = opts.num_events {
                                 count += 1;
                                 if count >= limit {
-                                    println!("Exited after {} events.", count);
                                     return Ok(());
                                 }
                             }
@@ -164,6 +171,20 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                 }
             }
         }
+    }
+}
+
+fn print_banner(lines: &[String]) {
+    if lines.len() > 1 {
+        print!("Watching lines ");
+
+        for l in lines.iter().take(lines.len() - 1) {
+            print!("{}, ", l);
+        }
+
+        println!("and {}...", lines[lines.len() - 1]);
+    } else {
+        println!("Watching line {}...", lines[0]);
     }
 }
 

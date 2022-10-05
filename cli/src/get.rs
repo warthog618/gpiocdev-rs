@@ -83,7 +83,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             .with_consumer("gpiocdev-get")
             .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
             .request()
-            .context(format!("Failed to request lines from {}.", ci.name))?;
+            .context(format!("failed to request lines from {}", ci.name))?;
         requests.push(req);
     }
     if let Some(period) = opts.hold_period {
@@ -94,7 +94,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         let mut values = Values::default();
         requests[idx]
             .values(&mut values)
-            .context(format!("Failed to read values from {}.", ci.name))?;
+            .context(format!("failed to read values from {}", ci.name))?;
         for (offset, value) in values.iter() {
             line_values.insert(
                 ChipOffset {
@@ -110,9 +110,9 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         let value = line_values.get(r.lines.get(id).unwrap()).unwrap();
         if opts.numeric {
             let v: u8 = (*value).into();
-            print_values.push(format!("{}={}", id, v));
+            print_values.push(format!("{}", v));
         } else {
-            print_values.push(format!("{}={:?}", id, value));
+            print_values.push(format!("{}={}", id, value));
         }
     }
     println!("{}", print_values.join(" "));
