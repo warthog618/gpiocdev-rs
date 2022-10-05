@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::common::{self, ChipInfo, LineOpts, TimeFmt, UapiOpts};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{InfoChangeEvent, InfoChangeKind};
 use libc::timespec;
@@ -137,33 +137,31 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         match poll.poll(&mut events, None) {
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::Interrupted {
-                    return Err(anyhow::Error::new(e));
+                    bail!(e);
                 }
             }
             Ok(()) => {
                 for event in &events {
                     match event.token() {
                         Token(idx) => {
-                            // ignore any spurious events
-                            if !chips[idx].has_line_info_change_event()? {
-                                continue;
-                            }
-                            let change = chips[idx].read_line_info_change_event().context(
-                                format!("failed to read event from {}", chips[idx].name()),
-                            )?;
-                            if let Some(evtype) = opts.event {
-                                if change.kind != evtype.into() {
-                                    continue;
+                            while chips[idx].has_line_info_change_event()? {
+                                let change = chips[idx].read_line_info_change_event().context(
+                                    format!("failed to read event from {}", r.chips[idx].name),
+                                )?;
+                                if let Some(evtype) = opts.event {
+                                    if change.kind != evtype.into() {
+                                        continue;
+                                    }
                                 }
-                            }
-                            if !opts.quiet {
-                                print_change(change, &r.chips[0], opts, &timefmt);
-                                _ = stdout.flush();
-                            }
-                            if let Some(limit) = opts.num_events {
-                                count += 1;
-                                if count >= limit {
-                                    return Ok(());
+                                if !opts.quiet {
+                                    print_change(change, &r.chips[idx], opts, &timefmt);
+                                    _ = stdout.flush();
+                                }
+                                if let Some(limit) = opts.num_events {
+                                    count += 1;
+                                    if count >= limit {
+                                        return Ok(());
+                                    }
                                 }
                             }
                         }

@@ -5,7 +5,7 @@
 use crate::common::{
     self, ActiveLowOpts, BiasOpts, ChipInfo, EdgeOpts, LineOpts, TimeFmt, UapiOpts,
 };
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{EdgeEvent, EdgeKind, Offset};
 use gpiocdev::request::{Config, Request};
@@ -173,29 +173,27 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         match poll.poll(&mut events, None) {
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::Interrupted {
-                    return Err(anyhow::Error::new(e));
+                    bail!(e);
                 }
             }
             Ok(()) => {
                 for event in &events {
                     match event.token() {
                         Token(idx) => {
-                            // ignore any spurious events
-                            if !reqs[idx].has_edge_event()? {
-                                continue;
-                            }
-                            if !opts.quiet {
-                                let edge = reqs[idx].read_edge_event().context(format!(
-                                    "failed to read event from {}",
-                                    r.chips[idx].name
-                                ))?;
-                                print_edge(&edge, &r.chips[idx], opts, &timefmt);
-                                _ = stdout.flush();
-                            }
-                            if let Some(limit) = opts.num_events {
-                                count += 1;
-                                if count >= limit {
-                                    return Ok(());
+                            while reqs[idx].has_edge_event()? {
+                                if !opts.quiet {
+                                    let edge = reqs[idx].read_edge_event().context(format!(
+                                        "failed to read event from {}",
+                                        r.chips[idx].name
+                                    ))?;
+                                    print_edge(&edge, &r.chips[idx], opts, &timefmt);
+                                    _ = stdout.flush();
+                                }
+                                if let Some(limit) = opts.num_events {
+                                    count += 1;
+                                    if count >= limit {
+                                        return Ok(());
+                                    }
                                 }
                             }
                         }
