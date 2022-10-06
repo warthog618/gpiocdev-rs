@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::chip::{self, Chip};
 use gpiocdev::line::{Bias, Drive, EdgeDetection, Info, Offset};
@@ -17,7 +17,7 @@ use std::time::Duration;
 
 // common helper functions
 
-pub fn all_chips() -> Result<Vec<PathBuf>> {
+pub fn all_chip_paths() -> Result<Vec<PathBuf>> {
     let mut cc: Vec<PathBuf> = chip::chips().context("unable to find any chips")?.collect();
     // sorted for consistent outputs
     cc.sort();
@@ -47,19 +47,24 @@ pub fn abi_version_from_opts(abiv: u8) -> Result<AbiVersion> {
     Ok(abiv)
 }
 
-pub fn chip_path_from_id(s: &str) -> PathBuf {
-    if s.chars().all(char::is_numeric) {
+fn chip_path_from_id(id: &str) -> PathBuf {
+    if id.chars().all(char::is_numeric) {
         // from number
-        return format!("/dev/gpiochip{}", s).into();
+        return format!("/dev/gpiochip{}", id).into();
     }
-    if !s.chars().any(|x| x == '/') {
+    if !id.chars().any(|x| x == '/') {
         // from name
         let mut p: PathBuf = "/dev".into();
-        p.push(s);
+        p.push(id);
         return p;
     }
     // from raw path
-    s.into()
+    id.into()
+}
+
+pub fn chip_lookup_from_id(id: &str) -> Result<PathBuf> {
+    let path = chip_path_from_id(id);
+    chip::is_chip(&path).with_context(|| format!("cannot find GPIO chip character device '{}'", id))
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -84,7 +89,7 @@ pub struct Resolver {
 pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Resolver> {
     let chips = match &opts.chip {
         Some(chip_id) => vec![chip_path_from_id(chip_id)],
-        None => all_chips()?,
+        None => all_chip_paths()?,
     };
 
     let mut r = Resolver {
@@ -103,12 +108,17 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
             name: kci.name,
             named_lines: IntMap::default(),
         };
+        let mut used_lines = IntMap::default();
 
         // first match line by offset - but only when id by offset is possible
         if idx == 0 && opts.chip.is_some() && !opts.by_name {
             for id in lines {
                 if let Ok(offset) = id.parse::<u32>() {
                     if offset < kci.num_lines {
+                        if let Some(same_line) = used_lines.get(&offset) {
+                            bail!(RepeatedLineError::new(same_line, id));
+                        }
+                        used_lines.insert(offset, id.to_owned());
                         r.lines
                             .insert(id.to_owned(), ChipOffset { chip_idx, offset });
                     }
@@ -126,7 +136,11 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
             })?;
             for id in lines {
                 if id.as_str() == li.name.as_str() {
+                    if let Some(same_line) = used_lines.get(&offset) {
+                        bail!(RepeatedLineError::new(same_line, id));
+                    }
                     if !r.lines.contains_key(id) {
+                        used_lines.insert(offset, id.to_owned());
                         r.lines
                             .insert(id.to_owned(), ChipOffset { chip_idx, offset });
                         ci.named_lines.insert(offset, id.to_owned());
@@ -135,7 +149,7 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
                             break;
                         }
                     } else if opts.strict {
-                        return Err(anyhow::Error::new(DuplicateLineError::new(id)));
+                        bail!(NonUniqueLineError::new(id));
                     }
                 }
             }
@@ -146,22 +160,23 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
         }
     }
     for id in lines {
-        r.lines
-            .get(id)
-            .context(format!("cannot find line '{}'", id))?;
+        if !r.lines.contains_key(id) {
+            if !opts.by_name && id.parse::<u32>().is_ok() && opts.chip.is_some() {
+                bail!(OffsetOutOfRangeError::new(id, opts.chip.as_ref().unwrap()));
+            } else {
+                bail!(LineNotFoundError::new(id));
+            }
+            // !!! collect, don't bail
+        }
     }
 
     Ok(r)
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ParseDurationError {
-    #[error("'{0}' missing units - add 's', 'ms', 'us' or 'ns'.")]
-    NoUnits(String),
-    #[error("'{0}' unknown units - use 's', 'ms', 'us' or 'ns'.")]
+    #[error("'{0}' unknown units - use 's', 'ms' or 'us'.")]
     Units(String),
-    #[error(transparent)]
-    Digits(std::num::ParseIntError),
     #[error("'{0}' must start with a digit")]
     NoDigits(String),
 }
@@ -174,16 +189,15 @@ pub fn parse_duration(s: &str) -> std::result::Result<Duration, ParseDurationErr
         Some(0) => return Err(ParseDurationError::NoDigits(s.to_string())),
         Some(n) => {
             let (num, units) = s.split_at(n);
-            let t = num.parse::<u64>().map_err(ParseDurationError::Digits)?;
+            let t = num.parse::<u64>().unwrap();
             t * match units {
-                "ns" => 1,
                 "us" => 1000,
                 "ms" => 1000000,
                 "s" => 1000000000,
                 _ => return Err(ParseDurationError::Units(s.to_string())),
             }
         }
-        None => return Err(ParseDurationError::NoUnits(s.to_string())),
+        None => s.parse::<u64>().unwrap() * 1000000,
     };
     Ok(Duration::from_nanos(t))
 }
@@ -201,7 +215,7 @@ pub fn string_or_default<'a, 'b: 'a>(s: &'a str, def: &'b str) -> &'a str {
 #[derive(Debug, Parser)]
 /// Options to control the selection of lines.
 pub struct LineOpts {
-    /// Restrict scope to the lines on this chip.
+    /// Restrict scope to the lines on this chip
     ///
     /// If specified then lines may be identified by either name or offset.
     ///
@@ -215,14 +229,14 @@ pub struct LineOpts {
     #[arg(short, long, name = "chip", verbatim_doc_comment)]
     pub chip: Option<String>,
 
-    /// Requested line names must be unique or the command will abort.
+    /// Requested line names must be unique or the command will abort
     ///
     /// If --chip is also specified then requested line names must only be unique to the
     /// lines on that chip.
     #[arg(short = 's', long)]
     pub strict: bool,
 
-    /// Lines are strictly identified by name.
+    /// Lines are strictly identified by name
     ///
     /// If --chip is provided then lines are initially assumed to be offsets, and only
     /// fallback to names if the line does not parse as an offset.
@@ -234,7 +248,7 @@ pub struct LineOpts {
 
 #[derive(Debug, Parser)]
 pub struct UapiOpts {
-    /// The uAPI ABI version to use to perform the operation.
+    /// The uAPI ABI version to use to perform the operation
     ///
     /// The default option detects the uAPI versions supported by the kernel and uses the latest.
     // This is primarily aimed at debugging and so is a hidden option.
@@ -244,7 +258,7 @@ pub struct UapiOpts {
 
 #[derive(Debug, Parser)]
 pub struct ActiveLowOpts {
-    /// Treat the line as active-low when determining value.
+    /// Treat the line as active-low when determining value
     #[arg(short = 'l', long)]
     pub active_low: bool,
 }
@@ -274,7 +288,7 @@ impl From<BiasFlags> for Bias {
 
 #[derive(Clone, Copy, Debug, Parser)]
 pub struct BiasOpts {
-    /// The bias to be applied to the lines.
+    /// The bias to be applied to the lines
     ///
     /// By default the bias is left unchanged.
     #[arg(short, long, name = "bias", value_enum, ignore_case = true)]
@@ -305,8 +319,15 @@ impl From<DriveFlags> for Drive {
 }
 #[derive(Clone, Copy, Debug, Parser)]
 pub struct DriveOpts {
-    /// How the lines should be driven.
-    #[arg(short, long, name = "drive", value_enum, ignore_case = true)]
+    /// How the lines should be driven
+    #[arg(
+        short,
+        long,
+        name = "drive",
+        default_value = "push-pull",
+        value_enum,
+        ignore_case = true
+    )]
     pub drive: Option<DriveFlags>,
 }
 impl DriveOpts {
@@ -334,7 +355,7 @@ impl From<EdgeFlags> for EdgeDetection {
 }
 #[derive(Clone, Copy, Debug, Parser)]
 pub struct EdgeOpts {
-    /// Which edges should be detected and reported.
+    /// Which edges should be detected and reported
     #[arg(
         short,
         long,
@@ -451,19 +472,116 @@ pub fn print_time(evtime: u64, timefmt: &TimeFmt) {
 }
 
 #[derive(Debug)]
-struct DuplicateLineError {
-    name: String,
+struct NonUniqueLineError {
+    id: String,
 }
 
-impl DuplicateLineError {
-    pub fn new<S: Into<String>>(name: S) -> DuplicateLineError {
-        DuplicateLineError { name: name.into() }
+impl NonUniqueLineError {
+    pub fn new<S: Into<String>>(name: S) -> NonUniqueLineError {
+        NonUniqueLineError { id: name.into() }
     }
 }
 
-impl fmt::Display for DuplicateLineError {
+impl fmt::Display for NonUniqueLineError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "line '{}' is not unique", self.name)
+        write!(f, "line '{}' is not unique", self.id)
     }
 }
-impl Error for DuplicateLineError {}
+impl Error for NonUniqueLineError {}
+
+#[derive(Debug)]
+struct RepeatedLineError {
+    first: String,
+    second: String,
+}
+
+impl RepeatedLineError {
+    pub fn new<S: Into<String>>(first: S, second: S) -> RepeatedLineError {
+        RepeatedLineError {
+            first: first.into(),
+            second: second.into(),
+        }
+    }
+}
+
+impl fmt::Display for RepeatedLineError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "lines '{}' and '{}' are the same line",
+            self.first, self.second
+        )
+    }
+}
+impl Error for RepeatedLineError {}
+
+#[derive(Debug)]
+struct LineNotFoundError {
+    id: String,
+}
+
+impl LineNotFoundError {
+    pub fn new<S: Into<String>>(id: S) -> LineNotFoundError {
+        LineNotFoundError { id: id.into() }
+    }
+}
+
+impl fmt::Display for LineNotFoundError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "cannot find line '{}'", self.id)
+    }
+}
+impl Error for LineNotFoundError {}
+
+#[derive(Debug)]
+struct OffsetOutOfRangeError {
+    id: String,
+    chip_id: String,
+}
+
+impl OffsetOutOfRangeError {
+    pub fn new<S: Into<String>>(id: S, chip_id: S) -> OffsetOutOfRangeError {
+        OffsetOutOfRangeError {
+            id: id.into(),
+            chip_id: chip_id.into(),
+        }
+    }
+}
+
+impl fmt::Display for OffsetOutOfRangeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "offset {} is out of range on chip '{}'",
+            self.id, self.chip_id
+        )
+    }
+}
+impl Error for OffsetOutOfRangeError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod parse {
+        #[test]
+        fn duration() {
+            use super::{parse_duration, ParseDurationError};
+            use std::time::Duration;
+
+            assert_eq!(parse_duration("0").unwrap(), Duration::ZERO);
+            assert_eq!(parse_duration("1").unwrap(), Duration::from_millis(1));
+            assert_eq!(parse_duration("2ms").unwrap(), Duration::from_millis(2));
+            assert_eq!(parse_duration("3us").unwrap(), Duration::from_micros(3));
+            assert_eq!(parse_duration("4s").unwrap(), Duration::new(4, 0));
+            assert_eq!(
+                parse_duration("5ns").unwrap_err(),
+                ParseDurationError::Units("5ns".to_string())
+            );
+            assert_eq!(
+                parse_duration("bad").unwrap_err(),
+                ParseDurationError::NoDigits("bad".to_string())
+            );
+        }
+    }
+}

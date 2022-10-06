@@ -15,9 +15,9 @@ use std::os::unix::prelude::AsRawFd;
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
-#[command(aliases(["m", "mon"]))]
+#[command(aliases(["monitor", "mon"]))]
 pub struct Opts {
-    /// The lines to monitor.
+    /// The lines to monitor
     ///
     /// The lines are identified by name or optionally by offset if
     /// the --chip option is specified.
@@ -36,17 +36,19 @@ pub struct Opts {
     #[command(flatten)]
     edge_opts: EdgeOpts,
 
-    /// The debounce period for the monitored lines.
+    /// The debounce period for the monitored lines
+    ///
+    /// The period is taken as milliseconds unless otherwise specified.
     #[arg(short = 'p', long, name = "period", value_parser = common::parse_duration)]
     debounce_period: Option<Duration>,
 
-    /// Exit after the specified number of events.
+    /// Exit after the specified number of events
     ///
     /// If not specified then monitoring will continue indefinitely.
     #[arg(short, long, name = "num")]
     num_events: Option<u32>,
 
-    /// Specify a custom output format.
+    /// Specify a custom output format
     ///
     /// Format specifiers:
     ///   %o   GPIO line offset
@@ -66,19 +68,19 @@ pub struct Opts {
     )]
     format: Option<String>,
 
-    /// Specify the source clock for event timestamps.
+    /// Specify the source clock for event timestamps
     #[arg(short = 'C', long, name = "clock")]
     event_clock: Option<EventClock>,
 
-    /// Format event timestamps as local time.
+    /// Format event timestamps as local time
     #[arg(long, group = "timefmt")]
     localtime: bool,
 
-    /// Format event timestamps as UTC.
+    /// Format event timestamps as UTC
     #[arg(long, group = "timefmt")]
     utc: bool,
 
-    /// Display a banner on successful startup.
+    /// Display a banner on successful startup
     #[arg(long)]
     banner: bool,
 
@@ -123,7 +125,7 @@ impl From<EventClock> for gpiocdev::line::EventClock {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
+pub fn cmd(opts: &Opts) -> Result<bool> {
     use std::io::Write;
 
     let timefmt = if opts.localtime {
@@ -192,7 +194,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                                 if let Some(limit) = opts.num_events {
                                     count += 1;
                                     if count >= limit {
-                                        return Ok(());
+                                        return Ok(true);
                                     }
                                 }
                             }

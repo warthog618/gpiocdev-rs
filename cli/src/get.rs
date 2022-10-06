@@ -14,7 +14,7 @@ use std::time::Duration;
 #[derive(Debug, Parser)]
 #[command(alias("g"))]
 pub struct Opts {
-    /// The lines to get.
+    /// The lines to get
     ///
     /// The lines are identified by name or optionally by offset
     /// if the --chip option is provided.
@@ -24,7 +24,7 @@ pub struct Opts {
     #[command(flatten)]
     line_opts: LineOpts,
 
-    /// Request the line as-is rather than as an input.
+    /// Request the line as-is rather than as an input
     ///
     /// If not specified then the lines are explicitly switched to being input lines.
     ///
@@ -39,13 +39,15 @@ pub struct Opts {
     #[command(flatten)]
     bias_opts: BiasOpts,
 
-    /// Wait between requesting the lines and reading the values.
+    /// Wait between requesting the lines and reading the values
     ///
     /// This provides time for any bias setting to take effect.
+    ///
+    /// The period is taken as milliseconds unless otherwise specified.
     #[arg(short = 'p', long, name = "period", value_parser = common::parse_duration)]
     hold_period: Option<Duration>,
 
-    /// Display line values as '0' (inactive) or '1' (active).
+    /// Display line values as '0' (inactive) or '1' (active)
     #[arg(long)]
     pub numeric: bool,
 
@@ -64,7 +66,7 @@ impl Opts {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
+pub fn cmd(opts: &Opts) -> Result<bool> {
     let r = common::resolve_lines(&opts.line, &opts.line_opts, opts.uapi_opts.abiv)?;
     let mut requests = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
@@ -117,5 +119,5 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     }
     println!("{}", print_values.join(" "));
 
-    Ok(())
+    Ok(true)
 }

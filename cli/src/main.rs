@@ -3,40 +3,37 @@
 // SPDX-License-Identifier: MIT
 
 use clap::Parser;
+use std::process::ExitCode;
 
+mod chip;
 mod common;
-mod detect;
+mod edges;
 mod get;
-mod info;
-mod monitor;
+mod line;
 mod set;
 mod watch;
 
-fn main() {
+fn main() -> ExitCode {
     match Opts::try_parse() {
         Ok(opt) => {
             let res = match opt.cmd {
-                Command::Detect(cfg) => detect::cmd(&cfg),
+                Command::Chip(cfg) => chip::cmd(&cfg),
+                Command::Edges(cfg) => edges::cmd(&cfg),
                 Command::Get(cfg) => get::cmd(&cfg),
-                Command::Info(cfg) => info::cmd(&cfg),
-                Command::Monitor(cfg) => monitor::cmd(&cfg),
+                Command::Line(cfg) => line::cmd(&cfg),
                 Command::Set(cfg) => set::cmd(&cfg),
                 Command::Watch(cfg) => watch::cmd(&cfg),
             };
-            if let Err(e) = res {
-                if opt.verbose {
-                    eprintln!("{:?}", e)
-                } else {
-                    eprintln!("{}", e)
-                }
-                std::process::exit(1);
+            match res {
+                Ok(true) => return ExitCode::SUCCESS,
+                Ok(false) => {}
+                Err(e) if opt.verbose => eprintln!("{:#}", e),
+                Err(e) => eprintln!("{}", e),
             }
         }
-        Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
-        }
+        Err(e) => eprintln!("{}", e),
     }
+    ExitCode::FAILURE
 }
 
 #[derive(Parser)]
@@ -58,20 +55,20 @@ struct Opts {
 #[derive(Parser)]
 enum Command {
     /// Get info about the GPIO chips present on the system.
-    Detect(detect::Opts),
+    Chip(chip::Opts),
+
+    /// Monitor lines for edge events.
+    Edges(edges::Opts),
 
     /// Read the values of lines.
     Get(get::Opts),
 
     /// Get information for lines.
-    Info(info::Opts),
-
-    /// Monitor lines for changes in value.
-    Monitor(monitor::Opts),
+    Line(line::Opts),
 
     /// Set the value of lines.
     Set(set::Opts),
 
-    /// Watch lines for requests and changes to configuration state.
+    /// Monitor lines for requests and changes to configuration state.
     Watch(watch::Opts),
 }

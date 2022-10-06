@@ -59,12 +59,15 @@ pub struct Opts {
     interactive: bool,
 
     /// The minimum time period to hold lines at the requested values.
+    ///
+    /// The period is taken as milliseconds unless otherwise specified.
     #[arg(short = 'p', long, name = "period", value_parser = common::parse_duration)]
     hold_period: Option<Duration>,
 
     /// Toggle the lines after the specified time periods.
     ///
-    /// The time periods are a comma separated list.
+    /// The time periods are a comma separated list, and are taken as
+    /// milliseconds unless otherwise specified.
     /// The lines are toggled after the period elapses, so the initial time period
     /// applies to the initial line value.
     /// If the final period is not zero, then the sequence repeats.
@@ -72,7 +75,7 @@ pub struct Opts {
     ///  e.g.
     ///      -t 10ms
     ///      -t 100us,200us,100us,150us
-    ///      -t 1s,2s,1s,0s
+    ///      -t 1s,2s,1s,0
     ///
     /// The first two examples repeat, the third exits after 4s.
     ///
@@ -102,7 +105,7 @@ impl Opts {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
+pub fn cmd(opts: &Opts) -> Result<bool> {
     let mut setter = Setter {
         hold_period: opts.hold_period,
         ..Default::default()
@@ -118,7 +121,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     if opts.interactive {
         setter.interact(opts)?;
     }
-    Ok(())
+    Ok(true)
 }
 
 #[derive(Default)]
@@ -342,14 +345,14 @@ impl Setter {
         }
     }
 
-    fn toggle(&mut self, ts: &TimeSequence) -> Result<()> {
+    fn toggle(&mut self, ts: &TimeSequence) -> Result<bool> {
         let mut count = 0;
         let hold_period = self.hold_period.unwrap_or(Duration::ZERO);
         loop {
             thread::sleep(cmp::max(ts.0[count], hold_period));
             count += 1;
             if count == ts.0.len() - 1 && ts.0[count].is_zero() {
-                return Ok(());
+                return Ok(true);
             }
             if count == ts.0.len() {
                 count = 0;
@@ -391,20 +394,20 @@ fn print_interactive_help() -> Result<()> {
     let cmds = [
         (
             "get [line]...",
-            "Display the current values of the given requested lines.",
+            "Display the current values of the given requested lines",
         ),
         (
             "set <line=value>...",
-            "Update the values of the given requested lines.",
+            "Update the values of the given requested lines",
         ),
         (
             "toggle [line]...",
-            "Toggle the values of the given requested lines.\n\
+            "Toggle the values of the given requested lines\n\
             If no lines are specified then all requested lines are toggled.",
         ),
-        ("sleep <period>", "Sleep for the specified period."),
-        ("help", "Print this help."),
-        ("exit", "Exit the program."),
+        ("sleep <period>", "Sleep for the specified period"),
+        ("help", "Print this help"),
+        ("exit", "Exit the program"),
     ];
     println!("{}", "COMMANDS:".underline());
     for (cmd, help) in cmds {
@@ -430,7 +433,7 @@ fn parse_line_value(
 ) -> std::result::Result<(String, LineValue), Box<dyn Error + Send + Sync + 'static>> {
     let pos = s
         .find('=')
-        .ok_or_else(|| format!("invalid line=value: no `=` found in `{}`.", s))?;
+        .ok_or_else(|| format!("invalid line=value: no '=' found in '{}'", s))?;
     Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }
 
@@ -445,7 +448,7 @@ fn parse_time_sequence(s: &str) -> std::result::Result<TimeSequence, ParseDurati
     Ok(ts)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct LineValue(Value);
 
 impl FromStr for LineValue {
@@ -479,7 +482,7 @@ impl InvalidLineValue {
 
 impl fmt::Display for InvalidLineValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "invalid line value: '{}'.", self.value)
+        write!(f, "invalid line value: '{}'", self.value)
     }
 }
 impl Error for InvalidLineValue {}
@@ -683,5 +686,110 @@ fn bare_pair(candidate: &str) -> Pair {
     Pair {
         display,
         replacement,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod parse {
+        #[test]
+        fn line_value() {
+            use super::{parse_line_value, LineValue};
+            use gpiocdev::line::Value;
+            assert_eq!(
+                parse_line_value("blah=0").unwrap(),
+                ("blah".to_string(), LineValue(Value::Inactive))
+            );
+            assert_eq!(
+                parse_line_value("l=1").unwrap(),
+                ("l".to_string(), LineValue(Value::Active))
+            );
+            assert_eq!(
+                parse_line_value("l=active").unwrap(),
+                ("l".to_string(), LineValue(Value::Active))
+            );
+            assert_eq!(
+                parse_line_value("l=inactive").unwrap(),
+                ("l".to_string(), LineValue(Value::Inactive))
+            );
+            assert_eq!(
+                parse_line_value("l=on").unwrap(),
+                ("l".to_string(), LineValue(Value::Active))
+            );
+            assert_eq!(
+                parse_line_value("l=off").unwrap(),
+                ("l".to_string(), LineValue(Value::Inactive))
+            );
+            assert_eq!(
+                parse_line_value("l=true").unwrap(),
+                ("l".to_string(), LineValue(Value::Active))
+            );
+            assert_eq!(
+                parse_line_value("l=false").unwrap(),
+                ("l".to_string(), LineValue(Value::Inactive))
+            );
+            assert_eq!(
+                parse_line_value("5").err().unwrap().to_string(),
+                "invalid line=value: no '=' found in '5'"
+            );
+            assert_eq!(
+                parse_line_value("blah=3").err().unwrap().to_string(),
+                "invalid line value: '3'"
+            );
+        }
+
+        #[test]
+        fn time_sequence() {
+            use super::parse_time_sequence;
+            use crate::common::ParseDurationError;
+            use std::time::Duration;
+            assert!(parse_time_sequence("0")
+                .unwrap()
+                .0
+                .iter()
+                .eq(vec![Duration::ZERO].iter()));
+            assert!(parse_time_sequence("1")
+                .unwrap()
+                .0
+                .iter()
+                .eq(vec![Duration::from_millis(1)].iter()));
+            assert!(parse_time_sequence("2ms")
+                .unwrap()
+                .0
+                .iter()
+                .eq(vec![Duration::from_millis(2)].iter()));
+            assert!(parse_time_sequence("3us")
+                .unwrap()
+                .0
+                .iter()
+                .eq(vec![Duration::from_micros(3)].iter()));
+            assert!(parse_time_sequence("4s")
+                .unwrap()
+                .0
+                .iter()
+                .eq(vec![Duration::new(4, 0)].iter()));
+            assert!(parse_time_sequence("1,2ms,3us,4s,0")
+                .unwrap()
+                .0
+                .iter()
+                .eq(vec![
+                    Duration::from_millis(1),
+                    Duration::from_millis(2),
+                    Duration::from_micros(3),
+                    Duration::new(4, 0),
+                    Duration::ZERO
+                ]
+                .iter()));
+            assert_eq!(
+                parse_time_sequence("5ns").unwrap_err(),
+                ParseDurationError::Units("5ns".to_string())
+            );
+            assert_eq!(
+                parse_time_sequence("bad").unwrap_err(),
+                ParseDurationError::NoDigits("bad".to_string())
+            );
+        }
     }
 }
