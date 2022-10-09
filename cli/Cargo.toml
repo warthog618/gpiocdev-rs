@@ -6,6 +6,7 @@ edition = "2021"
 keywords = ["linux", "gpio", "cli", "embedded"]
 license = "MIT"
 name = "gpiocdev-cli"
+repository = "https://github.com/warthog618/gpiocdev-rs"
 version = "0.1.0"
 
 [[bin]]
