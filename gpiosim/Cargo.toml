@@ -1,13 +1,13 @@
 [package]
 authors = ["Kent Gibson <warthog618@gmail.com>"]
-categories = ["embedded"]
+categories = ["embedded", "os.categories.linux-apis"]
 description = "A library to drive gpio-sims for GPIO software testing"
 edition = "2021"
 keywords = ["linux", "gpio", "library", "embedded"]
 license = "MIT"
 name = "gpiosim"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies]
 global_counter = "0.2"
