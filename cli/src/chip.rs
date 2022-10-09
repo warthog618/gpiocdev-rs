@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use crate::common;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Parser;
 use gpiocdev::chip::Chip;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[command(aliases(["c","detect"]))]
+#[command(aliases(["c", "detect"]))]
 pub struct Opts {
     /// The chips to report
     ///
@@ -39,7 +39,7 @@ fn chip_lookup_from_id(id: &str, success: &mut bool) -> Option<PathBuf> {
     None
 }
 
-pub fn cmd(opts: &Opts) -> Result<bool> {
+pub fn cmd(opts: &Opts) -> Result<()> {
     let mut success = true;
 
     let chips = if opts.chips.is_empty() {
@@ -56,7 +56,10 @@ pub fn cmd(opts: &Opts) -> Result<bool> {
             success = false;
         }
     }
-    Ok(success)
+    if !success {
+        bail!(common::CmdFailureError {});
+    }
+    Ok(())
 }
 
 fn print_chip_info(p: &PathBuf, verbose: bool) -> Result<bool> {

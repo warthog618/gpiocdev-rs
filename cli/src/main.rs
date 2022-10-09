@@ -10,8 +10,8 @@ mod common;
 mod edges;
 mod get;
 mod line;
+mod notify;
 mod set;
-mod watch;
 
 fn main() -> ExitCode {
     match Opts::try_parse() {
@@ -22,11 +22,10 @@ fn main() -> ExitCode {
                 Command::Get(cfg) => get::cmd(&cfg),
                 Command::Line(cfg) => line::cmd(&cfg),
                 Command::Set(cfg) => set::cmd(&cfg),
-                Command::Watch(cfg) => watch::cmd(&cfg),
+                Command::Notify(cfg) => notify::cmd(&cfg),
             };
             match res {
-                Ok(true) => return ExitCode::SUCCESS,
-                Ok(false) => {}
+                Ok(()) => return ExitCode::SUCCESS,
                 Err(e) if opt.verbose => eprintln!("{:#}", e),
                 Err(e) => eprintln!("{}", e),
             }
@@ -54,7 +53,7 @@ struct Opts {
 
 #[derive(Parser)]
 enum Command {
-    /// Get info about the GPIO chips present on the system.
+    /// Get info about GPIO chips.
     Chip(chip::Opts),
 
     /// Monitor lines for edge events.
@@ -66,9 +65,9 @@ enum Command {
     /// Get information for lines.
     Line(line::Opts),
 
+    /// Monitor lines for requests and changes to configuration state.
+    Notify(notify::Opts),
+
     /// Set the value of lines.
     Set(set::Opts),
-
-    /// Monitor lines for requests and changes to configuration state.
-    Watch(watch::Opts),
 }

@@ -115,9 +115,6 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
             for id in lines {
                 if let Ok(offset) = id.parse::<u32>() {
                     if offset < kci.num_lines {
-                        if let Some(same_line) = used_lines.get(&offset) {
-                            bail!(RepeatedLineError::new(same_line, id));
-                        }
                         used_lines.insert(offset, id.to_owned());
                         r.lines
                             .insert(id.to_owned(), ChipOffset { chip_idx, offset });
@@ -136,9 +133,6 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
             })?;
             for id in lines {
                 if id.as_str() == li.name.as_str() {
-                    if let Some(same_line) = used_lines.get(&offset) {
-                        bail!(RepeatedLineError::new(same_line, id));
-                    }
                     if !r.lines.contains_key(id) {
                         used_lines.insert(offset, id.to_owned());
                         r.lines
@@ -159,18 +153,41 @@ pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: u8) -> Result<Reso
             chip_idx += 1;
         }
     }
-    for id in lines {
-        if !r.lines.contains_key(id) {
-            if !opts.by_name && id.parse::<u32>().is_ok() && opts.chip.is_some() {
-                bail!(OffsetOutOfRangeError::new(id, opts.chip.as_ref().unwrap()));
-            } else {
-                bail!(LineNotFoundError::new(id));
-            }
-            // !!! collect, don't bail
-        }
-    }
-
     Ok(r)
+}
+
+impl Resolver {
+    pub fn validate(&self, lines: &[String], opts: &LineOpts) -> Result<()> {
+        let mut valid = true;
+
+        for (idx, id) in lines.iter().enumerate() {
+            if let Some(line) = self.lines.get(id) {
+                for prev in lines.iter().take(idx) {
+                    if let Some(found) = self.lines.get(prev) {
+                        if line.chip_idx == found.chip_idx && line.offset == found.offset {
+                            eprintln!("lines '{}' and '{}' are the same line", prev, id);
+                            valid = false;
+                        }
+                    }
+                }
+            } else if !opts.by_name && id.parse::<u32>().is_ok() && opts.chip.is_some() {
+                eprintln!(
+                    "offset {} is out of range on chip '{}'",
+                    id,
+                    opts.chip.as_ref().unwrap()
+                );
+                valid = false;
+            } else {
+                eprintln!("cannot find line '{}'", id);
+                valid = false;
+            }
+        }
+
+        if !valid {
+            bail!(CmdFailureError {})
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
@@ -490,74 +507,14 @@ impl fmt::Display for NonUniqueLineError {
 impl Error for NonUniqueLineError {}
 
 #[derive(Debug)]
-struct RepeatedLineError {
-    first: String,
-    second: String,
-}
+pub struct CmdFailureError {}
 
-impl RepeatedLineError {
-    pub fn new<S: Into<String>>(first: S, second: S) -> RepeatedLineError {
-        RepeatedLineError {
-            first: first.into(),
-            second: second.into(),
-        }
+impl fmt::Display for CmdFailureError {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
-
-impl fmt::Display for RepeatedLineError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "lines '{}' and '{}' are the same line",
-            self.first, self.second
-        )
-    }
-}
-impl Error for RepeatedLineError {}
-
-#[derive(Debug)]
-struct LineNotFoundError {
-    id: String,
-}
-
-impl LineNotFoundError {
-    pub fn new<S: Into<String>>(id: S) -> LineNotFoundError {
-        LineNotFoundError { id: id.into() }
-    }
-}
-
-impl fmt::Display for LineNotFoundError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "cannot find line '{}'", self.id)
-    }
-}
-impl Error for LineNotFoundError {}
-
-#[derive(Debug)]
-struct OffsetOutOfRangeError {
-    id: String,
-    chip_id: String,
-}
-
-impl OffsetOutOfRangeError {
-    pub fn new<S: Into<String>>(id: S, chip_id: S) -> OffsetOutOfRangeError {
-        OffsetOutOfRangeError {
-            id: id.into(),
-            chip_id: chip_id.into(),
-        }
-    }
-}
-
-impl fmt::Display for OffsetOutOfRangeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "offset {} is out of range on chip '{}'",
-            self.id, self.chip_id
-        )
-    }
-}
-impl Error for OffsetOutOfRangeError {}
+impl Error for CmdFailureError {}
 
 #[cfg(test)]
 mod tests {

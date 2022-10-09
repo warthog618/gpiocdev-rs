@@ -105,7 +105,7 @@ impl Opts {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<bool> {
+pub fn cmd(opts: &Opts) -> Result<()> {
     let mut setter = Setter {
         hold_period: opts.hold_period,
         ..Default::default()
@@ -121,7 +121,7 @@ pub fn cmd(opts: &Opts) -> Result<bool> {
     if opts.interactive {
         setter.interact(opts)?;
     }
-    Ok(true)
+    Ok(())
 }
 
 #[derive(Default)]
@@ -153,6 +153,7 @@ impl Setter {
             .map(|(l, _v)| l.to_owned())
             .collect();
         let r = common::resolve_lines(&self.line_ids, &opts.line_opts, opts.uapi_opts.abiv)?;
+        r.validate(&self.line_ids, &opts.line_opts)?;
         self.chips = r.chips;
 
         // find set of lines for each chip
@@ -345,14 +346,14 @@ impl Setter {
         }
     }
 
-    fn toggle(&mut self, ts: &TimeSequence) -> Result<bool> {
+    fn toggle(&mut self, ts: &TimeSequence) -> Result<()> {
         let mut count = 0;
         let hold_period = self.hold_period.unwrap_or(Duration::ZERO);
         loop {
             thread::sleep(cmp::max(ts.0[count], hold_period));
             count += 1;
             if count == ts.0.len() - 1 && ts.0[count].is_zero() {
-                return Ok(true);
+                return Ok(());
             }
             if count == ts.0.len() {
                 count = 0;

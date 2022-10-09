@@ -66,8 +66,9 @@ impl Opts {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<bool> {
+pub fn cmd(opts: &Opts) -> Result<()> {
     let r = common::resolve_lines(&opts.line, &opts.line_opts, opts.uapi_opts.abiv)?;
+    r.validate(&opts.line, &opts.line_opts)?;
     let mut requests = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut cfg = Config::default();
@@ -119,5 +120,5 @@ pub fn cmd(opts: &Opts) -> Result<bool> {
     }
     println!("{}", print_values.join(" "));
 
-    Ok(true)
+    Ok(())
 }

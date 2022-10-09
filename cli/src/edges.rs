@@ -15,7 +15,7 @@ use std::os::unix::prelude::AsRawFd;
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
-#[command(aliases(["monitor", "mon"]))]
+#[command(aliases(["e", "mon"]))]
 pub struct Opts {
     /// The lines to monitor
     ///
@@ -125,7 +125,7 @@ impl From<EventClock> for gpiocdev::line::EventClock {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<bool> {
+pub fn cmd(opts: &Opts) -> Result<()> {
     use std::io::Write;
 
     let timefmt = if opts.localtime {
@@ -136,6 +136,7 @@ pub fn cmd(opts: &Opts) -> Result<bool> {
         TimeFmt::Seconds
     };
     let r = common::resolve_lines(&opts.lines, &opts.line_opts, opts.uapi_opts.abiv)?;
+    r.validate(&opts.lines, &opts.line_opts)?;
     let mut poll = Poll::new()?;
     let mut reqs = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
@@ -194,7 +195,7 @@ pub fn cmd(opts: &Opts) -> Result<bool> {
                                 if let Some(limit) = opts.num_events {
                                     count += 1;
                                     if count >= limit {
-                                        return Ok(true);
+                                        return Ok(());
                                     }
                                 }
                             }

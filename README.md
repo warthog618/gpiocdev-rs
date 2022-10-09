@@ -50,7 +50,7 @@ Waiting for events on a line:
         .request()?;
 
     // wait for line edge events
-    for event in req.edge_events()? {
+    for event in req.edge_events() {
         println!("{:?}", event?);
     }
 ```
@@ -112,25 +112,24 @@ The gpiocdev-cli crate provides a command line tool to access and control GPIO l
 This is equivalent to the tools provided by libgpiod, combined into a single tool.
 
 ```text
-gpiocdev 0.1.0
-A utility to control GPIO lines on Linux GPIO character devices.
+$ gpiocdev -h
+A utility to control GPIO lines on Linux using GPIO character devices.
 
-USAGE:
-    gpiocdev [OPTIONS] <SUBCOMMAND>
+Usage: gpiocdev [OPTIONS] <COMMAND>
 
-OPTIONS:
-    -h, --help       Print help information
-    -v, --verbose    Provide more detailed error messages
+Commands:
+  chip    Get info about GPIO chips
+  edges   Monitor lines for edge events
+  get     Read the values of lines
+  line    Get information for lines
+  notify  Monitor lines for requests and changes to configuration state
+  set     Set the value of lines
+  help    Print this message or the help of the given subcommand(s)
 
-SUBCOMMANDS:
-    detect     Get info about the GPIO chips present on the system
-    find       Find a line by name
-    get        Read the values of lines
-    help       Print this message or the help of the given subcommand(s)
-    info       Get information for lines
-    monitor    Monitor lines for changes in value
-    set        Set the value of lines
-    watch      Watch lines for requests and changes to configuration state
+Options:
+  -v, --verbose  Provide more detailed error messages
+  -h, --help     Print help information
+  -V, --version  Print version information
 ```
 
 ## gpiocdev-uapi

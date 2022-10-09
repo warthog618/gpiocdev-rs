@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::common::{self, LineOpts, UapiOpts};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use gpiocdev::chip::Chip;
 use gpiocdev::line::{Info, Offset};
@@ -60,7 +60,7 @@ pub struct Opts {
     uapi_opts: UapiOpts,
 }
 
-pub fn cmd(opts: &Opts) -> Result<bool> {
+pub fn cmd(opts: &Opts) -> Result<()> {
     let mut success = true;
 
     if !(opts.lines.is_empty() || opts.strict) {
@@ -85,7 +85,10 @@ pub fn cmd(opts: &Opts) -> Result<bool> {
         }
         success = counts.iter().all(|n| *n == 1);
     }
-    Ok(success)
+    if !success {
+        bail!(common::CmdFailureError {});
+    }
+    Ok(())
 }
 
 fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
@@ -119,7 +122,7 @@ fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
     Ok(false)
 }
 
-fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Result<bool> {
+fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Result<()> {
     match common::chip_from_path(p, opts.uapi_opts.abiv) {
         Ok(c) => {
             let kci = c
@@ -137,16 +140,16 @@ fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Resul
                     }
                 }
             }
-            return Ok(true);
+            return Ok(());
         }
         Err(e) if opts.chip.is_some() => return Err(e),
         Err(e) if opts.verbose => eprintln!("{:#}", e),
         Err(_) => {}
     }
-    Ok(false)
+    bail!(common::CmdFailureError {});
 }
 
-fn print_first_matching_lines(opts: &Opts) -> Result<bool> {
+fn print_first_matching_lines(opts: &Opts) -> Result<()> {
     let line_opts = LineOpts {
         chip: opts.chip.clone(),
         strict: false,
@@ -165,7 +168,7 @@ fn print_first_matching_lines(opts: &Opts) -> Result<bool> {
         let mut c = common::chip_from_path(&ci.path, opts.uapi_opts.abiv)?;
         print_chip_line_info(&mut c, &offsets)?;
     }
-    Ok(true)
+    r.validate(&opts.lines, &line_opts)
 }
 
 fn print_chip_line_info(chip: &mut Chip, lines: &[Offset]) -> Result<()> {
