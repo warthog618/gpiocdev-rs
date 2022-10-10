@@ -206,18 +206,19 @@ impl Setter {
             .max_history_size(20)
             .history_ignore_space(true)
             .build();
-        let mut stdout = std::io::stdout();
         let mut rl = Editor::with_config(config)?;
         rl.set_helper(Some(helper));
+        let mut stdout = std::io::stdout();
+        let prompt = "gpiocdev-set> ";
         loop {
             /*
              * manually print the prompt, as rustyline doesn't if stdout
-             * is not a tty.  And fflush to ensure the prompt and any
+             * is not a tty? And flush to ensure the prompt and any
              * output buffered from the previous command is sent.
              */
-            println!("gpiocdev-set> ");
+            _ = stdout.write(prompt.as_bytes());
             _ = stdout.flush();
-            let readline = rl.readline("");
+            let readline = rl.readline(prompt);
             match readline {
                 Ok(line) => {
                     let mut words = line.trim().split_ascii_whitespace();
