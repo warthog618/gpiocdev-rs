@@ -6,7 +6,7 @@
 
 A Rust library for accessing GPIO lines on Linux platforms using the GPIO character device.
 
-This is the equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/) and my Go [gpiod](https://github.com/warthog618/gpiod) library, but in pure Rust.
+This is the equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/) but in pure Rust.
 
 ## Example Usage
 
