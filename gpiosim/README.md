@@ -6,7 +6,7 @@
 
 GPIO chip simulators for testing users of the Linux GPIO uAPI (both v1 and v2).
 
-The simuators are provided by the Linux **gpio-sim** kernel module and require a
+The simulators are provided by the Linux **gpio-sim** kernel module and require a
 recent kernel (v5.19 or later) built with **CONFIG_GPIO_SIM**.
 
 Simulators contain one or more chips, each with a collection of lines being
