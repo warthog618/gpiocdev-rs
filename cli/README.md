@@ -1,8 +1,12 @@
 # gpiocdev-cli
 
+[![github](https://img.shields.io/badge/github-warthog618/gpiocdev--rs-8da0cb.svg?style=for-the-badge&logo=github)](https://github.com/warthog618/gpiocdev-rs)
+[![crate](https://img.shields.io/crates/v/gpiocdev-cli.svg?style=for-the-badge&color=fc8d62&logo=rust)](https://crates.io/crates/gpiocdev-cli)
+[![MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
 A command line tool to access and control GPIO lines on Linux.
 
-This is equivalent to the tools provided by **libgpiod**, combined into a single tool.
+This is equivalent to the tools provided by [libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/), combined into a single tool.
 
 ```text
 $ gpiocdev -h
@@ -39,7 +43,7 @@ gpiochip1 [raspberrypi-exp-gpio] (8 lines)
 
 ### line
 
-```text
+```shell
 $ gpiocdev line -c 1
 gpiochip1 - 8 lines:
 	line   0:	BT_ON           	output
@@ -140,7 +144,7 @@ The tools are plug compatible with the proposed tools for **libgpiod v2**, thoug
 unlike those can also work with both GPIO uAPI v1 and v2.
 
 The subcommands map to libgpiod tools as follows:
-| Subcommand | Tool | Alias |
+| Subcommand | libgpiod Tool | Alias |
 |------------|------|-------|
 | chip | gpiodetect | detect |
 | edges | gpiomon | mon |
