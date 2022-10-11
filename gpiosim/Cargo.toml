@@ -1,6 +1,6 @@
 [package]
 authors = ["Kent Gibson <warthog618@gmail.com>"]
-categories = ["embedded", "os::linux-apis"]
+categories = ["embedded", "os::linux-apis", "development-tools::testing"]
 description = "A library to drive gpio-sims for GPIO software testing"
 edition = "2021"
 keywords = ["linux", "gpio", "library", "embedded"]
