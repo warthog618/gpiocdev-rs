@@ -1447,6 +1447,7 @@ mod tests {
         }
 
         #[test]
+        #[cfg(feature = "uapi_v1")]
         fn contains_key() {
             let vv = Values::from_offsets(&[1, 2, 3]);
             assert!(!vv.contains_key(&0));
