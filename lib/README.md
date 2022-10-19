@@ -8,6 +8,30 @@ A Rust library for accessing GPIO lines on Linux platforms using the GPIO charac
 
 This is the equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/) but in pure Rust.
 
+The gpiocdev crate provides an API to access GPIOs from Rust applications.
+
+## ABI Compatibility
+
+The library is compatible with the Linux GPIO uAPI, both v1 and v2, including receiving line edge events.
+
+The gpiocdev API provides a unified abstraction for both uAPI versions, but will return an error if v2 featuresa are attempted to be used on a v1 system.
+
+uAPI v2 specific features include:
+
+- debouncing input lines
+- edge detection on multiple lines in one request
+- reconfiguring edge detection without releasing the request
+
+Compatibility with either uAPI version can be selected via features, with the default being uAPI v2.  If built with both, the library will automatically detect and use the most current available version, so defaulting to v2 and falling back to v1 if that is unavailable.
+
+The library makes no use of the deprecated **sysfs** GPIO API.
+
+## Async Compatibility
+
+The majority of the GPIO uAPI is non-blocking and so does not require any async specific treatment.
+
+The exceptions are reading edge events from line requests, and info change events from chips.  Presently these expose the underlying file descriptor, which may be used directly with an async reactor.  An example of this is the **gpiocdev-cli** [edges](https://github.com/warthog618/gpiocdev-rs/blob/master/cli/src/edges.rs) command, which can asynchronously wait on multiple lines spread across multiple chips.
+
 ## Example Usage
 
 Getting a line value:
@@ -103,4 +127,4 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
     let value = req.value(23)?;
 ```
 
-A good starting point to learn more is the [gpiocdev::request::Request](https://warthog618.github.io/gpiocdev-rs/gpiocdev/request/struct.Request.html).
+A good starting point to learn more is the [gpiocdev::request::Builder](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Builder.html).

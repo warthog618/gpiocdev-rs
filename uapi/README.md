@@ -4,7 +4,7 @@
 [![crate](https://img.shields.io/crates/v/gpiocdev-uapi.svg?style=for-the-badge&color=fc8d62&logo=rust)](https://crates.io/crates/gpiocdev-uapi)
 [![MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-A minimal safe Rust wrapper around the Linux GPIO character device ioctls and file operations.
+A thin safe Rust wrapper around the Linux GPIO character device ioctls and file operations.
 
 Rust structs corresponding to the C ABI types are provided, as are functions corresponding to each of the ABI ioctls and chracter device file reads.  Essentially just the Rust version of gpio.h.
 
