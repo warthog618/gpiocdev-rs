@@ -127,7 +127,7 @@ pub type ValidationResult = std::result::Result<(), ValidationError>;
 /// Errors returned by [`gpiocdev_uapi`] functions.
 ///
 /// [`gpiocdev_uapi`]: crate
-#[derive(Debug, thiserror::Error, Eq, PartialEq)]
+#[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
 pub enum Error {
     /// An error returned from an underlying system call.
     #[error(transparent)]
@@ -141,7 +141,7 @@ pub enum Error {
 /// A failure to validate a struct returned from a system call.
 //
 // Should only be seen if a kernel update adds an enum value we are unaware of.
-#[derive(Debug, thiserror::Error, Eq, PartialEq)]
+#[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
 #[error("Kernel returned invalid {field}: {msg}")]
 pub struct ValidationError {
     pub field: String,
