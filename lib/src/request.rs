@@ -94,6 +94,7 @@ pub struct Builder {
     consumer: String,
     kernel_event_buffer_size: u32,
     user_event_buffer_size: usize,
+    err: Option<Error>,
     /// The ABI version used to create the request, and so determines how to decode events.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     abiv: AbiVersion,
@@ -117,6 +118,9 @@ impl Builder {
     /// This is the terminal operation for the Builder.
     ///
     pub fn request(&self) -> Result<Request> {
+        if let Some(e) = &self.err {
+            return Err(e.clone());
+        }
         if self.chip.as_os_str().is_empty() {
             return Err(Error::InvalidArgument("No chip specified.".to_string()));
         }
@@ -250,9 +254,21 @@ impl Builder {
     /// This applies to all lines in the request. It is not possible to request lines
     /// from different chips in the same request.
     ///
+    /// The request locks to the first chip provided to it by [`on_chip`] or [`with_found_line`]
+    /// and ignores any subsequent changes to chip.
+    ///
     /// The chip is identified by a path which must resolve to a GPIO character device.
+    ///
+    /// [`on_chip`]: #method.on_chip
+    /// [`with_found_line`]: #method.with_found_line
     pub fn on_chip<P: Into<PathBuf>>(&mut self, path: P) -> &mut Self {
-        self.chip = path.into();
+        if self.chip.as_os_str().is_empty() {
+            self.chip = path.into();
+        } else if self.chip != path.into() {
+            self.err = Some(Error::InvalidArgument(
+                "Multiple chips requested.".to_string(),
+            ))
+        }
         self
     }
 
@@ -343,6 +359,19 @@ impl Builder {
     /// Set the clock source for edge events on the selected lines.
     pub fn with_event_clock(&mut self, event_clock: EventClock) -> &mut Self {
         self.cfg.with_event_clock(event_clock);
+        self
+    }
+
+    /// Add a found line to the request.
+    ///
+    /// The line must be on the same chip as any existing lines in the request, or the line is ignored.
+    ///
+    /// Note that all configuration mutators applied subsequently only apply to this line.
+    pub fn with_found_line(&mut self, line: &super::FoundLine) -> &mut Self {
+        self.on_chip(&line.chip);
+        if self.chip == line.chip {
+            self.cfg.with_line(line.info.offset);
+        }
         self
     }
 
@@ -1681,10 +1710,22 @@ mod tests {
         }
 
         #[test]
-        fn request() {
+        fn request_no_chip() {
             let res = Builder::default().with_line(2).request();
             assert!(res.is_err());
             assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
+        }
+
+        #[test]
+        fn request_multiple_chips() {
+            let res = Builder::default()
+                .on_chip("/dev/gpiochip0")
+                .with_line(2)
+                .on_chip("/dev/gpiochip1")
+                .with_line(3)
+                .request();
+            assert!(res.is_err());
+            assert_eq!(res.err().unwrap().to_string(), "Multiple chips requested.");
         }
 
         #[test]
@@ -1894,7 +1935,11 @@ mod tests {
 
             b.with_event_clock(Monotonic);
             assert_eq!(b.cfg.base.event_clock, Some(Monotonic));
+
+            b.with_event_clock(Hte);
+            assert_eq!(b.cfg.base.event_clock, Some(Hte));
         }
+
         #[test]
         fn with_line() {
             let mut b = Builder::default();

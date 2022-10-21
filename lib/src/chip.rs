@@ -16,7 +16,8 @@ use gpiocdev_uapi::{v1, v2};
 use std::collections::HashSet;
 use std::fmt;
 use std::fs;
-use std::mem::size_of;
+use std::mem;
+use std::ops::Range;
 use std::os::linux::fs::MetadataExt;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
@@ -50,40 +51,38 @@ pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     Err(Error::GpioChip(pb, ErrorKind::NotGpioDevice))
 }
 
-/// Returns an iterator over the paths of all the GPIO character devices on the system.
+/// Returns the paths of all the GPIO character devices on the system.
 ///
-/// The returned paths are confirmed to be GPIO character devices, so there is no need
-/// to check them with [`is_chip`].
-pub fn chips() -> Result<ChipIterator> {
-    Ok(ChipIterator {
-        rd: std::fs::read_dir("/dev").map_err(errno_from_ioerr)?,
-        paths: HashSet::new(),
-    })
+/// The returned paths are sorted in name order and are confirmed to be GPIO character devices,
+/// so there is no need to check them with [`is_chip`].
+pub fn chips() -> Result<Vec<PathBuf>> {
+    let rd = std::fs::read_dir("/dev").map_err(errno_from_ioerr)?;
+    let mut paths = HashSet::new();
+    rd.filter_map(|x| x.ok())
+        .map(|de| de.path())
+        .flat_map(is_chip)
+        .for_each(|p| {
+            paths.insert(p);
+        });
+    let mut chips = Vec::from_iter(paths);
+    chips.sort();
+    Ok(chips)
 }
 
-/// An iterator over the paths of all chips in the system.
-///
-/// Only returns unique chips, so symlinks to chips will not be returned,
-/// only the underlying chip.
-pub struct ChipIterator {
-    rd: fs::ReadDir,
-    paths: HashSet<PathBuf>,
+pub struct LineInfoIterator<'a> {
+    /// The chip being iterated over.
+    pub chip: &'a Chip,
+    offsets: Range<Offset>,
 }
 
-impl Iterator for ChipIterator {
-    type Item = PathBuf;
+impl<'a> Iterator for LineInfoIterator<'a> {
+    type Item = Result<line::Info>;
 
-    fn next(&mut self) -> Option<PathBuf> {
-        for de in (&mut self.rd).flatten() {
-            let path = de.path();
-            if let Ok(dp) = is_chip(&path) {
-                if !self.paths.contains(&dp) {
-                    self.paths.insert(dp.clone());
-                    return Some(dp);
-                }
-            }
+    fn next(&mut self) -> Option<Result<line::Info>> {
+        match self.offsets.next() {
+            Some(offset) => Some(self.chip.line_info(offset)),
+            None => None,
         }
-        None
     }
 }
 
@@ -105,6 +104,22 @@ impl Chip {
     /// The path must resolve to a valid GPIO character device.
     pub fn from_path<P: AsRef<Path>>(p: P) -> Result<Chip> {
         let path = is_chip(p.as_ref())?;
+        let f = fs::File::open(&path).map_err(errno_from_ioerr)?;
+        let fd = f.as_raw_fd();
+        Ok(Chip {
+            path,
+            _f: f,
+            fd,
+            #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+            abiv: V2,
+        })
+    }
+
+    /// Constructs a Chip using the given name.
+    ///
+    /// The name must resolve to a valid GPIO character device.
+    pub fn from_name(n: &str) -> Result<Chip> {
+        let path = is_chip(format!("/dev/{}", n))?;
         let f = fs::File::open(&path).map_err(errno_from_ioerr)?;
         let fd = f.as_raw_fd();
         Ok(Chip {
@@ -139,25 +154,19 @@ impl Chip {
         self.path.as_ref()
     }
 
-    /// Find the offset of the named line.
+    /// Find the info for the named line.
     ///
     /// Returns the first matching line.
-    pub fn find_line(&self, line: &str) -> Option<Offset> {
-        if let Ok(ci) = self.info() {
-            for offset in 0..ci.num_lines {
-                if let Ok(li) = self.line_info(offset) {
-                    if li.name == line {
-                        return Some(offset);
-                    }
-                }
-            }
+    pub fn find_line_info(&self, name: &str) -> Option<line::Info> {
+        if let Ok(iter) = self.line_info_iter() {
+            return iter.filter_map(|x| x.ok()).find(|li| li.name == name);
         }
         None
     }
 
     /// Get the information for a line on the chip.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    pub fn line_info(&self, offset: u32) -> Result<line::Info> {
+    pub fn line_info(&self, offset: Offset) -> Result<line::Info> {
         let res = match self.abiv {
             V1 => v1::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
             V2 => v2::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
@@ -165,20 +174,32 @@ impl Chip {
         res.map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    pub fn line_info(&self, offset: u32) -> Result<line::Info> {
+    pub fn line_info(&self, offset: Offset) -> Result<line::Info> {
         uapi::get_line_info(self.fd, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))
     }
 
+    /// An iterator that returns the info for each line on the chip.
+    pub fn line_info_iter(&self) -> Result<LineInfoIterator> {
+        let cinfo = self.info()?;
+        Ok(LineInfoIterator {
+            chip: self,
+            offsets: Range {
+                start: 0,
+                end: cinfo.num_lines,
+            },
+        })
+    }
+
     /// Add a watch for changes to the publicly available information on a line.
     ///
     /// This is a null operation if there is already a watch on the line.
-    pub fn watch_line_info(&self, offset: u32) -> Result<line::Info> {
+    pub fn watch_line_info(&self, offset: Offset) -> Result<line::Info> {
         self.do_watch_line_info(offset)
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_watch_line_info(&self, offset: u32) -> Result<line::Info> {
+    fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
         let res = match self.abiv {
             V1 => v1::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
             V2 => v2::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
@@ -186,7 +207,7 @@ impl Chip {
         res.map_err(|e| Error::UapiError(UapiCall::WatchLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    fn do_watch_line_info(&self, offset: u32) -> Result<line::Info> {
+    fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
         uapi::watch_line_info(self.fd, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::WatchLineInfo, e))
@@ -195,7 +216,7 @@ impl Chip {
     /// Remove a watch for changes to the publicly available information on a line.
     ///
     /// This is a null operation if there is no existing watch on the line.
-    pub fn unwatch_line_info(&self, offset: u32) -> Result<()> {
+    pub fn unwatch_line_info(&self, offset: Offset) -> Result<()> {
         uapi::unwatch_line_info(self.fd, offset)
             .map_err(|e| Error::UapiError(UapiCall::UnwatchLineInfo, e))
     }
@@ -314,13 +335,13 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn line_info_change_event_size(&self) -> usize {
         match self.abiv {
-            V1 => size_of::<v1::LineInfoChangeEvent>(),
-            V2 => size_of::<v2::LineInfoChangeEvent>(),
+            V1 => mem::size_of::<v1::LineInfoChangeEvent>(),
+            V2 => mem::size_of::<v2::LineInfoChangeEvent>(),
         }
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn line_info_change_event_size(&self) -> usize {
-        size_of::<uapi::LineInfoChangeEvent>()
+        mem::size_of::<uapi::LineInfoChangeEvent>()
     }
 }
 impl AsRawFd for Chip {

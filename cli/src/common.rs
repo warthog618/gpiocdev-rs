@@ -18,10 +18,7 @@ use std::time::Duration;
 // common helper functions
 
 pub fn all_chip_paths() -> Result<Vec<PathBuf>> {
-    let mut cc: Vec<PathBuf> = chip::chips().context("unable to find any chips")?.collect();
-    // sorted for consistent outputs
-    cc.sort();
-    Ok(cc)
+    chip::chips().context("unable to find any chips")
 }
 
 pub fn chip_from_path(p: &Path, abiv: u8) -> Result<Chip> {

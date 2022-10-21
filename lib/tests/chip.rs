@@ -91,11 +91,12 @@ fn is_chip_not_gpio_device() {
 #[test]
 fn chips() {
     let cc = bag_of_chips();
+    let system_chips = gpiocdev::chip::chips().unwrap();
     for c in cc.chips() {
         // all chips in the test set must be in the system
         assert!(
-            gpiocdev::chip::chips().unwrap().any(|x| x == c.dev_path),
-            "{:?} not found in chips",
+            system_chips.contains(&c.dev_path),
+            "{:?} not found in system chips",
             c.dev_path
         );
     }
@@ -209,16 +210,18 @@ mod chip {
     }
 
     #[test]
-    fn find_line() {
+    fn find_line_info() {
         let sim = detailed_sim();
         for simc in sim.chips() {
             let cdevc = Chip::from_path(&simc.dev_path).unwrap();
             for (offset, name) in &simc.cfg.names {
-                assert_eq!(cdevc.find_line(name), Some(*offset));
+                let info = cdevc.find_line_info(name).unwrap();
+                assert_eq!(info.offset, *offset);
+                assert_eq!(info.name, *name);
             }
 
             // non-existent
-            assert!(cdevc.find_line("not such line").is_none())
+            assert!(cdevc.find_line_info("not such line").is_none())
         }
     }
 

@@ -19,7 +19,9 @@ use chrono::{DateTime, TimeZone, Utc};
 use errno::Errno;
 #[cfg(any(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi as uapi;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::ops::Range;
 use std::path::PathBuf;
 
 /// Types and functions specific to chips.
@@ -27,6 +29,214 @@ pub mod chip;
 
 /// Types specific to lines.
 pub mod line;
+
+/// Find the chip hosting a named line.
+///
+/// Stops at the first matching line, if one can be found.
+///
+/// Returns the path of the chip containing the line, and the offset of the line on that chip.
+///
+/// The found line can be used to request the line:
+/// ```no_run
+/// # use gpiocdev::Result;
+/// # use gpiocdev::request::Request;
+/// # use gpiocdev::line::Value;
+/// # fn main() -> Result<()> {
+/// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+/// let req = Request::builder()
+///     .with_found_line(&led0)
+///     .as_output(Value::Active)
+///     .request()?;
+/// # Ok(())
+/// # }
+/// ```
+///
+pub fn find_named_line(name: &str) -> Option<FoundLine> {
+    if let Ok(mut liter) = LineIterator::new() {
+        return liter.find(|l| l.info.name == name);
+    }
+    None
+}
+
+/// Find the chip and offset of a collection of named lines.
+///
+/// For each name, returns the first matching line, if one can be found.
+///
+/// Returns the path of the chip containing the line, and the offset of the line on that chip.
+///
+/// If strict is true then the names are checked to be unique within the available lines,
+/// and to all be located on the one chip.
+///
+/// The chip path and line offset can be used to request the line:
+/// ```no_run
+/// # use gpiocdev::Result;
+/// # use gpiocdev::request::Request;
+/// # use gpiocdev::line::Value;
+/// # fn main() -> Result<()> {
+/// let lines = &["SENSOR0", "SENSOR1", "LED0"];
+/// let mylines = gpiocdev::find_named_lines(lines, true)?;
+/// let sensor0 = mylines.get("SENSOR0").unwrap();
+/// let led0 = mylines.get("LED0").unwrap();
+/// let req = Request::builder()
+///     .with_found_line(&sensor0)
+///     .as_input()
+///     .with_found_line(&led0)
+///     .as_output(Value::Active)
+///     .request()?;
+/// let value = req.value(sensor0.info.offset)?;
+/// # Ok(())
+/// # }
+/// ```
+///
+pub fn find_named_lines<'a>(
+    names: &'a [&'a str],
+    strict: bool,
+) -> Result<HashMap<&'a str, FoundLine>> {
+    let mut found = HashMap::new();
+    let mut chips = HashSet::new();
+    for l in LineIterator::new()? {
+        for name in names {
+            if *name != l.info.name.as_str() {
+                continue;
+            }
+            if !found.contains_key(*name) {
+                found.insert(name.to_owned(), l.clone());
+                chips.insert(l.chip.clone());
+                if !strict && found.len() == names.len() {
+                    return Ok(found);
+                }
+            } else if strict {
+                return Err(Error::NonuniqueLineName(name.to_string()));
+            }
+            // else already have that line...
+        }
+    }
+    if strict && chips.len() > 1 {
+        return Err(Error::DistributedLines());
+    }
+    Ok(found)
+}
+
+/// The info for a line discovered in the system.
+///
+/// Identifies the chip hosting the line, and the line info.
+///
+/// The chip path and line offset can be used to request the line:
+/// ```no_run
+/// # use gpiocdev::Result;
+/// # use gpiocdev::request::Request;
+/// # use gpiocdev::line::Value;
+/// # fn main() -> Result<()> {
+/// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+/// let req = Request::builder()
+///     .with_found_line(&led0)
+///     .as_output(Value::Active)
+///     .request()?;
+/// # Ok(())
+/// # }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FoundLine {
+    /// The path to the chip containing the line.
+    pub chip: PathBuf,
+    /// The offset of the line on the chip.
+    pub info: line::Info,
+}
+
+/// An iterator for all available lines in the system.
+///
+/// Can be used to doscover and filter lines based on by particular criteria.
+///
+/// Used by [`find_named_line`] and [`find_named_lines`] to find lines based on line name.
+/// ```no_run
+/// # use gpiocdev::Result;
+/// # use gpiocdev::request::Request;
+/// # use gpiocdev::line::Value;
+/// # fn main() -> Result<()> {
+/// // replicating find_named_line...
+/// let led2 = gpiocdev::LineIterator::new()?.find(|l| l.info.name == "LED2").unwrap();
+/// let req = Request::builder()
+///     .with_found_line(&led2)
+///     .as_output(Value::Active)
+///     .request()?;
+/// # Ok(())
+/// # }
+/// ```
+pub struct LineIterator {
+    chips: Vec<PathBuf>,
+    citer: Range<usize>,
+    chip: chip::Chip,
+    liter: Range<u32>,
+}
+
+fn next_chip(chips: &[PathBuf], citer: &mut Range<usize>) -> Option<(chip::Chip, Range<u32>)> {
+    for cidx in citer {
+        if let Ok(chip) = chip::Chip::from_path(&chips[cidx]) {
+            if let Ok(info) = chip.info() {
+                return Some((
+                    chip,
+                    Range {
+                        start: 0,
+                        end: info.num_lines,
+                    },
+                ));
+            }
+        }
+    }
+    None
+}
+
+impl LineIterator {
+    pub fn new() -> Result<Self> {
+        let chips = chip::chips()?;
+        let mut citer = Range {
+            start: 0,
+            end: chips.len(),
+        };
+        if let Some((chip, liter)) = next_chip(&chips, &mut citer) {
+            Ok(LineIterator {
+                chips,
+                citer,
+                chip,
+                liter,
+            })
+        } else {
+            Err(Error::NoGpioChips())
+        }
+    }
+
+    fn next_line_info(&mut self) -> Option<line::Info> {
+        for offset in &mut self.liter {
+            if let Ok(linfo) = self.chip.line_info(offset) {
+                return Some(linfo);
+            }
+        }
+        None
+    }
+}
+
+impl Iterator for LineIterator {
+    type Item = FoundLine;
+
+    fn next(&mut self) -> Option<FoundLine> {
+        if let Some(linfo) = self.next_line_info() {
+            return Some(FoundLine {
+                chip: self.chip.path().to_path_buf(),
+                info: linfo,
+            });
+        }
+        if let Some((chip, liter)) = next_chip(&self.chips, &mut self.citer) {
+            self.chip = chip;
+            self.liter = liter;
+            if let Some(linfo) = self.next_line_info() {
+                return Some(FoundLine {
+                    chip: self.chip.path().to_path_buf(),
+                    info: linfo,
+                });
+            }
+        }
+        None
+    }
+}
 
 /// Types and functions related to requesting lines.
 ///
@@ -99,7 +309,7 @@ pub struct Timestamp(DateTime<Utc>);
 impl Timestamp {
     /// Create a Timestamp from the number of nanoseconds.
     ///
-    /// Suitable for  **CLOCK_REALTIME** clock sources.
+    /// Suitable for **CLOCK_REALTIME** clock sources.
     pub fn from_nanos(t: u64) -> Self {
         let sec = (t / 1000000000) as i64;
         let nsec = (t as u32) % 1000000000;
@@ -116,11 +326,20 @@ impl From<Timestamp> for DateTime<Utc> {
 /// Errors returned by [`gpiocdev`] functions.
 ///
 /// [`gpiocdev`]: crate
-#[derive(Debug, thiserror::Error, Eq, PartialEq)]
+#[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
 pub enum Error {
     /// An operation cannot be performed due to a limitation in the ABI version being used.
     #[error("{0} {1}.")]
     AbiLimitation(AbiVersion, String),
+
+    /// Returned when the strict mode of find_named_lines finds the lines are spread
+    /// across multiuple chips, and so not suitable for a single request.
+    #[error("Requested lines are distibuted across multiple chips")]
+    DistributedLines(),
+
+    /// Problem accessing GPIO chip character devices
+    #[error("\"{0}\" {1}.")]
+    GpioChip(PathBuf, chip::ErrorKind),
 
     /// An error returned when there is a problem with an argument.
     #[error("{0}")]
@@ -130,9 +349,9 @@ pub enum Error {
     #[error("No GPIO chips are available")]
     NoGpioChips(),
 
-    /// Problem accessing GPIO chip character devices
-    #[error("\"{0}\" {1}.")]
-    GpioChip(PathBuf, chip::ErrorKind),
+    /// Returned when the strict mode of find_named_lines finds multiple lines with the same name.
+    #[error("Line name '{0}' is not unique")]
+    NonuniqueLineName(String),
 
     /// An error returned from an underlying os call.
     #[error(transparent)]
@@ -153,7 +372,7 @@ pub enum Error {
 
 /// Identifiers for the underlying uAPI calls.
 #[doc(hidden)]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum UapiCall {
     GetChipInfo,
     GetLine,
@@ -197,7 +416,7 @@ impl fmt::Display for UapiCall {
 
 /// Components that may not support a particular ABI version.
 #[doc(hidden)]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AbiSupportKind {
     /// The library does not have the feature enabled for the requested ABI version.
     Library,
