@@ -139,6 +139,8 @@ pub struct FoundLine {
     /// The path to the chip containing the line.
     pub chip: PathBuf,
     /// The offset of the line on the chip.
+    pub offset: line::Offset,
+    /// The info of the line on the chip.
     pub info: line::Info,
 }
 
@@ -221,6 +223,7 @@ impl Iterator for LineIterator {
         if let Some(linfo) = self.next_line_info() {
             return Some(FoundLine {
                 chip: self.chip.path().to_path_buf(),
+                offset: linfo.offset,
                 info: linfo,
             });
         }
@@ -230,6 +233,7 @@ impl Iterator for LineIterator {
             if let Some(linfo) = self.next_line_info() {
                 return Some(FoundLine {
                     chip: self.chip.path().to_path_buf(),
+                    offset: linfo.offset,
                     info: linfo,
                 });
             }

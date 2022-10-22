@@ -44,7 +44,7 @@ Requesting a line by name:
         .request()?;
 
     // change value later
-    req.set_value(led0.info.offset, Value::Inactive)
+    req.set_value(led0.offset, Value::Inactive)
 ```
 
 Getting a line value:
