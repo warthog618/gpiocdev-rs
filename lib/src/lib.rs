@@ -30,7 +30,12 @@ pub mod chip;
 /// Types specific to lines.
 pub mod line;
 
-/// Find the chip hosting a named line.
+/// An iterator over all the GPIO lines visible to the caller.
+pub fn lines() -> Result<LineIterator> {
+    LineIterator::new()
+}
+
+/// Find the chip hosting a named line, and the line offset on that chip.
 ///
 /// Stops at the first matching line, if one can be found.
 ///
@@ -61,6 +66,7 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 /// Find the chip and offset of a collection of named lines.
 ///
 /// For each name, returns the first matching line, if one can be found.
+/// If it cannot be found then there will be no matching entry in the returned map.
 ///
 /// Returns the path of the chip containing the line, and the offset of the line on that chip.
 ///
@@ -140,13 +146,13 @@ pub struct FoundLine {
     pub chip: PathBuf,
     /// The offset of the line on the chip.
     pub offset: line::Offset,
-    /// The info of the line on the chip.
+    /// The info of the line.
     pub info: line::Info,
 }
 
-/// An iterator for all available lines in the system.
+/// An iterator for all lines in the system available to the caller.
 ///
-/// Can be used to doscover and filter lines based on by particular criteria.
+/// Can be used to discover and filter lines based on by particular criteria.
 ///
 /// Used by [`find_named_line`] and [`find_named_lines`] to find lines based on line name.
 /// ```no_run
@@ -188,6 +194,7 @@ fn next_chip(chips: &[PathBuf], citer: &mut Range<usize>) -> Option<(chip::Chip,
 }
 
 impl LineIterator {
+    /// Creates an iterator over all the GPIO lines in the system that are available to the caller.
     pub fn new() -> Result<Self> {
         let chips = chip::chips()?;
         let mut citer = Range {
