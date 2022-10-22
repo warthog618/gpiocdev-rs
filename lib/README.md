@@ -14,7 +14,7 @@ The gpiocdev crate provides an API to access GPIOs from Rust applications.
 
 The library is compatible with the Linux GPIO uAPI, both v1 and v2, including receiving line edge events.
 
-The gpiocdev API provides a unified abstraction for both uAPI versions, but will return an error if v2 featuresa are attempted to be used on a v1 system.
+The gpiocdev API provides a unified abstraction for both uAPI versions, but will return an error if v2 featuresa are attempted to be used on a v1-only system.
 
 uAPI v2 specific features include:
 
@@ -30,9 +30,22 @@ The library makes no use of the deprecated **sysfs** GPIO API.
 
 The majority of the GPIO uAPI is non-blocking and so does not require any async specific treatment.
 
-The exceptions are reading edge events from line requests, and info change events from chips.  Presently these expose the underlying file descriptor, which may be used directly with an async reactor.  An example of this is the **gpiocdev-cli** [edges](https://github.com/warthog618/gpiocdev-rs/blob/master/cli/src/edges.rs) command, which can asynchronously wait on multiple lines spread across multiple chips.
+The exceptions are waiting for edge events from line requests, and info change events from chips.  Presently these expose the underlying file descriptor, which may be used directly with an async reactor.  An example of this is the **gpiocdev-cli** [edges](https://github.com/warthog618/gpiocdev-rs/blob/master/cli/src/edges.rs) command, which can asynchronously wait on multiple lines spread across multiple chips.
 
 ## Example Usage
+
+Requesting a line by name:
+
+```rust
+    let led0 = gpiocdev::find_named_line("LED0").unwrap();
+    let req = Request::builder()
+        .with_found_line(&led0)
+        .as_output(Value::Active)
+        .request()?;
+
+    // change value later
+    req.set_value(led0.info.offset, Value::Inactive)
+```
 
 Getting a line value:
 
@@ -54,13 +67,13 @@ Setting a line:
     let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_line(22)
-        .as_output(Value.Active)
+        .as_output(Value::Active)
         .request()?;
 
     // do something...
 
     // change value later
-    req.set_value(22, Value.Inactive)
+    req.set_value(22, Value::Inactive)
 ```
 
 Waiting for events on a line:
