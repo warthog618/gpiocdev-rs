@@ -30,6 +30,9 @@ use std::time::Duration;
 
 /// A builder of line requests.
 ///
+/// Apply mutators to specify the request configuration, then use [`request`]
+/// to request the lines from the kernel.
+///
 /// Most mutators operate on the request configuration as per the [`Config`].
 ///
 /// To request and read a basic input line:
@@ -86,6 +89,7 @@ use std::time::Duration;
 ///
 /// ```
 ///
+/// [`request`]: #method.request
 #[derive(Clone, Default, Eq, PartialEq)]
 #[cfg_attr(test, derive(Debug))]
 pub struct Builder {
@@ -1067,14 +1071,37 @@ impl<'a> Iterator for SelectedIterator<'a> {
 
 /// An active request of a set of lines.
 ///
+/// Requests are built by the [`Builder`], which itself can be constructed by [`builder`].
 ///
 /// # Event Buffering
 ///
-/// Some buffering description here:
-///  - kernel
-///  - user space EdgeEventBuffer
-///  - external byte buffer
+/// Events are buffered both in the kernel and in user space.
+/// The purpose of the kernel event buffer is to store events that may occur in a burst at
+/// a faster rate than they can be handled by the user space process.
+/// The kernel event buffer can be customised to some extent by the [`with_kernel_event_buffer_size`] option.
 ///
+/// A number of options are available for user space buffering,
+/// i.e. where the events are to be written when they are read from the kernel.
+///
+/// The [`read_edge_event`] reads a single event onto the stack.
+///
+/// The [`EdgeEventBuffer`] provides buffering on the heap, and can reduce reading overheads
+/// by reading multiple events from the kernel at once.  The [`edge_events`] iterator uses an
+/// EdgeEventBuffer, the size of which is controlled by [`with_user_event_buffer_size`]
+///
+/// It is also possible to read multiple events into a user specified location using
+/// [`read_edge_events_into_slice`].
+/// As with [`EdgeEventBuffer`] this may reduce read overheads when reading a burst of events
+/// from the kernel.  The [`edge_event_size`] method provides the size required to store a
+/// single event to allow sizing of custom slices.
+///
+/// [`builder`]: #method.builder
+/// [`edge_events`]: #method.edge_events
+/// [`edge_event_size`]: #method.edge_event_size
+/// [`read_edge_event`]: #method.read_edge_event
+/// [`read_edge_events_into_slice`]: #method.read_edge_events_into_slice
+/// [`with_kernel_event_buffer_size`]: struct.Builder.html#method.with_kernel_event_buffer_size
+/// [`with_user_event_buffer_size`]: struct.Builder.html#method.with_user_event_buffer_size
 #[derive(Debug)]
 pub struct Request {
     /// The request file, as returned by chip.get_line.
@@ -1459,13 +1486,14 @@ impl Request {
     /// Will block until an edge event is available.
     ///
     /// This is a convenience function.
-    /// Reading events using a [`edge_events`] or a buffer created using [`new_edge_event_buffer`]
-    /// is more performant.
+    /// Reading events using [`edge_events`] or a buffer created using [`new_edge_event_buffer`]
+    /// may be more performant.
     ///
     /// [`edge_events`]: #method.edge_events
     /// [`new_edge_event_buffer`]: #method.new_edge_event_buffer
     pub fn read_edge_event(&self) -> Result<EdgeEvent> {
-        let mut buf = vec![0; self.edge_event_size()];
+        assert!(size_of::<v2::LineEdgeEvent>() >= size_of::<v1::LineEdgeEvent>());
+        let mut buf = [0; size_of::<v2::LineEdgeEvent>()];
         self.read_edge_events_into_slice(&mut buf)?;
         self.do_edge_event_from_buf(&buf)
     }
