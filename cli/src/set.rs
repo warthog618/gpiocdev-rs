@@ -89,7 +89,7 @@ pub struct Opts {
     daemonize: bool,
 
     /// The consumer label applied to requested lines.
-    #[arg(long, name = "consumer", default_value = "gpioset")]
+    #[arg(long, name = "consumer", default_value = "gpiocdev-set")]
     consumer: String,
 
     #[command(flatten)]

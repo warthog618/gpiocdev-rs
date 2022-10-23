@@ -88,6 +88,10 @@ pub struct Opts {
     #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
     quiet: bool,
 
+    /// The consumer label applied to requested lines.
+    #[arg(long, name = "consumer", default_value = "gpiocdev-edges")]
+    consumer: String,
+
     #[command(flatten)]
     uapi_opts: UapiOpts,
 }
@@ -151,7 +155,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         cfg.with_lines(&offsets);
         let req = Request::from_config(cfg)
             .on_chip(&ci.path)
-            .with_consumer("gpiomon")
+            .with_consumer(&opts.consumer)
             .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
             .request()
             .context(format!(
