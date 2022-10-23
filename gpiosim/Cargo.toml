@@ -7,7 +7,7 @@ keywords = ["linux", "gpio", "library", "embedded"]
 license = "MIT"
 name = "gpiosim"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-version = "0.1.1"
+version = "0.1.2"
 
 [dependencies]
 global_counter = "0.2"
