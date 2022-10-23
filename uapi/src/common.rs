@@ -300,12 +300,12 @@ impl TryFrom<u32> for LineInfoChangeKind {
     type Error = String;
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
-        match v {
-            x if x == LineInfoChangeKind::Requested as u32 => Ok(LineInfoChangeKind::Requested),
-            x if x == LineInfoChangeKind::Released as u32 => Ok(LineInfoChangeKind::Released),
-            x if x == LineInfoChangeKind::Reconfigured as u32 => Ok(LineInfoChangeKind::Reconfigured),
-            x => Err(format!("invalid value: {}", x)),
-        }
+        Ok(match v {
+            x if x == LineInfoChangeKind::Requested as u32 => LineInfoChangeKind::Requested,
+            x if x == LineInfoChangeKind::Released as u32 => LineInfoChangeKind::Released,
+            x if x == LineInfoChangeKind::Reconfigured as u32 => LineInfoChangeKind::Reconfigured,
+            x => return Err(format!("invalid value: {}", x)),
+        })
     }
 }
 
@@ -333,11 +333,11 @@ impl TryFrom<u32> for LineEdgeEventKind {
     type Error = String;
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
-        match v {
-            x if x == LineEdgeEventKind::RisingEdge as u32 => Ok(LineEdgeEventKind::RisingEdge),
-            x if x == LineEdgeEventKind::FallingEdge as u32 => Ok(LineEdgeEventKind::FallingEdge),
-            _ => Err(format!("invalid value: {}", v)),
-        }
+        Ok(match v {
+            x if x == LineEdgeEventKind::RisingEdge as u32 => LineEdgeEventKind::RisingEdge,
+            x if x == LineEdgeEventKind::FallingEdge as u32 => LineEdgeEventKind::FallingEdge,
+            _ => return Err(format!("invalid value: {}", v)),
+        })
     }
 }
 

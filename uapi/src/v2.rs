@@ -221,13 +221,13 @@ impl TryFrom<u32> for LineAttributeKind {
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
         use LineAttributeKind::*;
-        match v {
-            x if x == Unused as u32 => Ok(Unused),
-            x if x == Flags as u32 => Ok(Flags),
-            x if x == Values as u32 => Ok(Values),
-            x if x == Debounce as u32 => Ok(Debounce),
-            x => Err(format!("invalid value: {}", x)),
-        }
+        Ok(match v {
+            x if x == Unused as u32 => Unused,
+            x if x == Flags as u32 => Flags,
+            x if x == Values as u32 => Values,
+            x if x == Debounce as u32 => Debounce,
+            x => return Err(format!("invalid value: {}", x)),
+        })
     }
 }
 
@@ -278,14 +278,14 @@ impl LineAttribute {
     pub fn to_value(&self) -> Option<LineAttributeValue> {
         // SAFETY: checks kind before accessing union
         unsafe {
-            match self.kind {
-                LineAttributeKind::Unused => None,
-                LineAttributeKind::Flags => Some(LineAttributeValue::Flags(self.value.flags)),
-                LineAttributeKind::Values => Some(LineAttributeValue::Values(self.value.values)),
-                LineAttributeKind::Debounce => Some(LineAttributeValue::DebouncePeriod(
+            Some(match self.kind {
+                LineAttributeKind::Unused => return None,
+                LineAttributeKind::Flags => LineAttributeValue::Flags(self.value.flags),
+                LineAttributeKind::Values => LineAttributeValue::Values(self.value.values),
+                LineAttributeKind::Debounce => LineAttributeValue::DebouncePeriod(
                     Duration::from_micros(self.value.debounce_period_us as u64),
-                )),
-            }
+                ),
+            })
         }
     }
 }

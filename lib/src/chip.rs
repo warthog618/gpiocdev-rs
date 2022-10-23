@@ -331,16 +331,16 @@ impl Chip {
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn line_info_change_event_from_slice(&self, d: &[u8]) -> Result<InfoChangeEvent> {
-        match self.abiv {
-            V1 => Ok(InfoChangeEvent::from(
+        Ok(match self.abiv {
+            V1 => InfoChangeEvent::from(
                 v1::LineInfoChangeEvent::from_buf(d)
                     .map_err(|e| Error::UapiError(UapiCall::LICEFromBuf, e))?,
-            )),
-            V2 => Ok(InfoChangeEvent::from(
+            ),
+            V2 => InfoChangeEvent::from(
                 v2::LineInfoChangeEvent::from_buf(d)
                     .map_err(|e| Error::UapiError(UapiCall::LICEFromBuf, e))?,
-            )),
-        }
+            ),
+        })
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn line_info_change_event_from_slice(&self, d: &[u8]) -> Result<InfoChangeEvent> {
