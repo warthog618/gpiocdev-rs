@@ -14,7 +14,7 @@ The gpiocdev crate provides an API to access GPIOs from Rust applications.
 
 The library is compatible with the Linux GPIO uAPI, both v1 and v2, including receiving line edge events.
 
-The gpiocdev API provides a unified abstraction for both uAPI versions, but will return an error if v2 featuresa are attempted to be used on a v1-only system.
+The gpiocdev API provides a unified abstraction for both uAPI versions, but will return an error if v2 features are attempted to be used on a v1-only system.
 
 uAPI v2 specific features include:
 
