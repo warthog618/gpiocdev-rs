@@ -22,7 +22,7 @@ use std::cmp::max;
 #[cfg(feature = "uapi_v2")]
 use std::collections::HashMap;
 use std::fs::File;
-use std::mem::size_of;
+use std::mem;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -1492,10 +1492,23 @@ impl Request {
     /// [`edge_events`]: #method.edge_events
     /// [`new_edge_event_buffer`]: #method.new_edge_event_buffer
     pub fn read_edge_event(&self) -> Result<EdgeEvent> {
-        assert!(size_of::<v2::LineEdgeEvent>() >= size_of::<v1::LineEdgeEvent>());
-        let mut buf = [0; size_of::<v2::LineEdgeEvent>()];
+        self.do_read_edge_event()
+    }
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn do_read_edge_event(&self) -> Result<EdgeEvent> {
+        // bbuf is statically sized to the greater of the v1/v2 size so it can be placed on the stack.
+        assert!(mem::size_of::<v2::LineEdgeEvent>() >= mem::size_of::<v1::LineEdgeEvent>());
+        let mut bbuf = [0; mem::size_of::<v2::LineEdgeEvent>()];
+        // and dynamically sliced down to the required size, if necessary
+        let buf = &mut bbuf[0..self.edge_event_size()];
+        self.read_edge_events_into_slice(buf)?;
+        self.do_edge_event_from_slice(buf)
+    }
+    #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
+    fn do_read_edge_event(&self) -> Result<EdgeEvent> {
+        let mut buf = [0; mem::size_of::<uapi::LineEdgeEvent>()];
         self.read_edge_events_into_slice(&mut buf)?;
-        self.do_edge_event_from_buf(&buf)
+        self.do_edge_event_from_slice(&buf)
     }
 
     /// Create an edge event buffer.
@@ -1546,10 +1559,10 @@ impl Request {
     ///
     /// [`read_edge_events_into_slice`]: #method.read_edge_events_into_slice
     pub fn edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
-        self.do_edge_event_from_buf(buf)
+        self.do_edge_event_from_slice(buf)
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_edge_event_from_buf(&self, buf: &[u8]) -> Result<EdgeEvent> {
+    fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
         match self.abiv {
             AbiVersion::V1 => {
                 let mut ee = EdgeEvent::from(
@@ -1567,7 +1580,7 @@ impl Request {
         }
     }
     #[cfg(not(feature = "uapi_v2"))]
-    fn do_edge_event_from_buf(&self, buf: &[u8]) -> Result<EdgeEvent> {
+    fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
         let mut ee = EdgeEvent::from(
             v1::LineEdgeEvent::from_buf(buf)
                 .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
@@ -1577,7 +1590,7 @@ impl Request {
         Ok(ee)
     }
     #[cfg(not(feature = "uapi_v1"))]
-    fn do_edge_event_from_buf(&self, buf: &[u8]) -> Result<EdgeEvent> {
+    fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
         Ok(EdgeEvent::from(
             v2::LineEdgeEvent::from_buf(buf)
                 .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
@@ -1594,13 +1607,13 @@ impl Request {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_edge_event_size(&self) -> usize {
         match self.abiv {
-            AbiVersion::V1 => size_of::<v1::LineEdgeEvent>(),
-            AbiVersion::V2 => size_of::<v2::LineEdgeEvent>(),
+            AbiVersion::V1 => mem::size_of::<v1::LineEdgeEvent>(),
+            AbiVersion::V2 => mem::size_of::<v2::LineEdgeEvent>(),
         }
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_edge_event_size(&self) -> usize {
-        size_of::<uapi::LineEdgeEvent>()
+        mem::size_of::<uapi::LineEdgeEvent>()
     }
 }
 impl AsRawFd for Request {
