@@ -5,9 +5,36 @@
 //! A library for accessing GPIO lines on Linux platforms
 //! using the GPIO character device.
 //!
-//! The lines available on chips can be discovered using the [`chip`] module.
+//! Lines are requested and manipulated using the [`request`] module.
 //!
-//! Lines can be requested and manipulated using the [`request`] module.
+//! The lines available on specific chips can be discovered using the [`chip`] module.
+//!
+//! The lines available on the system can be discovered by name using the [`find_named_line`]
+//! and [`find_named_lines`] functions, or using the iterator returned by [`lines`].
+//!
+//! # Example Usage
+//!
+//! Request an input line and output line, and read from the input and change the output to that value:
+//! ```no_run
+//! # use gpiocdev::Result;
+//! use gpiocdev::request::Request;
+//! use gpiocdev::line::Value;
+//!
+//! # fn main() -> Result<()> {
+//! let req = Request::builder()
+//!     .on_chip("/dev/gpiochip0")
+//!     .with_line(3)
+//!     .as_input()
+//!     .with_line(4)
+//!     .as_output(Value::Inactive)
+//!     .request()?;
+//! let value = req.value(3)?;
+//! req.set_value(4, value)?;
+//! # Ok(())
+//! # }
+//! ```
+//! That is a basic example of input and output.  All other aspects of the line that are available via the
+//! GPIO uAPI, such as bias, debounce, and edge events are also supported.
 //!
 //! [`chip`]: module@chip
 //! [`request`]: module@request
@@ -63,12 +90,13 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
     None
 }
 
-/// Find the chip and offset of a collection of named lines.
+/// Find a collection of named lines.
 ///
 /// For each name, returns the first matching line, if one can be found.
 /// If it cannot be found then there will be no matching entry in the returned map.
 ///
-/// Returns the path of the chip containing the line, and the offset of the line on that chip.
+/// Returns the path of the chip containing the line, the offset of the line on that chip,
+/// and the info for the line.
 ///
 /// If strict is true then the names are checked to be unique within the available lines,
 /// and to all be located on the one chip.
@@ -89,7 +117,7 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 ///     .with_found_line(&led0)
 ///     .as_output(Value::Active)
 ///     .request()?;
-/// let value = req.value(sensor0.info.offset)?;
+/// let value = req.value(sensor0.offset)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -127,7 +155,7 @@ pub fn find_named_lines<'a>(
 ///
 /// Identifies the chip hosting the line, and the line info.
 ///
-/// The chip path and line offset can be used to request the line:
+/// The discovered line can be used to request the line:
 /// ```no_run
 /// # use gpiocdev::Result;
 /// # use gpiocdev::request::Request;
@@ -251,10 +279,10 @@ impl Iterator for LineIterator {
 
 /// Types and functions related to requesting lines.
 ///
-/// The [`Builder`] creates the [`Request`] which can access and manipulate sets of lines,
+/// The [`Builder`] creates the [`Request`] which can access and manipulate sets of lines
 /// and return edge events via the [`EdgeEventBuffer`].
 ///
-/// The line configuration can be provided to the [`Builder`] using either direct mutators,
+/// The line configuration is provided to the [`Builder`] using either direct mutators,
 /// such as [`as_input`] and [`with_edge_detection`], or via a [`Config`].
 ///
 /// To request and read a basic input line:
@@ -343,8 +371,8 @@ pub enum Error {
     #[error("{0} {1}.")]
     AbiLimitation(AbiVersion, String),
 
-    /// Returned when the strict mode of find_named_lines finds the lines are spread
-    /// across multiuple chips, and so not suitable for a single request.
+    /// Returned when the strict mode of [`find_named_lines`] finds the lines are spread
+    /// across multiple chips, and so not suitable for a single request.
     #[error("Requested lines are distibuted across multiple chips")]
     DistributedLines(),
 
@@ -360,7 +388,7 @@ pub enum Error {
     #[error("No GPIO chips are available")]
     NoGpioChips(),
 
-    /// Returned when the strict mode of find_named_lines finds multiple lines with the same name.
+    /// Returned when the strict mode of [`find_named_lines`] finds multiple lines with the same name.
     #[error("Line name '{0}' is not unique")]
     NonuniqueLineName(String),
 
