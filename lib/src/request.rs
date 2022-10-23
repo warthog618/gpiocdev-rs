@@ -1104,7 +1104,7 @@ impl<'a> Iterator for SelectedIterator<'a> {
 /// [`with_user_event_buffer_size`]: struct.Builder.html#method.with_user_event_buffer_size
 #[derive(Debug)]
 pub struct Request {
-    /// The request file, as returned by chip.get_line.
+    /// The request file.
     _f: File,
 
     /// Cached copy of _f.as_raw_fd() for syscalls, to avoid Arc<Mutex<>> overheads for ops.

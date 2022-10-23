@@ -107,8 +107,8 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 /// # use gpiocdev::request::Request;
 /// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
-/// let lines = &["SENSOR0", "SENSOR1", "LED0"];
-/// let mylines = gpiocdev::find_named_lines(lines, true)?;
+/// let lines = ["SENSOR0", "SENSOR1", "LED0"];
+/// let mylines = gpiocdev::find_named_lines(&lines, true)?;
 /// let sensor0 = mylines.get("SENSOR0").unwrap();
 /// let led0 = mylines.get("LED0").unwrap();
 /// let req = Request::builder()
