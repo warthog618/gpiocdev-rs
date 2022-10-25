@@ -824,11 +824,14 @@ mod chip {
         drop(req);
     }
 
-    #[allow(unused)]
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn new_chip(path: &Path, abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
         let mut cdevc = Chip::from_path(path).unwrap();
-        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         cdevc.using_abi_version(abiv);
         cdevc
+    }
+    #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
+    fn new_chip(path: &Path, _abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
+        Chip::from_path(path).unwrap()
     }
 }

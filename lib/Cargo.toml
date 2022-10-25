@@ -13,15 +13,24 @@ version = "0.2.0"
 bitmaps = {version = "3.2"}
 chrono = "0.4"
 errno = "0.2"
+futures = {version = "0.3", optional = true}
 gpiocdev-uapi = {version = "0.2.0", path = "../uapi", features = ["uapi_v1", "uapi_v2"], optional = true}
 nohash-hasher = "0.2"
 thiserror = "1.0"
+tokio = {version = "1.21", features = ["net"], optional = true}
+tokio-stream = {version = "0.1.11", optional = true}
 
 [dev-dependencies]
 anyhow = "1.0"
 gpiosim = {version = "0.1.0", path = "../gpiosim"}
+tokio = {version = "1.21", features = ["macros", "rt", "time"]}
 
 [features]
+async_tokio = ["tokio-stream", "tokio/net", "futures"]
 default = ["uapi_v2"]
 uapi_v1 = ["gpiocdev-uapi/uapi_v1"]
 uapi_v2 = ["gpiocdev-uapi/uapi_v2"]
+
+[[example]]
+name = "tokio_watcher"
+required-features = ["async_tokio"]

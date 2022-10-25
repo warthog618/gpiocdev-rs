@@ -57,6 +57,10 @@ pub mod chip;
 /// Types specific to lines.
 pub mod line;
 
+/// Wrappers for various async reactors.
+#[cfg(any(feature = "async_tokio", feature = "async_std"))]
+pub mod r#async;
+
 /// An iterator over all the GPIO lines visible to the caller.
 pub fn lines() -> Result<LineIterator> {
     LineIterator::new()
@@ -407,6 +411,10 @@ pub enum Error {
     /// The platform or library does not support the requested uAPI ABI version.
     #[error("{0} is not supported by the {1}.")]
     UnsupportedAbi(AbiVersion, AbiSupportKind),
+}
+
+fn errno_from_ioerr(e: std::io::Error) -> Errno {
+    Errno(e.raw_os_error().unwrap_or(0))
 }
 
 /// Identifiers for the underlying uAPI calls.

@@ -6,7 +6,6 @@ use super::line::Offset;
 use crate::{
     line, line::InfoChangeEvent, AbiSupportKind, AbiVersion, AbiVersion::*, Error, Result, UapiCall,
 };
-use errno::Errno;
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
 use gpiocdev_uapi::v1 as uapi;
 #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
@@ -25,16 +24,12 @@ use std::time::Duration;
 
 const CHARDEV_MODE: u32 = 0x2000;
 
-fn errno_from_ioerr(e: std::io::Error) -> Errno {
-    Errno(e.raw_os_error().unwrap_or(0))
-}
-
 /// Check if a path corresponds to a GPIO character device.
 ///
 /// Returns the resolved path to the character device.
 pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    let pb = fs::canonicalize(&path).map_err(errno_from_ioerr)?;
-    let m = fs::symlink_metadata(&pb).map_err(errno_from_ioerr)?;
+    let pb = fs::canonicalize(&path).map_err(crate::errno_from_ioerr)?;
+    let m = fs::symlink_metadata(&pb).map_err(crate::errno_from_ioerr)?;
     if m.st_mode() & CHARDEV_MODE == 0 {
         return Err(Error::GpioChip(pb, ErrorKind::NotCharacterDevice));
     }
@@ -56,7 +51,7 @@ pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
 /// The returned paths are sorted in name order and are confirmed to be GPIO character devices,
 /// so there is no need to check them with [`is_chip`].
 pub fn chips() -> Result<Vec<PathBuf>> {
-    let rd = std::fs::read_dir("/dev").map_err(errno_from_ioerr)?;
+    let rd = std::fs::read_dir("/dev").map_err(crate::errno_from_ioerr)?;
     let mut paths = HashSet::new();
     rd.filter_map(|x| x.ok())
         .map(|de| de.path())
@@ -104,7 +99,7 @@ impl Chip {
     /// The path must resolve to a valid GPIO character device.
     pub fn from_path<P: AsRef<Path>>(p: P) -> Result<Chip> {
         let path = is_chip(p.as_ref())?;
-        let f = fs::File::open(&path).map_err(errno_from_ioerr)?;
+        let f = fs::File::open(&path).map_err(crate::errno_from_ioerr)?;
         let fd = f.as_raw_fd();
         Ok(Chip {
             path,
@@ -120,7 +115,7 @@ impl Chip {
     /// The name must resolve to a valid GPIO character device.
     pub fn from_name(n: &str) -> Result<Chip> {
         let path = is_chip(format!("/dev/{}", n))?;
-        let f = fs::File::open(&path).map_err(errno_from_ioerr)?;
+        let f = fs::File::open(&path).map_err(crate::errno_from_ioerr)?;
         let fd = f.as_raw_fd();
         Ok(Chip {
             path,
