@@ -6,8 +6,8 @@
 
 A thin safe Rust wrapper around the Linux GPIO character device ioctls and file operations.
 
-Rust structs corresponding to the C ABI types are provided, as are functions corresponding to each of the ABI ioctls and chracter device file reads.  Essentially just the Rust version of gpio.h.
+Rust structs corresponding to the C ABI types are provided, as are functions corresponding to each of the ABI ioctls and character device file reads.  Essentially just the Rust version of gpio.h.
 
 Both ABI versions v1 and v2 are supported, though new developments should use v2 unless it is unavailable on the target platform.
 
-The gpiocdev crate provides a higher level abstraction, so you should use that unless you have some particular need to call the ioctls directly.
+The [gpiocdev](https://crates.io/crates/gpiocdev) crate provides a higher level abstraction, so you should use that unless you have some particular need to call the ioctls directly.

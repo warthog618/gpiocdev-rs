@@ -326,7 +326,9 @@ pub mod request;
 /// unavailable, but the ABI itself is more widely available.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AbiVersion {
+    /// GPIO uAPI v1
     V1,
+    /// GPIO uAPI v2
     V2,
 }
 
