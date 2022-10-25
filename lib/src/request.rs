@@ -1196,19 +1196,22 @@ impl Request {
     /// # Ok(())
     /// # }
     /// ```
-    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn values(&self, values: &mut Values) -> Result<()> {
+        self.do_values(values)
+    }
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn do_values(&self, values: &mut Values) -> Result<()> {
         match self.abiv {
             AbiVersion::V1 => self.do_values_v1(values),
             AbiVersion::V2 => self.do_values_v2(values),
         }
     }
     #[cfg(not(feature = "uapi_v2"))]
-    pub fn values(&self, values: &mut Values) -> Result<()> {
+    fn do_values(&self, values: &mut Values) -> Result<()> {
         self.do_values_v1(values)
     }
     #[cfg(not(feature = "uapi_v1"))]
-    pub fn values(&self, values: &mut Values) -> Result<()> {
+    fn do_values(&self, values: &mut Values) -> Result<()> {
         self.do_values_v2(values)
     }
     #[cfg(feature = "uapi_v1")]
@@ -1286,19 +1289,22 @@ impl Request {
     /// ll.set_values(&values)?;
     /// # Ok(())
     /// # }
-    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn set_values(&self, values: &Values) -> Result<()> {
+        self.do_set_values(values)
+    }
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn do_set_values(&self, values: &Values) -> Result<()> {
         match self.abiv {
             AbiVersion::V1 => self.do_set_values_v1(values),
             AbiVersion::V2 => self.do_set_values_v2(values),
         }
     }
     #[cfg(not(feature = "uapi_v2"))]
-    pub fn set_values(&self, values: &Values) -> Result<()> {
+    fn do_set_values(&self, values: &Values) -> Result<()> {
         self.do_set_values_v1(values)
     }
     #[cfg(not(feature = "uapi_v1"))]
-    pub fn set_values(&self, values: &Values) -> Result<()> {
+    fn do_set_values(&self, values: &Values) -> Result<()> {
         self.do_set_values_v2(values)
     }
     #[cfg(feature = "uapi_v1")]

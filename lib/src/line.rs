@@ -303,6 +303,7 @@ pub enum Value {
     Active,
 }
 impl Value {
+    /// The value opposite the current value.
     pub fn not(&self) -> Value {
         match self {
             Value::Active => Value::Inactive,

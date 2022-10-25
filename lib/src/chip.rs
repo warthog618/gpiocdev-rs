@@ -160,8 +160,11 @@ impl Chip {
     }
 
     /// Get the information for a line on the chip.
-    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn line_info(&self, offset: Offset) -> Result<line::Info> {
+        self.do_line_info(offset)
+    }
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
         let res = match self.abiv {
             V1 => v1::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
             V2 => v2::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
@@ -169,7 +172,7 @@ impl Chip {
         res.map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    pub fn line_info(&self, offset: Offset) -> Result<line::Info> {
+    fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
         uapi::get_line_info(self.fd, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::UapiError(UapiCall::GetLineInfo, e))

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
+//! A command line tool for accessing GPIO lines.
+
 use clap::Parser;
 use std::process::ExitCode;
 

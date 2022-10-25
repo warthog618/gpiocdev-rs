@@ -144,11 +144,14 @@ pub enum Error {
 #[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
 #[error("Kernel returned invalid {field}: {msg}")]
 pub struct ValidationError {
+    /// The field that failed to validate.
     pub field: String,
+    /// The details of the validation failure.
     pub msg: String,
 }
 
 impl ValidationError {
+    /// Create a ValidationError.
     pub fn new<S: Into<String>, T: Into<String>>(field: S, msg: T) -> ValidationError {
         ValidationError {
             field: field.into(),
