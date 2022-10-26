@@ -133,9 +133,37 @@ pub enum Error {
     #[error(transparent)]
     Os(#[from] Errno),
 
+    #[error(transparent)]
+    UnderRead(#[from] UnderReadError),
+
     /// An error validating an data structure retuned from the kernel
     #[error(transparent)]
     Validation(#[from] ValidationError),
+}
+
+/// A failure to read sufficient bytes to construct an object.
+//
+// This should never happen - but is checked to be safe.
+#[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
+#[error("Reading {obj} returned {found} bytes, expected {expected}.")]
+pub struct UnderReadError {
+    /// The struct that under read.
+    pub obj: String,
+    /// The number of bytes expected.
+    pub expected: usize,
+    /// The number of bytes read.
+    pub found: usize,
+}
+
+impl UnderReadError {
+    /// Create an UnderReadError.
+    pub fn new<S: Into<String>>(obj: S, expected: usize, found: usize) -> UnderReadError {
+        UnderReadError {
+            obj: obj.into(),
+            expected,
+            found,
+        }
+    }
 }
 
 /// A failure to validate a struct returned from a system call.

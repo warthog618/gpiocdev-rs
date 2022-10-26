@@ -1572,7 +1572,7 @@ impl Request {
         Ok(match self.abiv {
             AbiVersion::V1 => {
                 let mut ee = EdgeEvent::from(
-                    v1::LineEdgeEvent::from_buf(buf)
+                    v1::LineEdgeEvent::from_slice(buf)
                         .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
                 );
                 // populate offset for v1
@@ -1580,7 +1580,7 @@ impl Request {
                 ee
             }
             AbiVersion::V2 => EdgeEvent::from(
-                uapi::LineEdgeEvent::from_buf(buf)
+                uapi::LineEdgeEvent::from_slice(buf)
                     .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
             ),
         })
@@ -1588,7 +1588,7 @@ impl Request {
     #[cfg(not(feature = "uapi_v2"))]
     fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
         let mut ee = EdgeEvent::from(
-            v1::LineEdgeEvent::from_buf(buf)
+            v1::LineEdgeEvent::from_slice(buf)
                 .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
         );
         // populate offset for v1
@@ -1598,7 +1598,7 @@ impl Request {
     #[cfg(not(feature = "uapi_v1"))]
     fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
         Ok(EdgeEvent::from(
-            v2::LineEdgeEvent::from_buf(buf)
+            v2::LineEdgeEvent::from_slice(buf)
                 .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
         ))
     }

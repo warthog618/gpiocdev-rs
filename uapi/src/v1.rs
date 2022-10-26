@@ -12,7 +12,7 @@ use super::common::{ValidationResult, IOCTL_MAGIC};
 // common to ABI v1 and v2.
 pub use super::common::{
     get_chip_info, unwatch_line_info, ChipInfo, LineEdgeEventKind, LineInfoChangeKind, Offset,
-    Offsets, Padding, ValidationError,
+    Offsets, Padding, UnderReadError, ValidationError,
 };
 use super::{Error, Name, Result};
 
@@ -165,7 +165,14 @@ impl LineInfoChangeEvent {
     ///
     /// The buffer is assumed to have been populated by a read of the chip File,
     /// so the content is validated before being returned.
-    pub fn from_buf(d: &[u8]) -> Result<&LineInfoChangeEvent> {
+    pub fn from_slice(d: &[u8]) -> Result<&LineInfoChangeEvent> {
+        if d.len() < mem::size_of::<LineInfoChangeEvent>() {
+            return Err(Error::from(UnderReadError::new(
+                "LineInfoChangeEvent",
+                mem::size_of::<LineInfoChangeEvent>(),
+                d.len(),
+            )));
+        }
         // SAFETY: event is validated before being returned
         let le = unsafe { &*(d as *const [u8] as *const LineInfoChangeEvent) };
         le.validate().map(|_| le).map_err(Error::from)
@@ -501,7 +508,14 @@ impl LineEdgeEvent {
     ///
     /// The buffer is assumed to have been populated by a read of the line request File,
     /// so the content is validated before being returned.
-    pub fn from_buf(d: &[u8]) -> Result<&LineEdgeEvent> {
+    pub fn from_slice(d: &[u8]) -> Result<&LineEdgeEvent> {
+        if d.len() < mem::size_of::<LineEdgeEvent>() {
+            return Err(Error::from(UnderReadError::new(
+                "LineEdgeEvent",
+                mem::size_of::<LineEdgeEvent>(),
+                d.len(),
+            )));
+        }
         // SAFETY: returned struct is explicitly validated before being returned.
         let le = unsafe { &*(d as *const [u8] as *const LineEdgeEvent) };
         le.validate().map(|_| le).map_err(Error::from)
