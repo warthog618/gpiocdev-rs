@@ -5,3 +5,7 @@
 /// Wrappers around the Tokio reactor.
 #[cfg(feature = "async_tokio")]
 pub mod tokio;
+
+/// Wrappers around the async-io reactor.
+#[cfg(feature = "async_io")]
+pub mod async_io;

@@ -30,14 +30,15 @@ The library makes no use of the deprecated **sysfs** GPIO API.
 
 ## Async Compatibility
 
-The majority of the GPIO uAPI is non-blocking and so does not require any async specific treatment.
+The majority of the GPIO uAPI is effectively non-blocking and so does not require any async specific treatment.
 
 The exceptions are waiting for edge events from [Request](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Request.html)s, and info change events from [Chip](https://docs.rs/gpiocdev/latest/gpiocdev/chip/struct.Chip.html)s.
-Support for asynchronous wrappers around these are provided for the following reactors through features:
+Support for asynchronous wrappers around these are provided through features for the following reactors:
 
 |Reactor|Feature|Module|
 |---|---|---|
 |tokio|async_tokio|gpiocdev::async::tokio|
+|async-io|async_io|gpiocdev::async::async_io|
 
 Additionally, Chips and Requests also expose their underlying file descriptor, which may be used directly with an async reactor.  An example of this is the **gpiocdev-cli** [edges](https://github.com/warthog618/gpiocdev-rs/blob/master/cli/src/edges.rs) command, which can asynchronously wait on multiple lines spread across multiple chips using the [mio](https://crates.io/crates/mio) reactor.
 

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2022 Kent Gibson <warthog618@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 #[cfg(feature = "async_tokio")]
 mod chip {
     use gpiocdev::chip::Chip;

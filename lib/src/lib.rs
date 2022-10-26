@@ -58,7 +58,7 @@ pub mod chip;
 pub mod line;
 
 /// Wrappers for various async reactors.
-#[cfg(any(feature = "async_tokio", feature = "async_std"))]
+#[cfg(any(feature = "async_tokio", feature = "async_io"))]
 pub mod r#async;
 
 /// An iterator over all the GPIO lines visible to the caller.

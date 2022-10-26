@@ -239,7 +239,7 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
         // bbuf is statically sized to the greater of the v1/v2 size so it can be placed on the stack.
-        assert!(
+        debug_assert!(
             mem::size_of::<v2::LineInfoChangeEvent>() >= mem::size_of::<v1::LineInfoChangeEvent>()
         );
         let mut bbuf = [0; mem::size_of::<v2::LineInfoChangeEvent>()];
@@ -254,8 +254,9 @@ impl Chip {
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
         let mut buf = [0; mem::size_of::<uapi::LineInfoChangeEvent>()];
-        gpiocdev_uapi::read_event(self.fd, &mut buf)
+        let n = gpiocdev_uapi::read_event(self.fd, &mut buf)
             .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))?;
+        assert_eq!(n, mem::size_of::<uapi::LineInfoChangeEvent>());
         self.line_info_change_event_from_slice(&buf)
     }
 
