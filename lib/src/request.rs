@@ -1507,14 +1507,14 @@ impl Request {
         let mut bbuf = [0; mem::size_of::<v2::LineEdgeEvent>()];
         // and dynamically sliced down to the required size, if necessary
         let buf = &mut bbuf[0..self.edge_event_size()];
-        self.read_edge_events_into_slice(buf)?;
-        self.do_edge_event_from_slice(buf)
+        let n = self.read_edge_events_into_slice(buf)?;
+        self.do_edge_event_from_slice(&buf[0..n])
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_read_edge_event(&self) -> Result<EdgeEvent> {
         let mut buf = [0; mem::size_of::<uapi::LineEdgeEvent>()];
-        self.read_edge_events_into_slice(&mut buf)?;
-        self.do_edge_event_from_slice(&buf)
+        let n = self.read_edge_events_into_slice(&mut buf)?;
+        self.do_edge_event_from_slice(&buf[0..n])
     }
 
     /// Create an edge event buffer.
