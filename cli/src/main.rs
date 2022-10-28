@@ -28,6 +28,7 @@ fn main() -> ExitCode {
             };
             match res {
                 Ok(()) => return ExitCode::SUCCESS,
+                Err(e) if e.is::<common::CmdFailureError>() => return ExitCode::FAILURE,
                 Err(e) if opt.verbose => eprintln!("{:#}", e),
                 Err(e) => eprintln!("{}", e),
             }
