@@ -179,12 +179,13 @@ impl Setter {
                     cfg.with_line(line.offset).as_output(line.value);
                 }
             }
-            let req = Request::from_config(cfg)
-                .on_chip(&ci.path)
-                .with_consumer(&opts.consumer)
-                .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
+            let mut bld = Request::from_config(cfg);
+            bld.on_chip(&ci.path).with_consumer(&opts.consumer);
+            #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+            bld.using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?);
+            let req = bld
                 .request()
-                .with_context(|| format!("unable to request and set lines on {}.", ci.name))?;
+                .with_context(|| format!("failed to request and set lines on {}", ci.name))?;
             self.requests.push(req);
         }
         Ok(())

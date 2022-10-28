@@ -81,12 +81,13 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             .collect();
         cfg.with_lines(&offsets);
 
-        let req = Request::from_config(cfg)
-            .on_chip(&ci.path)
-            .with_consumer("gpiocdev-get")
-            .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
+        let mut bld = Request::from_config(cfg);
+        bld.on_chip(&ci.path).with_consumer("gpiocdev-get");
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        bld.using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?);
+        let req = bld
             .request()
-            .context(format!("failed to request lines from {}", ci.name))?;
+            .with_context(|| format!("failed to request lines {:?} from {}", offsets, ci.name))?;
         requests.push(req);
     }
     if let Some(period) = opts.hold_period {
@@ -97,7 +98,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         let mut values = Values::default();
         requests[idx]
             .values(&mut values)
-            .context(format!("failed to read values from {}", ci.name))?;
+            .with_context(|| format!("failed to read values from {}", ci.name))?;
         for (offset, value) in values.iter() {
             line_values.insert(
                 ChipOffset {

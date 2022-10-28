@@ -7,7 +7,6 @@ use clap::{Parser, ValueEnum};
 use gpiocdev::chip::{self, Chip};
 use gpiocdev::line::{Bias, Drive, EdgeDetection, Info, Offset};
 use gpiocdev::request::Config;
-use gpiocdev::{self, AbiVersion};
 use nohash_hasher::IntMap;
 use std::collections::HashMap;
 use std::error::Error;
@@ -21,12 +20,13 @@ pub fn all_chip_paths() -> Result<Vec<PathBuf>> {
     chip::chips().context("unable to find any chips")
 }
 
+#[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 pub fn chip_from_path(p: &Path, abiv: u8) -> Result<Chip> {
     let mut c =
         Chip::from_path(p).with_context(|| format!("unable to open chip '{}'", p.display()))?;
     let abiv = match abiv {
-        1 => AbiVersion::V1,
-        2 => AbiVersion::V2,
+        1 => gpiocdev::AbiVersion::V1,
+        2 => gpiocdev::AbiVersion::V2,
         _ => c
             .detect_abi_version()
             .with_context(|| format!("unable to detect ABI version on {}", c.name()))?,
@@ -34,11 +34,16 @@ pub fn chip_from_path(p: &Path, abiv: u8) -> Result<Chip> {
     c.using_abi_version(abiv);
     Ok(c)
 }
+#[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
+pub fn chip_from_path(p: &Path, _abiv: u8) -> Result<Chip> {
+    Chip::from_path(p).with_context(|| format!("unable to open chip '{}'", p.display()))
+}
 
-pub fn abi_version_from_opts(abiv: u8) -> Result<AbiVersion> {
+#[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+pub fn abi_version_from_opts(abiv: u8) -> Result<gpiocdev::AbiVersion> {
     let abiv = match abiv {
-        1 => AbiVersion::V1,
-        2 => AbiVersion::V2,
+        1 => gpiocdev::AbiVersion::V1,
+        2 => gpiocdev::AbiVersion::V2,
         _ => gpiocdev::detect_abi_version().context("unable to detect ABI version")?,
     };
     Ok(abiv)

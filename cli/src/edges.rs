@@ -12,6 +12,7 @@ use gpiocdev::request::{Config, Request};
 use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
 use std::os::unix::prelude::AsRawFd;
+#[cfg(feature = "uapi_v2")]
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
@@ -39,6 +40,7 @@ pub struct Opts {
     /// The debounce period for the monitored lines
     ///
     /// The period is taken as milliseconds unless otherwise specified.
+    #[cfg(feature = "uapi_v2")]
     #[arg(short = 'p', long, name = "period", value_parser = common::parse_duration)]
     debounce_period: Option<Duration>,
 
@@ -69,6 +71,7 @@ pub struct Opts {
     format: Option<String>,
 
     /// Specify the source clock for event timestamps
+    #[cfg(feature = "uapi_v2")]
     #[arg(short = 'C', long, name = "clock")]
     event_clock: Option<EventClock>,
 
@@ -99,13 +102,16 @@ pub struct Opts {
 impl Opts {
     // mutate the config to match the configuration
     fn apply(&self, config: &mut Config) {
-        if let Some(period) = self.debounce_period {
-            config.with_debounce_period(period);
-        }
-        if let Some(clock) = self.event_clock {
-            config.with_event_clock(clock.into());
-        } else if self.localtime || self.utc {
-            config.with_event_clock(gpiocdev::line::EventClock::Realtime);
+        #[cfg(feature = "uapi_v2")]
+        {
+            if let Some(period) = self.debounce_period {
+                config.with_debounce_period(period);
+            }
+            if let Some(clock) = self.event_clock {
+                config.with_event_clock(clock.into());
+            } else if self.localtime || self.utc {
+                config.with_event_clock(gpiocdev::line::EventClock::Realtime);
+            }
         }
         self.active_low_opts.apply(config);
         self.bias_opts.apply(config);
@@ -129,16 +135,31 @@ impl From<EventClock> for gpiocdev::line::EventClock {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
-    use std::io::Write;
-
-    let timefmt = if opts.localtime {
+#[cfg(feature = "uapi_v2")]
+fn time_format_from_opts(opts: &Opts) -> TimeFmt {
+    if opts.localtime {
         TimeFmt::Localtime
     } else if opts.utc || opts.event_clock == Some(EventClock::Realtime) {
         TimeFmt::Utc
     } else {
         TimeFmt::Seconds
-    };
+    }
+}
+#[cfg(not(feature = "uapi_v2"))]
+fn time_format_from_opts(opts: &Opts) -> TimeFmt {
+    if opts.localtime {
+        TimeFmt::Localtime
+    } else if opts.utc {
+        TimeFmt::Utc
+    } else {
+        TimeFmt::Seconds
+    }
+}
+
+pub fn cmd(opts: &Opts) -> Result<()> {
+    use std::io::Write;
+
+    let timefmt = time_format_from_opts(opts);
     let r = common::resolve_lines(&opts.lines, &opts.line_opts, opts.uapi_opts.abiv)?;
     r.validate(&opts.lines, &opts.line_opts)?;
     let mut poll = Poll::new()?;
@@ -153,15 +174,13 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             .map(|co| co.offset)
             .collect();
         cfg.with_lines(&offsets);
-        let req = Request::from_config(cfg)
-            .on_chip(&ci.path)
-            .with_consumer(&opts.consumer)
-            .using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?)
+        let mut bld = Request::from_config(cfg);
+        bld.on_chip(&ci.path).with_consumer(&opts.consumer);
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        bld.using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?);
+        let req = bld
             .request()
-            .context(format!(
-                "failed to request lines {:?} from {}",
-                offsets, ci.name
-            ))?;
+            .with_context(|| format!("failed to request lines {:?} from {}", offsets, ci.name))?;
         poll.registry().register(
             &mut SourceFd(&req.as_raw_fd()),
             Token(idx),
@@ -189,10 +208,9 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                         Token(idx) => {
                             while reqs[idx].has_edge_event()? {
                                 if !opts.quiet {
-                                    let edge = reqs[idx].read_edge_event().context(format!(
-                                        "failed to read event from {}",
-                                        r.chips[idx].name
-                                    ))?;
+                                    let edge = reqs[idx].read_edge_event().with_context(|| {
+                                        format!("failed to read event from {}", r.chips[idx].name)
+                                    })?;
                                     print_edge(&edge, &r.chips[idx], opts, &timefmt);
                                     _ = stdout.flush();
                                 }

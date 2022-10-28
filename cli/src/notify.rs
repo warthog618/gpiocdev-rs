@@ -118,7 +118,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             .map(|co| co.offset)
         {
             chip.watch_line_info(offset)
-                .context(format!("failed to watch line {} on {}", offset, ci.name))?;
+                .with_context(|| format!("failed to watch line {} on {}", offset, ci.name))?;
         }
         poll.registry().register(
             &mut SourceFd(&chip.as_raw_fd()),
@@ -146,9 +146,11 @@ pub fn cmd(opts: &Opts) -> Result<()> {
                     match event.token() {
                         Token(idx) => {
                             while chips[idx].has_line_info_change_event()? {
-                                let change = chips[idx].read_line_info_change_event().context(
-                                    format!("failed to read event from {}", r.chips[idx].name),
-                                )?;
+                                let change = chips[idx]
+                                    .read_line_info_change_event()
+                                    .with_context(|| {
+                                        format!("failed to read event from {}", r.chips[idx].name)
+                                    })?;
                                 if let Some(evtype) = opts.event {
                                     if change.kind != evtype.into() {
                                         continue;
