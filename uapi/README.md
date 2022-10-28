@@ -22,9 +22,10 @@ The [gpiocdev](https://crates.io/crates/gpiocdev) crate provides a higher level 
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSES/Apache-2.0.txt) or
+- Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/warthog618/gpiocdev-rs/blob/master/LICENSES/Apache-2.0.txt) or
   <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT license ([LICENSE-MIT](LICENSES/MIT.txt) or <http://opensource.org/licenses/MIT>)
+- MIT license ([LICENSE-MIT](https://github.com/warthog618/gpiocdev-rs/blob/master/LICENSES/MIT.txt) or <http://opensource.org/licenses/MIT>)
+
 
 at your option.
 

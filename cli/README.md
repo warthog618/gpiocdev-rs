@@ -135,7 +135,7 @@ $ gpiocdev notify --localtime GPIO23
 
 ## ABI compatibility
 
-The cli supports both GPIO uAPI v1 and v2 through features.
+The cli supports both GPIO uAPI v1 and v2.
 
 Options that require v2, such as debounce, will fail if applied to a kernel
 that only supports v1.
@@ -178,9 +178,9 @@ The libgpiod v1 **gpiofind** tool is obsoleted by the **line** subcommand.
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSES/Apache-2.0.txt) or
+- Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/warthog618/gpiocdev-rs/blob/master/LICENSES/Apache-2.0.txt) or
   <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT license ([LICENSE-MIT](LICENSES/MIT.txt) or <http://opensource.org/licenses/MIT>)
+- MIT license ([LICENSE-MIT](https://github.com/warthog618/gpiocdev-rs/blob/master/LICENSES/MIT.txt) or <http://opensource.org/licenses/MIT>)
 
 at your option.
 
