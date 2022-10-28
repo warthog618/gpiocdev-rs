@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2022 Kent Gibson <warthog618@gmail.com>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 //! A library for creating controlling GPIO simulators on Linux platforms
 //! using the gpio-sim module.

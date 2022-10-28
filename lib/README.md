@@ -1,8 +1,14 @@
+<!--
+SPDX-FileCopyrightText: 2022 Kent Gibson <warthog618@gmail.com>
+
+SPDX-License-Identifier: CC0-1.0
+-->
 # gpiocdev
 
-[![github](https://img.shields.io/badge/github-warthog618/gpiocdev--rs-8da0cb.svg?style=for-the-badge&logo=github)](https://github.com/warthog618/gpiocdev-rs)
-[![crate](https://img.shields.io/crates/v/gpiocdev.svg?style=for-the-badge&color=fc8d62&logo=rust)](https://crates.io/crates/gpiocdev)
-[![MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/github/workflow/status/warthog618/gpiocdev-rs/Build.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs/actions)
+[![github](https://img.shields.io/badge/github-warthog618/gpiocdev--rs-8da0cb.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs)
+[![crate](https://img.shields.io/crates/v/gpiocdev.svg?color=fc8d62&logo=rust)](https://crates.io/crates/gpiocdev)
+![LICENSE](https://img.shields.io/crates/l/gpiocdev.svg)
 
 A Rust library for accessing GPIO lines on Linux platforms using the GPIO character device.
 
@@ -151,3 +157,19 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
 ```
 
 A good starting point to learn more is the [gpiocdev::request::Builder](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Builder.html).
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE/Apache-2.0.txt) or
+  <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE/MIT.txt) or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.

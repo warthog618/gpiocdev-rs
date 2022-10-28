@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Kent Gibson <warthog618@gmail.com>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
 use gpiocdev_uapi::v1 as uapi;

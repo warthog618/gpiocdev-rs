@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Kent Gibson <warthog618@gmail.com>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 //! A library for accessing GPIO lines on Linux platforms
 //! using the GPIO character device.

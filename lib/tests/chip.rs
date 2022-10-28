@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2022 Kent Gibson <warthog618@gmail.com>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 // ALL IT as can't construct a Chip without opening a GPIO file.
 //

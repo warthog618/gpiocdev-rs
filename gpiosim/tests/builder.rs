@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2022 Kent Gibson <warthog618@gmail.com>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 // Live tests require the gpio-sim kernel module and gpiocdev to provide the
 // interface from the kernel/gpiolib side.

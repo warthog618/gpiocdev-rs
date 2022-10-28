@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Kent Gibson <warthog618@gmail.com>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use errno::{self, Errno};
 use libc::{self, c_long, pollfd, sigset_t, time_t, timespec, POLLIN};

@@ -1,8 +1,14 @@
+<!--
+SPDX-FileCopyrightText: 2022 Kent Gibson <warthog618@gmail.com>
+
+SPDX-License-Identifier: CC0-1.0
+-->
 # gpiocdev-cli
 
-[![github](https://img.shields.io/badge/github-warthog618/gpiocdev--rs-8da0cb.svg?style=for-the-badge&logo=github)](https://github.com/warthog618/gpiocdev-rs)
-[![crate](https://img.shields.io/crates/v/gpiocdev-cli.svg?style=for-the-badge&color=fc8d62&logo=rust)](https://crates.io/crates/gpiocdev-cli)
-[![MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/github/workflow/status/warthog618/gpiocdev-rs/Build.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs/actions)
+[![github](https://img.shields.io/badge/github-warthog618/gpiocdev--rs-8da0cb.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs)
+[![crate](https://img.shields.io/crates/v/gpiocdev-cli.svg?color=fc8d62&logo=rust)](https://crates.io/crates/gpiocdev-cli)
+![LICENSE](https://img.shields.io/crates/l/gpiocdev-cli.svg)
 
 A command line tool to access and control GPIO lines on Linux.
 
@@ -167,3 +173,19 @@ gpiocdev chip
 ```
 
 The libgpiod v1 **gpiofind** tool is obsoleted by the **line** subcommand.
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSES/Apache-2.0.txt) or
+  <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSES/MIT.txt) or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.

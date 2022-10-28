@@ -1,6 +1,12 @@
+<!--
+SPDX-FileCopyrightText: 2022 Kent Gibson <warthog618@gmail.com>
+
+SPDX-License-Identifier: CC0-1.0
+-->
 # gpiocdev-rs
 
-[![MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/github/workflow/status/warthog618/gpiocdev-rs/Build.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs/actions)
+![LICENSE](https://img.shields.io/github/license/warthog618/gpiocdev-rs.svg)
 
 A Rust library for accessing GPIO lines on Linux platforms using the GPIO character device.
 
@@ -21,3 +27,13 @@ The tool can be useful for writing scripts accessing the GPIOs, and for debuggin
 The gpiocdev crate provides a higher level abstraction, so you should use that unless you have some particular interest in calling the Linux GPIO ioctls directly.
 
 [gpiosim](https://github.com/warthog618/gpiocdev-rs/tree/master/gpiosim) provides GPIO chip simulators for testing users of the GPIO uAPI, such as gpiocdev, or apps that use it.
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSES/Apache-2.0.txt) or
+  <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSES/MIT.txt) or <http://opensource.org/licenses/MIT>)
+
+at your option.

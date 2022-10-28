@@ -1,4 +1,7 @@
 #!/bin/env sh
+# SPDX-FileCopyrightText: 2022 Kent Gibson <warthog618@gmail.com>
+#
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 
 # A helper to remove any orphaned gpio-sims from the system.
 # This should only be necessary if a test was killed abnormally

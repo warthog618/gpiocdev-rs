@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Kent Gibson <warthog618@gmail.com>
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use super::common::{self, LineOpts, UapiOpts};
 use anyhow::{bail, Context, Result};
