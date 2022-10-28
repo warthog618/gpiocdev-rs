@@ -2,19 +2,31 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! A library for creating controlling GPIO simulators on Linux platforms
-//! using the gpio-sim module.
+//! A library for creating and controlling GPIO simulators for testing users of
+//! the Linux GPIO uAPI (both v1 and v2).
 //!
-//! Simulators can be built using the [`Builder`].
+//! The simulators are provided by the Linux **gpio-sim** kernel module and require a
+//! recent kernel (v5.19 or later) built with **CONFIG_GPIO_SIM**.
 //!
-//! For simple tests that only require one chip and control of line values,
-//! but not line info, the [`Simpleton`] provides a simplified interface.
+//! Simulators ([`Sim`]) contain one or more chips, each with a collection of lines being
+//! simulated. The [`Builder`] is responsible for constructing the [`Sim`] and taking it live.
+//! Configuring a simulator involves adding [`Bank`]s, representing the
+//! chip, to the builder, then taking the simulator live.
 //!
-//! The library controls the simulators via configfs and sysfs, so using it
-//! generally requires root permissions.
+//! Once live, the [`Chip`] exposes lines which may be manipulated to drive the
+//! GPIO uAPI from the kernel side.
+//! For input lines, applying a pull using [`Chip.set_pull`] and related
+//! methods controls the level of the simulated line.  For output lines,
+//! [`Chip.get_level`] returns the level the simulated line is being driven to.
 //!
-//! [`Builder`]: fn.builder.html
-//! [`Simpleton`]: fn.simpleton.html
+//! For simple tests that only require lines on a single chip, the [`Simpleton`]
+//! provides a simplified interface.
+//!
+//! Configuring a simulator involves *configfs*, and manipulating the chips once live
+//! involves *sysfs*, so root permissions are typically required to run a simulator.
+//!
+//! [`Chip.set_pull`]: struct.Chip.html#method.set_pull
+//! [`Chip.get_level`]: struct.Chip.html#method.get_level
 
 use nohash_hasher::IntMap;
 use std::env;
@@ -107,7 +119,7 @@ impl Sim {
                 }
                 let hog_dir = line_dir.join("hog");
                 fs::create_dir(&hog_dir)?;
-                write_attr(&hog_dir, "name", &hog.name.as_bytes())?;
+                write_attr(&hog_dir, "name", &hog.consumer.as_bytes())?;
                 write_attr(&hog_dir, "direction", &hog.direction.to_string())?;
             }
         }
@@ -218,19 +230,6 @@ pub fn builder() -> Builder {
     Builder::default()
 }
 
-/// Build a basic single bank sim and take it live.
-///
-/// This is sufficient for tests that do not require named lines, hogged lines
-/// or multiple chips.
-pub fn simpleton(num_lines: u32) -> Simpleton {
-    Simpleton(
-        builder()
-            .with_bank(&Bank::new(num_lines, "simpleton"))
-            .live()
-            .unwrap(),
-    )
-}
-
 /// A basic single bank/chip sim.
 ///
 /// This is sufficient for tests that do not require named lines, hogged lines
@@ -238,6 +237,21 @@ pub fn simpleton(num_lines: u32) -> Simpleton {
 pub struct Simpleton(Sim);
 
 impl Simpleton {
+    /// Build a basic single bank sim and take it live.
+    ///
+    /// This is sufficient for tests that do not require named lines, hogged lines
+    /// or multiple chips.
+    ///
+    ///
+    pub fn new(num_lines: u32) -> Simpleton {
+        Simpleton(
+            builder()
+                .with_bank(&Bank::new(num_lines, "simpleton"))
+                .live()
+                .unwrap(),
+        )
+    }
+
     /// Return the only chip simulated by the Simpleton.
     pub fn chip(&self) -> &Chip {
         &self.0.chips[0]
@@ -359,17 +373,21 @@ impl Bank {
     }
 
     /// Add a hog on a line on the chip.
+    ///
+    /// A "hog" simulates some other user holding the line.
+    ///
+    /// If a line is hogged it is not available to be requested via the uAPI.
     pub fn hog<N: Into<String>>(
         &mut self,
         offset: Offset,
-        name: N,
+        consumer: N,
         direction: Direction,
     ) -> &mut Self {
         self.hogs.insert(
             offset,
             Hog {
                 direction,
-                name: name.into(),
+                consumer: consumer.into(),
             },
         );
         self
@@ -383,10 +401,12 @@ impl Bank {
 }
 
 /// The configuration for a hogged line.
+///
+/// A "hogged" line appears to be already requested by a consumer.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Hog {
     /// The name of the consumer that appears to be using the line.
-    pub name: String,
+    pub consumer: String,
 
     /// The requested direction for the hogged line, and if an
     /// output then the pull.
@@ -619,15 +639,15 @@ mod tests {
         assert_eq!(c.hogs.len(), 2);
         c.hog(1, "wiggly", Direction::OutputHigh);
         assert_eq!(c.hogs.len(), 3);
-        assert_eq!(c.hogs[&3].name, "pinata");
-        assert_eq!(c.hogs[&2].name, "piggly");
-        assert_eq!(c.hogs[&1].name, "wiggly");
+        assert_eq!(c.hogs[&3].consumer, "pinata");
+        assert_eq!(c.hogs[&2].consumer, "piggly");
+        assert_eq!(c.hogs[&1].consumer, "wiggly");
         assert_eq!(c.hogs[&3].direction, Direction::Input);
         assert_eq!(c.hogs[&2].direction, Direction::OutputLow);
         assert_eq!(c.hogs[&1].direction, Direction::OutputHigh);
         // overwrite
         c.hog(2, "wiggly", Direction::OutputHigh);
-        assert_eq!(c.hogs[&2].name, "wiggly");
+        assert_eq!(c.hogs[&2].consumer, "wiggly");
         assert_eq!(c.hogs[&2].direction, Direction::OutputHigh);
         assert_eq!(c.hogs.len(), 3);
     }
@@ -642,8 +662,8 @@ mod tests {
         c.unhog(2);
         assert_eq!(c.hogs.len(), 2);
         assert!(!c.hogs.contains_key(&2));
-        assert_eq!(c.hogs[&3].name, "pinata");
-        assert_eq!(c.hogs[&1].name, "wiggly");
+        assert_eq!(c.hogs[&3].consumer, "pinata");
+        assert_eq!(c.hogs[&1].consumer, "wiggly");
         assert_eq!(c.hogs[&3].direction, Direction::Input);
         assert_eq!(c.hogs[&1].direction, Direction::OutputHigh);
     }

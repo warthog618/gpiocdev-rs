@@ -4,6 +4,7 @@
 
 use gpiocdev::line::{EdgeKind, Value, Values};
 use gpiocdev::request::Request;
+use gpiosim::Simpleton;
 use std::path::{Path, PathBuf};
 use std::thread::sleep;
 use std::time::Duration;
@@ -21,6 +22,7 @@ mod builder {
         use gpiocdev::line::{EdgeDetection, EventClock};
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V1;
+        use gpiosim::Simpleton;
         use std::time::Duration;
 
         #[test]
@@ -40,7 +42,7 @@ mod builder {
 
         #[test]
         fn request_debounced() {
-            let sim = gpiosim::simpleton(10);
+            let sim = Simpleton::new(10);
 
             let mut builder = Request::builder();
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -61,7 +63,7 @@ mod builder {
 
         #[test]
         fn request_event_clock() {
-            let sim = gpiosim::simpleton(10);
+            let sim = Simpleton::new(10);
 
             let mut builder = Request::builder();
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -85,7 +87,7 @@ mod builder {
 
         #[test]
         fn request_kernel_event_buffer_size() {
-            let sim = gpiosim::simpleton(10);
+            let sim = Simpleton::new(10);
 
             let mut builder = Request::builder();
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -113,6 +115,7 @@ mod builder {
         use gpiocdev::chip::Chip;
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V2;
+        use gpiosim::Simpleton;
         use std::time::Duration;
 
         #[test]
@@ -132,7 +135,7 @@ mod builder {
 
         #[test]
         fn request_too_complicated() {
-            let sim = gpiosim::simpleton(25);
+            let sim = Simpleton::new(25);
             let simc = sim.chip();
 
             let mut cfg = gpiocdev::request::Config::default();
@@ -155,7 +158,7 @@ mod builder {
         fn request_debounced() {
             use gpiocdev::line::{Direction, EdgeDetection, EventClock};
 
-            let sim = gpiosim::simpleton(10);
+            let sim = Simpleton::new(10);
             let simc = sim.chip();
             let cdevc = Chip::from_path(&simc.dev_path).unwrap();
             let offset = 1;
@@ -183,7 +186,7 @@ mod builder {
         fn request_event_clock() {
             use gpiocdev::line::{Direction, EdgeDetection, EventClock};
 
-            let sim = gpiosim::simpleton(10);
+            let sim = Simpleton::new(10);
             let simc = sim.chip();
             let cdevc = Chip::from_path(&simc.dev_path).unwrap();
             let offset = 1;
@@ -220,7 +223,7 @@ mod builder {
         fn request_kernel_event_buffer_size() {
             use gpiocdev::line::EdgeDetection;
 
-            let sim = gpiosim::simpleton(10);
+            let sim = Simpleton::new(10);
 
             let res = Request::builder()
                 .on_chip(&sim.chip().dev_path)
@@ -241,7 +244,7 @@ mod builder {
         use gpiocdev::line::{Bias, Direction, Drive, EdgeDetection};
 
         // config menagerie on simpleton
-        let sim = gpiosim::simpleton(10);
+        let sim = Simpleton::new(10);
         let simc = sim.chip();
         let cdevc = Chip::from_path(&simc.dev_path).unwrap();
         let offset = 1;
@@ -441,7 +444,7 @@ mod builder {
     }
 
     fn request_mixed_config(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
 
         let mut builder = Request::builder();
@@ -465,7 +468,7 @@ mod builder {
     }
 
     fn request_invalid_offset(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
 
         let mut builder = Request::builder();
@@ -505,7 +508,7 @@ mod builder {
 
     #[test]
     fn request_symlink_chip() {
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let mut path = PathBuf::from("/tmp");
         path.push(gpiosim::unique_name("gpiocdev_builder", None));
         let link = Symlink::new(&sim.chip().dev_path, &path).unwrap();
@@ -561,6 +564,7 @@ mod request {
         use super::propagation_delay;
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V1;
+        use gpiosim::Simpleton;
 
         #[test]
         fn value() {
@@ -589,7 +593,7 @@ mod request {
 
         #[test]
         fn reconfigure_edge_detection_change() {
-            let sim = gpiosim::simpleton(20);
+            let sim = Simpleton::new(20);
             let simc = sim.chip();
             let offsets = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
@@ -634,7 +638,7 @@ mod request {
 
         #[test]
         fn edge_events() {
-            let sim = gpiosim::simpleton(3);
+            let sim = Simpleton::new(3);
             let simc = sim.chip();
             let offset = 2;
 
@@ -692,7 +696,7 @@ mod request {
 
         #[test]
         fn edge_event_from_slice() {
-            let sim = gpiosim::simpleton(3);
+            let sim = Simpleton::new(3);
             let simc = sim.chip();
             let offset = 2;
 
@@ -757,7 +761,7 @@ mod request {
 
         #[test]
         fn edge_event_size() {
-            let sim = gpiosim::simpleton(3);
+            let sim = Simpleton::new(3);
             let simc = sim.chip();
             let offset = 0;
 
@@ -777,6 +781,7 @@ mod request {
         use super::propagation_delay;
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V2;
+        use gpiosim::Simpleton;
         use std::time::Duration;
 
         #[test]
@@ -831,7 +836,7 @@ mod request {
 
         #[test]
         fn reconfigure_too_complicated() {
-            let sim = gpiosim::simpleton(20);
+            let sim = Simpleton::new(20);
             let simc = sim.chip();
             let offsets = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
@@ -856,7 +861,7 @@ mod request {
 
         #[test]
         fn reconfigure_ignores_unrequested_lines() {
-            let sim = gpiosim::simpleton(20);
+            let sim = Simpleton::new(20);
             let simc = sim.chip();
             let offsets = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -877,7 +882,7 @@ mod request {
 
         #[test]
         fn edge_events() {
-            let sim = gpiosim::simpleton(3);
+            let sim = Simpleton::new(3);
             let simc = sim.chip();
             let offsets = &[1, 2];
 
@@ -928,7 +933,7 @@ mod request {
         #[test]
         #[cfg(feature = "uapi_v2")]
         fn edge_event_from_slice() {
-            let sim = gpiosim::simpleton(3);
+            let sim = Simpleton::new(3);
             let simc = sim.chip();
             let offsets = &[1, 2];
 
@@ -990,7 +995,7 @@ mod request {
 
         #[test]
         fn edge_event_size() {
-            let sim = gpiosim::simpleton(3);
+            let sim = Simpleton::new(3);
             let simc = sim.chip();
             let offset = 2;
 
@@ -1009,7 +1014,7 @@ mod request {
 
     #[allow(unused)]
     fn value(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offsets = &[0, 1, 2];
 
@@ -1049,7 +1054,7 @@ mod request {
 
     #[allow(unused)]
     fn values(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(5);
+        let sim = Simpleton::new(5);
         let simc = sim.chip();
         let offsets = &[0, 1, 3];
 
@@ -1126,7 +1131,7 @@ mod request {
 
     #[allow(unused)]
     fn set_value(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offsets = &[0, 1, 2];
 
@@ -1175,7 +1180,7 @@ mod request {
     fn set_values(abiv: gpiocdev::AbiVersion) {
         use gpiosim::Level;
 
-        let sim = gpiosim::simpleton(5);
+        let sim = Simpleton::new(5);
         let simc = sim.chip();
         let offsets = &[0, 1, 3];
 
@@ -1286,7 +1291,7 @@ mod request {
         use gpiocdev::line::{Bias, Direction, Drive, EdgeDetection};
         use gpiosim::Level;
 
-        let sim = gpiosim::simpleton(5);
+        let sim = Simpleton::new(5);
         let simc = sim.chip();
         let cdevc = gpiocdev::chip::Chip::from_path(&simc.dev_path).unwrap();
         let offset = 1;
@@ -1331,7 +1336,7 @@ mod request {
 
     #[allow(unused)]
     fn has_edge_event(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1355,7 +1360,7 @@ mod request {
 
     #[allow(unused)]
     fn wait_edge_event(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1379,7 +1384,7 @@ mod request {
 
     #[allow(unused)]
     fn read_edge_event(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 1;
 
@@ -1423,7 +1428,7 @@ mod request {
 
     #[allow(unused)]
     fn read_edge_events_into_slice(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1460,7 +1465,7 @@ mod request {
 
     #[allow(unused)]
     fn new_edge_event_buffer(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1486,7 +1491,7 @@ mod edge_event_buffer {
 
     #[test]
     fn capacity() {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1507,7 +1512,7 @@ mod edge_event_buffer {
 
     #[test]
     fn len() {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1553,7 +1558,7 @@ mod edge_event_buffer {
 
     #[test]
     fn is_empty() {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1586,7 +1591,7 @@ mod edge_event_buffer {
 
     #[test]
     fn has_event() {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1609,7 +1614,7 @@ mod edge_event_buffer {
 
     #[test]
     fn read_event() {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 
@@ -1649,7 +1654,7 @@ mod edge_event_buffer {
 
     #[test]
     fn wait_event() {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 

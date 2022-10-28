@@ -7,11 +7,12 @@
 
 mod simpleton {
     use gpiocdev::chip;
+    use gpiosim::Simpleton;
 
     #[test]
     fn goes_live() {
-        let s = gpiosim::simpleton(12);
-        let c = &s.chip();
+        let s = Simpleton::new(12);
+        let c = s.chip();
         assert_eq!(c.cfg.num_lines, 12);
         assert_eq!(c.cfg.label, "simpleton");
 

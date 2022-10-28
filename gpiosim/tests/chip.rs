@@ -8,7 +8,7 @@
 mod chip {
     use gpiocdev::line;
     use gpiocdev::request::Request;
-    use gpiosim::{Bank, Direction};
+    use gpiosim::{Bank, Direction, Simpleton};
 
     #[test]
     fn live_attrs() {
@@ -47,7 +47,7 @@ mod chip {
 
     #[test]
     fn pull() {
-        let s = gpiosim::simpleton(8);
+        let s = Simpleton::new(8);
         let c = s.chip();
 
         let req = Request::builder()
@@ -80,7 +80,7 @@ mod chip {
 
     #[test]
     fn toggle() {
-        let s = gpiosim::simpleton(8);
+        let s = Simpleton::new(8);
         let c = s.chip();
 
         let req = Request::builder()
@@ -105,7 +105,7 @@ mod chip {
 
     #[test]
     fn get_value() {
-        let s = gpiosim::simpleton(8);
+        let s = Simpleton::new(8);
         let c = s.chip();
 
         let req = Request::builder()

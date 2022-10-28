@@ -107,7 +107,7 @@ mod chip {
     use gpiocdev::chip::Chip;
     use gpiocdev::request::Request;
     use gpiocdev::Error::GpioChip as ChipError;
-    use gpiosim::{Bank, Direction};
+    use gpiosim::{Bank, Direction, Simpleton};
     use std::time::Duration;
 
     // a collection of chips with named and hogged lines for find and info tests
@@ -240,7 +240,7 @@ mod chip {
             // consumer, direction and used
             for (offset, hog) in &simc.cfg.hogs {
                 let info = cdevc.line_info(*offset).unwrap();
-                assert_eq!(info.consumer.as_str(), &hog.name);
+                assert_eq!(info.consumer.as_str(), &hog.consumer);
                 assert_eq!(info.offset, *offset);
                 assert_eq!(
                     info.direction,
@@ -255,7 +255,7 @@ mod chip {
         }
 
         // config menagerie on simpleton
-        let sim = gpiosim::simpleton(10);
+        let sim = Simpleton::new(10);
         let simc = sim.chip();
         let offset = 1;
         // Combinations covering all possible active low, bias, drive,
@@ -481,7 +481,7 @@ mod chip {
     }
 
     fn watch_line_info(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = new_chip(&simc.dev_path, abiv);
         let offset = 2;
@@ -520,7 +520,7 @@ mod chip {
 
     #[test]
     fn unwatch_line_info() {
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = Chip::from_path(&simc.dev_path).unwrap();
         let offset = 3;
@@ -559,7 +559,7 @@ mod chip {
     }
 
     fn has_line_info_change_event(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = new_chip(&simc.dev_path, abiv);
 
@@ -585,7 +585,7 @@ mod chip {
     }
 
     fn read_line_info_change_event(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = new_chip(&simc.dev_path, abiv);
 
@@ -649,7 +649,7 @@ mod chip {
         use gpiocdev::line::InfoChangeKind;
         use std::thread;
 
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = new_chip(&simc.dev_path, abiv);
         let chip_path = simc.dev_path.clone();
@@ -699,7 +699,7 @@ mod chip {
     }
 
     fn wait_info_change_event(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = new_chip(&simc.dev_path, abiv);
         let offset = 0;
@@ -737,7 +737,7 @@ mod chip {
     #[test]
     fn detect_abi_version() {
         // assumes a kernel with both v1 and v2 supported.
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = Chip::from_path(&simc.dev_path).unwrap();
         #[cfg(feature = "uapi_v2")]
@@ -749,7 +749,7 @@ mod chip {
     #[test]
     fn supports_abi_version() {
         // assumes a kernel with both v1 and v2 supported.
-        let sim = gpiosim::simpleton(4);
+        let sim = Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = Chip::from_path(&simc.dev_path).unwrap();
         #[cfg(feature = "uapi_v1")]
@@ -777,7 +777,7 @@ mod chip {
     #[test]
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn using_abi_version() {
-        let sim = gpiosim::simpleton(3);
+        let sim = Simpleton::new(3);
         let simc = sim.chip();
         let offset = 2;
 

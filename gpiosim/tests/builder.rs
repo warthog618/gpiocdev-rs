@@ -8,12 +8,12 @@
 mod builder {
     use gpiocdev::chip;
     use gpiocdev::line;
-    use gpiosim::{builder, unique_name, Bank, Direction, Error};
+    use gpiosim::{Bank, Direction, Error};
 
     #[test]
     fn goes_live() {
-        let name = unique_name("gpiosim", Some("live"));
-        let sim = builder()
+        let name = gpiosim::unique_name("gpiosim", Some("live"));
+        let sim = gpiosim::builder()
             .with_name(&name)
             .with_bank(
                 Bank::new(8, "veintidós")
@@ -155,8 +155,8 @@ mod builder {
 
     #[test]
     fn existing_name() {
-        let name = unique_name("gpiosim", Some("existing"));
-        let mut builder = builder();
+        let name = gpiosim::unique_name("gpiosim", Some("existing"));
+        let mut builder = gpiosim::builder();
         builder
             .with_name(&name)
             .with_bank(

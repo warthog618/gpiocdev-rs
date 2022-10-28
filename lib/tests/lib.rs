@@ -126,7 +126,7 @@ fn detect_abi_version() {
     // assumes a kernel with both v1 and v2 supported.
 
     // to ensure there is at least one chip
-    let sim = gpiosim::simpleton(4);
+    let sim = gpiosim::Simpleton::new(4);
 
     #[cfg(feature = "uapi_v2")]
     assert_eq!(gpiocdev::detect_abi_version(), Ok(gpiocdev::AbiVersion::V2));
@@ -141,7 +141,7 @@ fn supports_abi_version() {
     // assumes a kernel with both v1 and v2 supported.
 
     // to ensure there is at least one chip
-    let sim = gpiosim::simpleton(4);
+    let sim = gpiosim::Simpleton::new(4);
 
     #[cfg(feature = "uapi_v1")]
     assert_eq!(
