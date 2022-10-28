@@ -19,7 +19,7 @@ bitmaps = {version = "3.2"}
 chrono = "0.4"
 errno = "0.2"
 futures = {version = "0.3", optional = true}
-gpiocdev-uapi = {version = "0.2.0", path = "../uapi", features = ["uapi_v1", "uapi_v2"], optional = true}
+gpiocdev-uapi = {version = "0.2.0", path = "../uapi", default-features = false}
 nohash-hasher = "0.2"
 thiserror = "1.0"
 tokio = {version = "1.21", features = ["net"], optional = true}
