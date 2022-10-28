@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC0-1.0
 # gpiocdev-rs
 
 [![Build Status](https://img.shields.io/github/workflow/status/warthog618/gpiocdev-rs/Build.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs/actions)
-![LICENSE](https://img.shields.io/github/license/warthog618/gpiocdev-rs.svg)
 
 A Rust library for accessing GPIO lines on Linux platforms using the GPIO character device.
 
@@ -37,3 +36,9 @@ Licensed under either of
 - MIT license ([LICENSE-MIT](LICENSES/MIT.txt) or <http://opensource.org/licenses/MIT>)
 
 at your option.
+
+## Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
