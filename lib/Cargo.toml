@@ -4,10 +4,10 @@
 
 [package]
 authors = ["Kent Gibson <warthog618@gmail.com>"]
-categories = ["hardware-support", "api-bindings", "os::linux-apis", "embedded"]
+categories = ["hardware-support", "api-bindings", "os::linux-apis", "embedded", "asynchronous"]
 description = "A library to access GPIO lines on Linux using the GPIO character device"
 edition = "2021"
-keywords = ["linux", "gpio", "library", "embedded"]
+keywords = ["linux", "gpio", "library", "embedded", "async"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev"
 repository = "https://github.com/warthog618/gpiocdev-rs"
