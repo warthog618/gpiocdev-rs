@@ -43,7 +43,7 @@ mod chip {
         use gpiocdev::line::InfoChangeKind;
         use gpiocdev::r#async::async_io::AsyncChip;
 
-        let sim = gpiosim::simpleton(4);
+        let sim = gpiosim::Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = new_chip(&simc.dev_path, abiv);
         let chip_path = simc.dev_path.clone();
@@ -88,7 +88,7 @@ mod chip {
         use gpiocdev::r#async::async_io::AsyncChip;
         use std::time::Duration;
 
-        let sim = gpiosim::simpleton(4);
+        let sim = gpiosim::Simpleton::new(4);
         let simc = sim.chip();
         let cdevc = new_chip(&simc.dev_path, abiv);
         let chip = AsyncChip::new(cdevc);
@@ -224,7 +224,7 @@ mod request {
     }
 
     fn read_edge_event(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(4);
+        let sim = gpiosim::Simpleton::new(4);
         let simc = sim.chip();
         let offset = 2;
 
@@ -273,7 +273,7 @@ mod request {
     }
 
     fn read_edge_events_into_slice(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(3);
+        let sim = gpiosim::Simpleton::new(3);
         let simc = sim.chip();
         let offset = 1;
 
@@ -368,7 +368,7 @@ mod request {
     }
 
     fn new_edge_event_stream(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(4);
+        let sim = gpiosim::Simpleton::new(4);
         let simc = sim.chip();
         let offset = 2;
 
@@ -444,7 +444,7 @@ mod request {
     }
 
     fn edge_events(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::simpleton(4);
+        let sim = gpiosim::Simpleton::new(4);
         let simc = sim.chip();
         let offset = 0;
 
