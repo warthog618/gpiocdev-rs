@@ -11,7 +11,7 @@ keywords = ["linux", "gpio", "cli", "embedded"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev-cli"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-version = "0.2.0"
+version = "0.3.0"
 
 [[bin]]
 name = "gpiocdev"
@@ -23,7 +23,7 @@ chrono = "0.4"
 clap = {version = "4.0", features = ["derive", "env"]}
 colored = "2.0"
 daemonize = "0.4"
-gpiocdev = {version = "0.2.0", path = "../lib", default-features = false}
+gpiocdev = {version = "0.3.0", path = "../lib", default-features = false}
 libc = "0.2"
 mio = {version = "0.8", features = ["os-ext"]}
 nohash-hasher = "0.2"
