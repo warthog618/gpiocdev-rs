@@ -26,7 +26,6 @@ Licensed under either of
   <http://www.apache.org/licenses/LICENSE-2.0>)
 - MIT license ([LICENSE-MIT](https://github.com/warthog618/gpiocdev-rs/blob/master/LICENSES/MIT.txt) or <http://opensource.org/licenses/MIT>)
 
-
 at your option.
 
 ## Contribution
