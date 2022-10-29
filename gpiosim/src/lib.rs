@@ -25,6 +25,56 @@
 //! Configuring a simulator involves *configfs*, and manipulating the chips once live
 //! involves *sysfs*, so root permissions are typically required to run a simulator.
 //!
+//! ## Example Usage
+//!
+//! Creating a simulator with two chips, with 8 and 42 lines respectively, each with
+//! several named lines and a hogged line:
+//!
+//! ```no_run
+//! # use gpiosim::Result;
+//! # fn main() -> Result<()> {
+//! use gpiosim::{Bank, Direction, Level};
+//!
+//! let sim = gpiosim::builder()
+//!     .with_name("some unique name")
+//!     .with_bank(
+//!         Bank::new(8, "left")
+//!             .name(3, "banana")
+//!             .name(5, "apple")
+//!             .hog(2, "hogster", Direction::OutputLow)
+//!         )
+//!     .with_bank(
+//!         Bank::new(42, "right")
+//!             .name(3, "piñata")
+//!             .name(4, "piggly")
+//!             .hog(7, "hogster", Direction::OutputHigh),
+//!     )
+//!     .live()?;
+//!
+//! let chips = sim.chips();
+//! let c = &chips[0];
+//! c.set_pull(5, Level::High);
+//! let level = c.get_level(3)?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Use a simpleton to create a single chip simulator with 12 lines, for where multiple chips or
+//! named lines are not required:
+//!
+//! ```no_run
+//! # use gpiosim::Result;
+//! # fn main() -> Result<()> {
+//! use gpiosim::{Level, Simpleton};
+//!
+//! let s = Simpleton::new(12);
+//! let c = s.chip();
+//! c.set_pull(5, Level::High);
+//! let level = c.get_level(3)?;
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! [`Chip.set_pull`]: struct.Chip.html#method.set_pull
 //! [`Chip.get_level`]: struct.Chip.html#method.get_level
 
