@@ -24,9 +24,10 @@ The gpiocdev API provides a unified abstraction for both uAPI versions, but will
 
 uAPI v2 specific features include:
 
-- lines with different configurations
-- debouncing input lines
+- lines with different configurations in one request
+- debouncing edge detection input lines
 - edge detection on multiple lines in one request
+- sequence numbers on edge events
 - reconfiguring edge detection without releasing the request
 - selection of source clock for edge events
 
