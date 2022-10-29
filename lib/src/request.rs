@@ -1503,7 +1503,6 @@ impl Request {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_read_edge_event(&self) -> Result<EdgeEvent> {
         // bbuf is statically sized to the greater of the v1/v2 size so it can be placed on the stack.
-        assert!(mem::size_of::<v2::LineEdgeEvent>() >= mem::size_of::<v1::LineEdgeEvent>());
         let mut bbuf = [0; mem::size_of::<v2::LineEdgeEvent>()];
         // and dynamically sliced down to the required size, if necessary
         let buf = &mut bbuf[0..self.edge_event_size()];
