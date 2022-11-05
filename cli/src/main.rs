@@ -71,6 +71,6 @@ enum Command {
     /// Monitor lines for requests and changes to configuration state.
     Notify(notify::Opts),
 
-    /// Set the value of lines.
+    /// Set the values of lines.
     Set(set::Opts),
 }
