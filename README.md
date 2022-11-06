@@ -23,9 +23,7 @@ The tool can be useful for writing scripts accessing the GPIOs, and for debuggin
 
 [gpiocdev-uapi](https://github.com/warthog618/gpiocdev-rs/tree/master/uapi) provides a thin safe Rust wrapper around the character device ioctls.
 
-The gpiocdev crate provides a higher level abstraction, so you should use that unless you have some particular interest in calling the Linux GPIO ioctls directly.
-
-[gpiosim](https://github.com/warthog618/gpiocdev-rs/tree/master/gpiosim) provides GPIO chip simulators for testing users of the GPIO uAPI, such as gpiocdev, or apps that use it.
+The [gpiocdev](https://github.com/warthog618/gpiocdev-rs/tree/master/lib) crate provides a higher level abstraction, so you should use that unless you have some particular interest in calling the Linux GPIO ioctls directly.
 
 ## License
 
