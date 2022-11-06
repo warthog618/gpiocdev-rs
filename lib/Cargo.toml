@@ -7,6 +7,7 @@ authors = ["Kent Gibson <warthog618@gmail.com>"]
 categories = ["hardware-support", "api-bindings", "os::linux-apis", "embedded", "asynchronous"]
 description = "A library to access GPIO lines on Linux using the GPIO character device"
 edition = "2021"
+rust-version = "1.60"
 keywords = ["linux", "gpio", "library", "embedded", "async"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev"
@@ -28,7 +29,7 @@ tokio-stream = {version = "0.1.11", optional = true}
 [dev-dependencies]
 anyhow = "1.0"
 async-std = {version = "1.12.0"}
-gpiosim = {version = "0.2.0", path = "../gpiosim"}
+gpiosim = {version = "0.2.0"}
 tokio = {version = "1.21", features = ["macros", "rt", "time"]}
 
 [features]

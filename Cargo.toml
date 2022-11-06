@@ -7,5 +7,4 @@ members = [
   "lib",
   "cli",
   "uapi",
-  "gpiosim",
 ]
