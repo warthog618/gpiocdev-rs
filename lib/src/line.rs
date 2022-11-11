@@ -416,8 +416,9 @@ impl Values {
 
     /// Set the value of a line.
     #[inline]
-    pub fn set(&mut self, offset: Offset, val: Value) {
+    pub fn set(&mut self, offset: Offset, val: Value) -> &mut Self {
         self.0.insert(offset, val);
+        self
     }
 
     /// Toggle the value of a line.

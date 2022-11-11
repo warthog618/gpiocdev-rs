@@ -1284,8 +1284,8 @@ impl Request {
     ///     .as_output(Active)
     ///     .request()?;
     /// let mut values = Values::default();
-    /// values.set(5, Inactive);
-    /// values.set(6, Inactive);
+    /// values.set(5, Inactive)
+    ///       .set(6, Inactive);
     /// ll.set_values(&values)?;
     /// # Ok(())
     /// # }
