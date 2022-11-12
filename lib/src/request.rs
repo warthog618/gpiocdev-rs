@@ -35,11 +35,11 @@ use std::time::Duration;
 ///
 /// Most mutators operate on the request configuration as per the [`Config`].
 ///
-/// To request and read a basic input line:
+/// # Examples
+/// Request and read a basic input line:
 /// ```no_run
 /// # use gpiocdev::Result;
-/// use gpiocdev::request::Request;
-///
+/// # use gpiocdev::request::Request;
 /// # fn main() -> Result<()> {
 /// let l3 = Request::builder()
 ///     .on_chip("/dev/gpiochip0")
@@ -50,43 +50,40 @@ use std::time::Duration;
 /// # }
 /// ```
 ///
-/// Or several lines:
+/// Several lines in one request:
 ///
 /// ```no_run
 /// # use gpiocdev::Result;
-/// use gpiocdev::request::Request;
-/// use gpiocdev::line::Values;
-///
+/// # use gpiocdev::request::Request;
+/// # use gpiocdev::line::Values;
 /// # fn main() -> Result<()> {
 /// let offsets = &[3,5];
-/// let ll = Request::builder()
+/// let req = Request::builder()
 ///     .on_chip("/dev/gpiochip0")
 ///     .with_lines(offsets)
 ///     .request()?;
 /// let mut values = Values::from_offsets(offsets);
-/// ll.values(&mut values)?;
+/// req.values(&mut values)?;
 /// # Ok(())
 /// # }
 /// ```
 ///
-/// Alternatively, more complex configurations can be built separately and provided
+/// More complex configurations can be built separately and provided
 /// to the `Builder`:
 ///
 /// ```no_run
 /// # use gpiocdev::Result;
-/// use gpiocdev::request::{Config, Request};
-/// use gpiocdev::line::Value;
-///
+/// # use gpiocdev::request::{Config, Request};
+/// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
 /// let mut cfg = Config::default();
 /// cfg.with_line(5).as_output(Value::Active);
-/// let l5 = Request::from_config(cfg)
+/// let req = Request::from_config(cfg)
 ///     .on_chip("/dev/gpiochip0")
 ///     .request()?;
-/// l5.set_value(5,Value::Inactive)?;
+/// req.set_value(5,Value::Inactive)?;
 /// # Ok(())
 /// # }
-///
 /// ```
 ///
 /// [`request`]: #method.request
@@ -119,8 +116,7 @@ impl Builder {
     ///
     /// On success returns the [`Request`] that provides access to the requested lines.
     ///
-    /// This is the terminal operation for the Builder.
-    ///
+    /// This is the terminal operation for the `Builder`.
     pub fn request(&self) -> Result<Request> {
         if let Some(e) = &self.err {
             return Err(e.clone());
@@ -180,11 +176,12 @@ impl Builder {
         self
     }
 
-    /// A snapshot of the current request configuration.
+    /// Get a snapshot of the current request configuration.
     ///
-    /// Can be applied to other requests with [`with_config`].
+    /// Can be applied to other requests with [`with_config`] or [`Request::from_config`].
     ///
     /// [`with_config`]: #method.with_config
+    /// [`Request.from_config`]: struct.Request.html#method.from_config
     pub fn config(&self) -> Config {
         self.cfg.clone()
     }
@@ -196,6 +193,21 @@ impl Builder {
     ///
     /// If not specified, a label *"gpiocdev-p**PID**"* is applied by [`request`],
     /// where **PID** is the process id of the application.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use gpiocdev::Result;
+    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::line::Values;
+    /// # fn main() -> Result<()> {
+    /// let req = Request::builder()
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .with_lines(&[3,5])
+    ///     .with_consumer("spice_weasel")
+    ///     .request()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [`request`]: #method.request
     pub fn with_consumer<N: Into<String>>(&mut self, consumer: N) -> &mut Self {
@@ -214,9 +226,9 @@ impl Builder {
     /// of events faster than the application can service them.
     ///
     /// Altering the buffer size does NOT affect latency.
-    /// Buffering is provided in the kernel to reduce the likelyhood of event loss when
+    /// Buffering is provided in the kernel to reduce the likelihood of event loss when
     /// user space is slow servicing events.
-    /// In all cases the events are provided to user space as fast as user space allows.
+    /// In all cases the events are provided to user space as quickly as user space allows.
     pub fn with_kernel_event_buffer_size(&mut self, event_buffer_size: u32) -> &mut Self {
         self.kernel_event_buffer_size = event_buffer_size;
         self
@@ -231,7 +243,7 @@ impl Builder {
     /// reduce the number of system calls required to read events.
     ///
     /// Altering the buffer size does NOT affect latency.
-    /// In all cases the events are provided to user space as fast as user space allows.
+    /// In all cases the events are provided to user space as quickly as user space allows.
     ///
     /// [`Request.edge_events`]: struct.Request.html#method.edge_events
     pub fn with_user_event_buffer_size(&mut self, event_buffer_size: usize) -> &mut Self {
@@ -241,12 +253,16 @@ impl Builder {
 
     /// Select the ABI version to use when requesting the lines and for subsequent operations.
     ///
-    /// This is typically only required where an application supports both uAPI versions
-    /// but the kernel may only support uAPI v1.
+    /// This is not normally required - the library will determine the available ABI versions
+    /// and use the latest.
     ///
-    /// The version to use can be determined by [`detect_abi_version`].
+    /// This is only required where an application supports both uAPI versions but wishes
+    /// to force the usage of a particular version at runtime, bypassing the automatic
+    /// selection process.
     ///
-    /// [`detect_abi_version`]: fn@crate::detect_abi_version
+    /// The version can be tested for availabilty using [`supports_abi_version`].
+    ///
+    /// [`supports_abi_version`]: fn@crate::supports_abi_version
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn using_abi_version(&mut self, abiv: AbiVersion) -> &mut Self {
         self.abiv = abiv;
@@ -544,7 +560,7 @@ enum UapiRequest {
 /// the appropriate mutators. If no lines are selected then the mutators modify the base configuration
 /// that lines inherit when they are first added.
 ///
-/// e.g.
+/// # Examples
 /// ```
 ///    use gpiocdev::line::{Bias::*, Value::*};
 ///    use gpiocdev::request::Config;
@@ -690,6 +706,16 @@ impl Config {
     /// Setting to input removes any output specific settings.
     ///
     /// Setting to output removes any input specific settings.
+    ///
+    /// Note that selecting a line as output will default its value to inactive.
+    /// To provide a value use [`with_value`], or use [`as_output(value)`] instead.
+    ///
+    /// To determine the state of en existing output line, first request it [`as_is`],
+    /// then reconfigure it as an output with an appropriate value.
+    ///
+    /// [`with_value`]: #method.with_value
+    /// [`as_output(Value)`]: #method.as_output
+    /// [`as_is`]: #method.as_is
     pub fn with_direction(&mut self, direction: Direction) -> &mut Self {
         for cfg in self.selected_iter() {
             cfg.direction = Some(direction);
@@ -790,6 +816,8 @@ impl Config {
     }
 
     /// Set the value of the selected lines.
+    ///
+    /// This is only relevant for output lines and is ignored for input lines.
     pub fn with_value(&mut self, value: Value) -> &mut Self {
         for cfg in self.selected_iter() {
             cfg.value = Some(value);
@@ -1095,6 +1123,12 @@ impl<'a> Iterator for SelectedIterator<'a> {
 /// from the kernel.  The [`edge_event_size`] method provides the size required to store a
 /// single event to allow sizing of custom slices.
 ///
+/// # Reading Output Values
+///
+/// Note that reading back output values using [`value`] or [`values`] is dependent on driver
+/// and hardware support and so cannot be guaranteed to work, though frequently it does.
+/// Test with your particular hardware to be sure.
+///
 /// [`builder`]: #method.builder
 /// [`edge_events`]: #method.edge_events
 /// [`edge_event_size`]: #method.edge_event_size
@@ -1102,6 +1136,8 @@ impl<'a> Iterator for SelectedIterator<'a> {
 /// [`read_edge_events_into_slice`]: #method.read_edge_events_into_slice
 /// [`with_kernel_event_buffer_size`]: struct.Builder.html#method.with_kernel_event_buffer_size
 /// [`with_user_event_buffer_size`]: struct.Builder.html#method.with_user_event_buffer_size
+/// [`value`]: #method.value
+/// [`values`]: #method.values
 #[derive(Debug)]
 pub struct Request {
     /// The request file.
@@ -1131,16 +1167,15 @@ impl Request {
     ///
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::request::Request;
-    /// use gpiocdev::line::Values;
-    ///
+    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::line::Values;
     /// # fn main() -> Result<()> {
-    /// let ll = Request::builder()
+    /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5])
     ///     .request()?;
     /// let mut values = Values::default();
-    /// ll.values(&mut values)?;
+    /// req.values(&mut values)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -1154,16 +1189,15 @@ impl Request {
     ///
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::line::Value;
-    /// use gpiocdev::request::{Config, Request};
-    ///
+    /// # use gpiocdev::line::Value;
+    /// # use gpiocdev::request::{Config, Request};
     /// # fn main() -> Result<()> {
     /// let mut cfg = Config::default();
     /// cfg.with_line(5).as_output(Value::Active);
-    /// let l5 = Request::from_config(cfg)
+    /// let req = Request::from_config(cfg)
     ///     .on_chip("/dev/gpiochip0")
     ///     .request()?;
-    /// # l5.set_value(5,Value::Inactive)?;
+    /// # req.set_value(5,Value::Inactive)?;
     /// # Ok(())
     /// # }
     pub fn from_config(config: Config) -> Builder {
@@ -1179,20 +1213,19 @@ impl Request {
     /// # Examples
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::request::Request;
-    /// use gpiocdev::line::Values;
-    ///
+    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::line::Values;
     /// # fn main() -> Result<()> {
-    /// let ll = Request::builder()
+    /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5,6,8])
     ///     .request()?;
     /// // subset of lines
     /// let mut values = Values::from_offsets(&[3,8]);
-    /// ll.values(&mut values)?;
+    /// req.values(&mut values)?;
     /// // all requested lines
     /// let mut values = Values::default();
-    /// ll.values(&mut values)?;
+    /// req.values(&mut values)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -1243,15 +1276,14 @@ impl Request {
     /// # Examples
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::request::Request;
-    /// use gpiocdev::line::Values;
-    ///
+    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::line::Values;
     /// # fn main() -> Result<()> {
-    /// let ll = Request::builder()
+    /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5])
     ///     .request()?;
-    /// let v5 = ll.value(5)?;
+    /// let v5 = req.value(5)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -1273,20 +1305,18 @@ impl Request {
     /// # Examples
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::line::Value::{Active, Inactive};
-    /// use gpiocdev::line::Values;
-    /// use gpiocdev::request::Request;
-    ///
+    /// # use gpiocdev::line::Value::{Active, Inactive};
+    /// # use gpiocdev::line::Values;
+    /// # use gpiocdev::request::Request;
     /// # fn main() -> Result<()> {
-    /// let ll = Request::builder()
+    /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5,6,8])
     ///     .as_output(Active)
     ///     .request()?;
     /// let mut values = Values::default();
-    /// values.set(5, Inactive)
-    ///       .set(6, Inactive);
-    /// ll.set_values(&values)?;
+    /// values.set(5, Inactive).set(6, Inactive);
+    /// req.set_values(&values)?;
     /// # Ok(())
     /// # }
     pub fn set_values(&self, values: &Values) -> Result<()> {
@@ -1334,16 +1364,15 @@ impl Request {
     /// # Examples
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::line::Value;
-    /// use gpiocdev::request::{Config, Request};
-    ///
+    /// # use gpiocdev::line::Value;
+    /// # use gpiocdev::request::{Config, Request};
     /// # fn main() -> Result<()> {
     /// let mut cfg = Config::default();
     /// cfg.with_line(5).as_output(Value::Active);
-    /// let l5 = Request::from_config(cfg)
+    /// let req = Request::from_config(cfg)
     ///     .on_chip("/dev/gpiochip0")
     ///     .request()?;
-    /// l5.set_value(5,Value::Inactive)?;
+    /// req.set_value(5,Value::Inactive)?;
     /// # Ok(())
     /// # }
     pub fn set_value(&self, offset: Offset, value: Value) -> Result<()> {
@@ -1357,7 +1386,7 @@ impl Request {
         self.set_values(&values)
     }
 
-    /// A snapshot of the requested configuration.
+    /// Get a snapshot of the requested configuration.
     ///
     /// This is the configuration currently applied to the hardware.
     pub fn config(&self) -> Config {
@@ -1381,7 +1410,7 @@ impl Request {
     /// Reconfigure the request with the an updated configuration.
     ///
     /// Note that lines cannot be added or removed from the request.
-    /// Any additional lines in new_cfg will be ignored, and any missing
+    /// Any additional lines in `new_cfg` will be ignored, and any missing
     /// lines will retain their existing configuration.
     pub fn reconfigure(&self, new_cfg: &Config) -> Result<()> {
         let cfg = self
@@ -1464,8 +1493,27 @@ impl Request {
     /// The iterator can be backed by a user space buffer using the
     /// [`Builder.with_user_event_buffer_size`] option in the builder.
     ///
+    /// # Examples
+    /// ```no_run
+    /// # use gpiocdev::Result;
+    /// # use gpiocdev::line::{EdgeDetection, Value};
+    /// # use gpiocdev::request::Request;
+    /// # fn main() -> Result<()> {
+    /// let req = Request::builder()
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .with_consumer("watcher")
+    ///     .with_line(23)
+    ///     .with_edge_detection(EdgeDetection::BothEdges)
+    ///     .request()?;
+    ///
+    /// for event in req.edge_events() {
+    ///     println!("{:?}", event?);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// [`Builder.with_user_event_buffer_size`]: struct.Builder.html#method.with_user_event_buffer_size
-
     pub fn edge_events(&self) -> EdgeEventBuffer {
         self.new_edge_event_buffer(self.user_event_buffer_size)
     }
@@ -1479,7 +1527,7 @@ impl Request {
 
     /// Wait for an edge event to be available.
     ///
-    /// Returns true if ['read_edge_event'] will return an event without blocking.
+    /// Returns true if [`read_edge_event`] will return an event without blocking.
     ///
     /// [`read_edge_event`]: #method.read_edge_event
     pub fn wait_edge_event(&self, timeout: Duration) -> Result<bool> {
@@ -1538,7 +1586,7 @@ impl Request {
     /// manage the buffer containing raw events, e.g. to place it in a specific
     /// location in memory.
     ///
-    /// This will read in [`edge_event_size`] sized chunks so buf must be at least
+    /// This will read in [`edge_event_size`] sized chunks so `buf` must be at least
     /// as large as one event.
     ///
     /// This function will block if no events are available to read.
@@ -1604,7 +1652,7 @@ impl Request {
 
     /// The number of bytes required to buffer a single event read from the request.
     ///
-    /// This can be used to size an external [u8] slice to read events into.
+    /// This can be used to size an external `[u8]` slice to read events into.
     /// The slice size should be a multiple of this size.
     pub fn edge_event_size(&self) -> usize {
         self.do_edge_event_size()
