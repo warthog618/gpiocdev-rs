@@ -25,6 +25,10 @@ pub struct Opts {
     #[arg(name = "line", required = true)]
     lines: Vec<String>,
 
+    /// Display a banner on successful startup
+    #[arg(long)]
+    banner: bool,
+
     #[command(flatten)]
     line_opts: LineOpts,
 
@@ -50,6 +54,11 @@ pub struct Opts {
     #[arg(short, long, name = "num")]
     num_events: Option<u32>,
 
+    /// Specify the source clock for event timestamps
+    #[cfg(feature = "uapi_v2")]
+    #[arg(short = 'E', long, name = "clock")]
+    event_clock: Option<EventClock>,
+
     /// Specify a custom output format
     ///
     /// Format specifiers:
@@ -70,11 +79,6 @@ pub struct Opts {
     )]
     format: Option<String>,
 
-    /// Specify the source clock for event timestamps
-    #[cfg(feature = "uapi_v2")]
-    #[arg(short = 'C', long, name = "clock")]
-    event_clock: Option<EventClock>,
-
     /// Format event timestamps as local time
     #[arg(long, group = "timefmt")]
     localtime: bool,
@@ -83,20 +87,20 @@ pub struct Opts {
     #[arg(long, group = "timefmt")]
     utc: bool,
 
-    /// Display a banner on successful startup
-    #[arg(long)]
-    banner: bool,
-
     /// Don't generate any output
     #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
     quiet: bool,
 
     /// The consumer label applied to requested lines.
-    #[arg(long, name = "consumer", default_value = "gpiocdev-edges")]
+    #[arg(short = 'C', long, name = "name", default_value = "gpiocdev-edges")]
     consumer: String,
 
     #[command(flatten)]
     uapi_opts: UapiOpts,
+
+    /// Don't quote line names.
+    #[arg(long)]
+    unquoted: bool,
 }
 
 impl Opts {
@@ -234,12 +238,12 @@ fn print_banner(lines: &[String]) {
         print!("Monitoring lines ");
 
         for l in lines.iter().take(lines.len() - 1) {
-            print!("{}, ", l);
+            print!("'{}', ", l);
         }
 
-        println!("and {}...", lines[lines.len() - 1]);
+        println!("and '{}'...", lines[lines.len() - 1]);
     } else {
-        println!("Monitoring line {}...", lines[0]);
+        println!("Monitoring line '{}'...", lines[0]);
     }
 }
 
@@ -253,7 +257,11 @@ fn print_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) 
         if opts.line_opts.chip.is_some() {
             print!("{} {} ", ci.name, event.offset);
         }
-        println!("{}", lname);
+        if opts.unquoted {
+            println!("{}", lname);
+        } else {
+            println!("\"{}\"", lname);
+        }
     } else {
         println!("{} {}", ci.name, event.offset);
     }

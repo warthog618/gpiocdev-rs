@@ -14,6 +14,10 @@ use std::os::unix::prelude::AsRawFd;
 #[derive(Debug, Parser)]
 #[command(aliases(["n", "watch"]))]
 pub struct Opts {
+    /// Display a banner on successful startup
+    #[arg(long)]
+    banner: bool,
+
     #[command(flatten)]
     line_opts: LineOpts,
 
@@ -66,16 +70,16 @@ pub struct Opts {
     #[arg(long, group = "timefmt")]
     utc: bool,
 
-    /// Display a banner on successful startup
-    #[arg(long)]
-    banner: bool,
-
     /// Don't generate any output
     #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
     quiet: bool,
 
     #[command(flatten)]
     uapi_opts: UapiOpts,
+
+    /// Don't quote line or consumer names.
+    #[arg(long)]
+    unquoted: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -180,18 +184,18 @@ fn print_banner(lines: &[String]) {
         print!("Watching lines ");
 
         for l in lines.iter().take(lines.len() - 1) {
-            print!("{}, ", l);
+            print!("'{}', ", l);
         }
 
-        println!("and {}...", lines[lines.len() - 1]);
+        println!("and '{}'...", lines[lines.len() - 1]);
     } else {
-        println!("Watching line {}...", lines[0]);
+        println!("Watching line '{}'...", lines[0]);
     }
 }
 
 fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
     if let Some(format) = &opts.format {
-        return print_change_formatted(&event, format, ci);
+        return print_change_formatted(&event, format, ci, opts.unquoted);
     }
     let evtime = if opts.utc || opts.localtime {
         monotonic_to_realtime(event.timestamp_ns)
@@ -205,20 +209,24 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
         if opts.line_opts.chip.is_some() {
             print!("{} {} ", ci.name, event.info.offset);
         }
-        println!("{}", lname);
+        if opts.unquoted {
+            println!("{}", lname);
+        } else {
+            println!("\"{}\"", lname);
+        }
     } else {
         println!("{} {}", ci.name, event.info.offset);
     }
 }
 
-fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo) {
+fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo, unquoted: bool) {
     let mut escaped = false;
 
     for chr in format.chars() {
         if escaped {
             match chr {
                 '%' => print!("%"),
-                'a' => print!("{}", common::stringify_attrs(&event.info)),
+                'a' => print!("{}", common::stringify_attrs(&event.info, unquoted)),
                 'c' => print!("{}", ci.name),
                 'C' => common::print_consumer(&event.info),
                 'e' => print!("{}", event_kind_num(event.kind)),

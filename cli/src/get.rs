@@ -53,6 +53,14 @@ pub struct Opts {
 
     #[command(flatten)]
     uapi_opts: UapiOpts,
+
+    /// The consumer label applied to requested lines.
+    #[arg(short = 'C', long, name = "name", default_value = "gpiocdev-get")]
+    consumer: String,
+
+    /// Don't quote line names.
+    #[arg(long)]
+    unquoted: bool,
 }
 
 impl Opts {
@@ -82,7 +90,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         cfg.with_lines(&offsets);
 
         let mut bld = Request::from_config(cfg);
-        bld.on_chip(&ci.path).with_consumer("gpiocdev-get");
+        bld.on_chip(&ci.path).with_consumer(&opts.consumer);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         bld.using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?);
         let req = bld
@@ -112,12 +120,14 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     let mut print_values = Vec::new();
     for id in &opts.line {
         let value = line_values.get(r.lines.get(id).unwrap()).unwrap();
-        if opts.numeric {
+        print_values.push(if opts.numeric {
             let v: u8 = (*value).into();
-            print_values.push(format!("{}", v));
+            format!("{}", v)
+        } else if opts.unquoted {
+            format!("{}={}", id, value)
         } else {
-            print_values.push(format!("{}={}", id, value));
-        }
+            format!("\"{}\"={}", id, value)
+        })
     }
     println!("{}", print_values.join(" "));
 

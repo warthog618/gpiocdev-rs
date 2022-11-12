@@ -39,6 +39,10 @@ pub struct Opts {
     #[arg(name = "line=value", required = true, value_parser = parse_line_value, verbatim_doc_comment)]
     line_values: Vec<(String, LineValue)>,
 
+    /// Display a banner on successful startup
+    #[arg(long)]
+    banner: bool,
+
     #[command(flatten)]
     line_opts: LineOpts,
 
@@ -89,11 +93,15 @@ pub struct Opts {
     daemonize: bool,
 
     /// The consumer label applied to requested lines.
-    #[arg(long, name = "consumer", default_value = "gpiocdev-set")]
+    #[arg(short = 'C', long, name = "name", default_value = "gpiocdev-set")]
     consumer: String,
 
     #[command(flatten)]
     uapi_opts: UapiOpts,
+
+    /// Don't quote line names.
+    #[arg(long)]
+    unquoted: bool,
 }
 
 impl Opts {
@@ -111,6 +119,14 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         ..Default::default()
     };
     setter.request(opts)?;
+    if opts.banner {
+        let line_ids: Vec<String> = opts
+            .line_values
+            .iter()
+            .map(|(l, _v)| l.to_owned())
+            .collect();
+        print_banner(&line_ids);
+    }
     if opts.daemonize {
         Daemonize::new().start()?;
     }
@@ -119,8 +135,9 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     }
     setter.hold();
     if opts.interactive {
-        setter.interact(opts)?;
+        return setter.interact(opts);
     }
+    setter.wait();
     Ok(())
 }
 
@@ -225,7 +242,7 @@ impl Setter {
                     let mut words = line.trim().split_ascii_whitespace();
                     if let Err(err) = match words.next() {
                         None => continue,
-                        Some("get") => self.do_get(words),
+                        Some("get") => self.do_get(words, opts.unquoted),
                         Some("set") => self.do_set(words),
                         Some("sleep") => self.do_sleep(words.next()),
                         Some("toggle") => self.do_toggle(words),
@@ -253,13 +270,17 @@ impl Setter {
         }
     }
 
-    fn do_get(&mut self, lines: std::str::SplitAsciiWhitespace) -> Result<()> {
+    fn do_get(&mut self, lines: std::str::SplitAsciiWhitespace, unquoted: bool) -> Result<()> {
         let mut have_lines = false;
         let mut print_values = Vec::new();
         for id in lines {
             match self.lines.get(id) {
                 Some(line) => {
-                    print_values.push(format!("{}={}", id, line.value));
+                    print_values.push(if unquoted {
+                        format!("{}={}", id, line.value)
+                    } else {
+                        format!("\"{}\"={}", id, line.value)
+                    });
                     have_lines = true;
                 }
                 None => bail!("not a requested line: '{}'", id),
@@ -268,7 +289,12 @@ impl Setter {
         if !have_lines {
             // no lines specified, so return all lines
             for id in &self.line_ids {
-                print_values.push(format!("{}={}", id, self.lines.get(id).unwrap().value));
+                let value = self.lines.get(id).unwrap().value;
+                print_values.push(if unquoted {
+                    format!("{}={}", id, value)
+                } else {
+                    format!("\"{}\"={}", id, value)
+                });
             }
         }
         println!("{}", print_values.join(" "));
@@ -349,6 +375,10 @@ impl Setter {
     }
 
     fn toggle(&mut self, ts: &TimeSequence) -> Result<()> {
+        if ts.0.len() == 1 && ts.0[0].is_zero() {
+            self.hold();
+            return Ok(());
+        }
         let mut count = 0;
         let hold_period = self.hold_period.unwrap_or(Duration::ZERO);
         loop {
@@ -391,6 +421,11 @@ impl Setter {
         }
         Ok(updated)
     }
+
+    fn wait(&self) {
+        // just block on something that should never happen...
+        _ = self.requests[0].read_edge_event();
+    }
 }
 
 fn print_interactive_help() -> Result<()> {
@@ -420,6 +455,22 @@ fn print_interactive_help() -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn print_banner(lines: &[String]) {
+    use std::io::Write;
+    if lines.len() > 1 {
+        print!("Setting lines ");
+
+        for l in lines.iter().take(lines.len() - 1) {
+            print!("'{}', ", l);
+        }
+
+        println!("and '{}'...", lines[lines.len() - 1]);
+    } else {
+        println!("Setting line '{}'...", lines[0]);
+    }
+    _ = std::io::stdout().flush();
 }
 
 #[derive(Debug, Default)]
@@ -572,12 +623,7 @@ impl InteractiveHelper {
         (upos, candidates)
     }
 
-    fn complete_toggle(
-        &self,
-        line: &str,
-        pos: usize,
-        words: SplitWhitespace,
-    ) -> (usize, Vec<Pair>) {
+    fn complete_lines(&self, line: &str, pos: usize, words: SplitWhitespace) -> (usize, Vec<Pair>) {
         let mut candidates = Vec::new();
         let selected: Vec<&'_ str> = words.collect();
         let unselected = self
@@ -623,9 +669,10 @@ impl Completer for InteractiveHelper {
             Some(cmd) => {
                 if line.len() > cmd.len() + cmd_pos {
                     return Ok(match cmd {
+                        "get" => self.complete_lines(line, pos, words),
                         "set" => self.complete_set(line, pos, words),
                         "sleep" => self.complete_sleep(line, pos, words),
-                        "toggle" => self.complete_toggle(line, pos, words),
+                        "toggle" => self.complete_lines(line, pos, words),
                         _ => (cmd_pos, vec![]),
                     });
                 } else {
