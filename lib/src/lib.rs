@@ -18,13 +18,14 @@
 //! ```no_run
 //! # use gpiocdev::Result;
 //! use gpiocdev::request::Request;
-//! use gpiocdev::line::Value;
+//! use gpiocdev::line::{Bias, Value};
 //!
 //! # fn main() -> Result<()> {
 //! let req = Request::builder()
 //!     .on_chip("/dev/gpiochip0")
 //!     .with_line(3)
 //!     .as_input()
+//!     .with_bias(Bias::PullUp)
 //!     .with_line(4)
 //!     .as_output(Value::Inactive)
 //!     .request()?;
@@ -33,8 +34,26 @@
 //! # Ok(())
 //! # }
 //! ```
-//! That is a basic example of input and output.  All other aspects of the line that are available via the
-//! GPIO uAPI, such as bias, debounce, and edge events are also supported.
+//! Monitor a line for debounced edges:
+//! ```no_run
+//! # use gpiocdev::Result;
+//! use gpiocdev::request::Request;
+//! use gpiocdev::line::EdgeDetection;
+//! use std::time::Duration;
+//!
+//! # fn main() -> Result<()> {
+//! let req = Request::builder()
+//!     .on_chip("/dev/gpiochip0")
+//!     .with_line(5)
+//!     .with_edge_detection(EdgeDetection::BothEdges)
+//!     .with_debounce_period(Duration::from_millis(5))
+//!     .request()?;
+//! for edge in req.edge_events() {
+//!     println!("{:?}", edge);
+//! }
+//! # Ok(())
+//! # }
+//! ```
 //!
 //! [`chip`]: module@chip
 //! [`request`]: module@request
@@ -46,7 +65,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use errno::Errno;
 #[cfg(any(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi as uapi;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 use std::ops::Range;
 use std::path::PathBuf;
@@ -72,6 +91,12 @@ pub fn lines() -> Result<LineIterator> {
 ///
 /// Returns the path of the chip containing the line, and the offset of the line on that chip.
 ///
+/// If checking that the line name is unique is required then use [`find_named_lines`]
+/// with the strict option.
+///
+/// If multiple lines are required then [`find_named_lines`] is more performant.
+///
+/// # Examples
 /// The found line can be used to request the line:
 /// ```no_run
 /// # use gpiocdev::Result;
@@ -87,6 +112,21 @@ pub fn lines() -> Result<LineIterator> {
 /// # }
 /// ```
 ///
+/// Using the chip and offset from the found line to request the line:
+/// ```no_run
+/// # use gpiocdev::Result;
+/// # use gpiocdev::request::Request;
+/// # use gpiocdev::line::Value;
+/// # fn main() -> Result<()> {
+/// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+/// let req = Request::builder()
+///     .on_chip(&led0.chip)
+///     .with_line(led0.offset)
+///     .as_output(Value::Active)
+///     .request()?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn find_named_line(name: &str) -> Option<FoundLine> {
     if let Ok(mut liter) = LineIterator::new() {
         return liter.find(|l| l.info.name == name);
@@ -96,25 +136,42 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 
 /// Find a collection of named lines.
 ///
+///  - `strict`: if true then the names are checked to be unique within the available lines
+///
 /// For each name, returns the first matching line, if one can be found.
 /// If it cannot be found then there will be no matching entry in the returned map.
 ///
 /// Returns the path of the chip containing the line, the offset of the line on that chip,
 /// and the info for the line.
 ///
-/// If strict is true then the names are checked to be unique within the available lines,
-/// and to all be located on the one chip.
-///
-/// The chip path and line offset can be used to request the line:
+/// # Examples
+/// Adding the found lines to the request directly:
 /// ```no_run
 /// # use gpiocdev::Result;
 /// # use gpiocdev::request::Request;
 /// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
-/// let lines = ["SENSOR0", "SENSOR1", "LED0"];
-/// let mylines = gpiocdev::find_named_lines(&lines, true)?;
-/// let sensor0 = mylines.get("SENSOR0").unwrap();
-/// let led0 = mylines.get("LED0").unwrap();
+/// let sensors = gpiocdev::find_named_lines(&["SENSOR0", "SENSOR1"], true)?;
+/// let req = Request::builder()
+///     .with_found_lines(&sensors)
+///     .as_input()
+///     .request()?;
+/// let sensor1 = sensors.get("SENSOR1").unwrap();
+/// let value = req.value(sensor1.offset)?;
+/// # Ok(())
+/// # }
+///```
+///
+/// Using the individual found lines to request the lines with different
+/// configuration for each line:
+/// ```no_run
+/// # use gpiocdev::Result;
+/// # use gpiocdev::request::Request;
+/// # use gpiocdev::line::Value;
+/// # fn main() -> Result<()> {
+/// let lines = gpiocdev::find_named_lines(&["SENSOR0", "LED0"], true)?;
+/// let sensor0 = lines.get("SENSOR0").unwrap();
+/// let led0 = lines.get("LED0").unwrap();
 /// let req = Request::builder()
 ///     .with_found_line(&sensor0)
 ///     .as_input()
@@ -131,7 +188,6 @@ pub fn find_named_lines<'a>(
     strict: bool,
 ) -> Result<HashMap<&'a str, FoundLine>> {
     let mut found = HashMap::new();
-    let mut chips = HashSet::new();
     for l in LineIterator::new()? {
         for name in names {
             if *name != l.info.name.as_str() {
@@ -139,7 +195,6 @@ pub fn find_named_lines<'a>(
             }
             if !found.contains_key(*name) {
                 found.insert(name.to_owned(), l.clone());
-                chips.insert(l.chip.clone());
                 if !strict && found.len() == names.len() {
                     return Ok(found);
                 }
@@ -148,9 +203,6 @@ pub fn find_named_lines<'a>(
             }
             // else already have that line...
         }
-    }
-    if strict && chips.len() > 1 {
-        return Err(Error::DistributedLines());
     }
     Ok(found)
 }
@@ -289,7 +341,8 @@ impl Iterator for LineIterator {
 /// The line configuration is provided to the [`Builder`] using either direct mutators,
 /// such as [`as_input`] and [`with_edge_detection`], or via a [`Config`].
 ///
-/// To request and read a basic input line:
+/// # Examples
+/// Request and read a basic input line:
 /// ```no_run
 /// # use gpiocdev::Result;
 /// use gpiocdev::request::Request;
@@ -347,7 +400,7 @@ impl fmt::Display for AbiVersion {
     }
 }
 
-/// A moment in time in utc.
+/// A moment in time in UTC.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Timestamp(DateTime<Utc>);
 
@@ -376,11 +429,6 @@ pub enum Error {
     /// An operation cannot be performed due to a limitation in the ABI version being used.
     #[error("{0} {1}.")]
     AbiLimitation(AbiVersion, String),
-
-    /// Returned when the strict mode of [`find_named_lines`] finds the lines are spread
-    /// across multiple chips, and so not suitable for a single request.
-    #[error("Requested lines are distibuted across multiple chips")]
-    DistributedLines(),
 
     /// Problem accessing GPIO chip character devices
     #[error("\"{0}\" {1}.")]

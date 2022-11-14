@@ -90,7 +90,6 @@ use std::time::Duration;
 #[derive(Clone, Default, Eq, PartialEq)]
 #[cfg_attr(test, derive(Debug))]
 pub struct Builder {
-    chip: PathBuf,
     cfg: Config,
     consumer: String,
     kernel_event_buffer_size: u32,
@@ -121,10 +120,10 @@ impl Builder {
         if let Some(e) = &self.err {
             return Err(e.clone());
         }
-        if self.chip.as_os_str().is_empty() {
+        if self.cfg.chip.as_os_str().is_empty() {
             return Err(Error::InvalidArgument("No chip specified.".to_string()));
         }
-        let chip = Chip::from_path(&self.chip)?;
+        let chip = Chip::from_path(&self.cfg.chip)?;
         self.do_request(&chip).map(|f| self.to_request(f))
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -274,17 +273,19 @@ impl Builder {
     /// This applies to all lines in the request. It is not possible to request lines
     /// from different chips in the same request.
     ///
-    /// The request locks to the first chip provided to it by [`on_chip`] or [`with_found_line`]
-    /// and ignores any subsequent changes to chip.
+    /// The `Builder` locks to the first chip provided to it, for example by [`on_chip`]
+    /// or [`with_found_line`].
+    /// Any subsequent attempts to change the chip will result in an error when [`request`] is called.
     ///
     /// The chip is identified by a path which must resolve to a GPIO character device.
     ///
     /// [`on_chip`]: #method.on_chip
     /// [`with_found_line`]: #method.with_found_line
+    /// [`request`]: #method.request
     pub fn on_chip<P: Into<PathBuf>>(&mut self, path: P) -> &mut Self {
-        if self.chip.as_os_str().is_empty() {
-            self.chip = path.into();
-        } else if self.chip != path.into() {
+        if self.cfg.chip.as_os_str().is_empty() {
+            self.cfg.on_chip(path);
+        } else if self.cfg.chip != path.into() {
             self.err = Some(Error::InvalidArgument(
                 "Multiple chips requested.".to_string(),
             ))
@@ -384,13 +385,61 @@ impl Builder {
 
     /// Add a found line to the request.
     ///
-    /// The line must be on the same chip as any existing lines in the request, or the line is ignored.
+    /// The line must be on the same chip as any existing lines in the request, else the line is
+    /// ignored and an error returned when [`request`](#method.request) is called.
     ///
     /// Note that all configuration mutators applied subsequently only apply to this line.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use gpiocdev::Result;
+    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::line::Value;
+    /// # fn main() -> Result<()> {
+    /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+    /// let req = Request::builder()
+    ///     .with_found_line(&led0)
+    ///     .as_output(Value::Active)
+    ///     .request()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn with_found_line(&mut self, line: &super::FoundLine) -> &mut Self {
-        self.on_chip(&line.chip);
-        if self.chip == line.chip {
-            self.cfg.with_line(line.info.offset);
+        if let Err(e) = self.cfg.with_found_line(line) {
+            self.err = Some(e);
+        }
+        self
+    }
+
+    /// Add a set of found lines to the request.
+    ///
+    /// The lines must be on the same chip as any existing lines in the request, else the line is
+    /// ignored and an error returned when [`request`](#method.request) is called.
+    ///
+    /// Note that all configuration mutators applied subsequently only apply to these lines.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use gpiocdev::Result;
+    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::line::EdgeDetection;
+    /// # fn main() -> Result<()> {
+    /// let buttons = gpiocdev::find_named_lines(&["BUTTON0","BUTTON1"], true)?;
+    /// let req = Request::builder()
+    ///     .with_found_lines(&buttons)
+    ///     .with_edge_detection(EdgeDetection::BothEdges)
+    ///     .request()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_found_lines<'a>(
+        &mut self,
+        lines: &HashMap<&'a str, super::FoundLine>,
+    ) -> &mut Self {
+        for line in lines.values() {
+            if let Err(e) = self.cfg.with_found_line(line) {
+                self.err = Some(e);
+            }
         }
         self
     }
@@ -586,6 +635,9 @@ enum UapiRequest {
 /// [`Request.reconfigure`]: struct.Request.html#method.reconfigure
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Config {
+    /// The path to the GPIO chip for all lines in the request.
+    chip: PathBuf,
+
     /// The base configuration that applies to a line when it is first added.
     ///
     /// Prior to adding lines this config is the receiver for all mutations.
@@ -610,6 +662,19 @@ impl Config {
     /// lifetime of the associated request.
     fn update(&mut self, cfg: Config) {
         self.lcfg = cfg.lcfg;
+    }
+
+    /// Set the chip from which to request lines.
+    ///
+    /// This applies to all lines in the request. It is not possible to request lines
+    /// from different chips in the same request.
+    ///
+    /// The chip is identified by a path which must resolve to a GPIO character device.
+    ///
+    ///
+    pub fn on_chip<P: Into<PathBuf>>(&mut self, path: P) -> &mut Self {
+        self.chip = path.into();
+        self
     }
 
     /// Set the selected lines to input.
@@ -777,10 +842,70 @@ impl Config {
         self
     }
 
+    /// Add a found line to the config.
+    ///
+    /// The line must be on the same chip as any existing lines in the request.
+    ///
+    /// Note that all configuration mutators applied subsequently only apply to this line.
+    /// # Examples
+    /// ```no_run
+    /// # use gpiocdev::Result;
+    /// # use gpiocdev::request::Config;
+    /// # use gpiocdev::line::Value;
+    /// # fn main() -> Result<()> {
+    /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+    /// let mut cfg = Config::default();
+    /// cfg.with_found_line(&led0)?
+    ///    .as_output(Value::Active);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_found_line(&mut self, line: &super::FoundLine) -> Result<&mut Self> {
+        if self.chip.as_os_str().is_empty() {
+            self.on_chip(&line.chip);
+        }
+        if self.chip == line.chip {
+            self.with_line(line.info.offset);
+            Ok(self)
+        } else {
+            Err(Error::InvalidArgument(
+                "Multiple chips requested.".to_string(),
+            ))
+        }
+    }
+
+    /// Add a set of found lines to the config.
+    ///
+    /// The lines must be on the same chip as any existing lines in the request.
+    ///
+    /// Note that all configuration mutators applied subsequently only apply to these lines.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use gpiocdev::Result;
+    /// # use gpiocdev::request::Config;
+    /// # use gpiocdev::line::EdgeDetection;
+    /// # fn main() -> Result<()> {
+    /// let buttons = gpiocdev::find_named_lines(&["BUTTON0","BUTTON1"], true)?;
+    /// let mut cfg = Config::default();
+    /// cfg.with_found_lines(&buttons)?
+    ///    .with_edge_detection(EdgeDetection::BothEdges);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_found_lines<'a>(
+        &mut self,
+        lines: &HashMap<&'a str, super::FoundLine>,
+    ) -> Result<&mut Self> {
+        for line in lines.values() {
+            self.with_found_line(line)?;
+        }
+        Ok(self)
+    }
+
     /// Add a line to the config.
     ///
-    /// Note that all configuration mutators applied subsequently only
-    /// apply to this line.
+    /// Note that all configuration mutators applied subsequently only apply to this line.
     pub fn with_line(&mut self, offset: Offset) -> &mut Self {
         self.selected.clear();
         self.select_line(&offset);
@@ -1099,7 +1224,7 @@ impl<'a> Iterator for SelectedIterator<'a> {
 
 /// An active request of a set of lines.
 ///
-/// Requests are built by the [`Builder`], which itself can be constructed by [`builder`].
+/// Requests are built by the [`Builder`], which itself can be constructed by [`builder`](#method.builder).
 ///
 /// # Event Buffering
 ///
@@ -1129,7 +1254,6 @@ impl<'a> Iterator for SelectedIterator<'a> {
 /// and hardware support and so cannot be guaranteed to work, though frequently it does.
 /// Test with your particular hardware to be sure.
 ///
-/// [`builder`]: #method.builder
 /// [`edge_events`]: #method.edge_events
 /// [`edge_event_size`]: #method.edge_event_size
 /// [`read_edge_event`]: #method.read_edge_event
@@ -1785,7 +1909,7 @@ mod tests {
         #[test]
         fn default() {
             let b = Builder::default();
-            assert_eq!(b.chip.as_os_str(), "");
+            assert_eq!(b.cfg.chip.as_os_str(), "");
             assert_eq!(b.cfg.num_lines(), 0);
             assert_eq!(b.consumer.as_str(), "");
             assert_eq!(b.kernel_event_buffer_size, 0);
@@ -1883,10 +2007,13 @@ mod tests {
         #[test]
         fn on_chip() {
             let mut b = Builder::default();
-            assert_eq!(b.chip.as_os_str(), "");
+            assert_eq!(b.cfg.chip.as_os_str(), "");
 
             b.on_chip("test chip");
-            assert_eq!(b.chip.as_os_str(), "test chip");
+            assert_eq!(b.cfg.chip.as_os_str(), "test chip");
+
+            b.on_chip("test chip2");
+            assert_eq!(b.cfg.chip.as_os_str(), "test chip");
         }
 
         #[test]
@@ -2916,7 +3043,7 @@ mod tests {
         #[test]
         fn request_builder() {
             let b = Request::builder();
-            assert_eq!(b.chip.as_os_str(), "");
+            assert_eq!(b.cfg.chip.as_os_str(), "");
             assert_eq!(b.cfg.num_lines(), 0);
             assert_eq!(b.consumer.as_str(), "");
             assert_eq!(b.kernel_event_buffer_size, 0);

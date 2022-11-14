@@ -99,8 +99,8 @@ fn find_named_lines() {
         Err(gpiocdev::Error::NonuniqueLineName("fls apple".to_string()))
     );
 
-    let found = gpiocdev::find_named_lines(&["fls banana", "fls piggly"], true);
-    assert_eq!(found, Err(gpiocdev::Error::DistributedLines()));
+    let found = gpiocdev::find_named_lines(&["fls banana", "fls piggly"], true).unwrap();
+    assert_eq!(found.len(), 2);
 
     let found = gpiocdev::find_named_lines(&["fl nada"], true).unwrap();
     assert_eq!(found.len(), 0);
