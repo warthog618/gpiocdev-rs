@@ -221,12 +221,20 @@ impl Name {
     /// name is still valid UTF-8.
     pub fn from_bytes(s: &[u8]) -> Name {
         let mut d: Name = Default::default();
-        for (src, dst) in s.iter().zip(d.0.iter_mut()) {
-            *dst = *src;
-        }
         // drop any truncated UTF-8 codepoint
-        if d.strlen() == NAME_LEN_MAX && d.0[NAME_LEN_MAX - 1] > 0x80 {
-            d.0[NAME_LEN_MAX - 1] = 0;
+        let len = if s.len() < NAME_LEN_MAX {
+            s.len()
+        } else if s[NAME_LEN_MAX - 3] >= 0xf0 {
+            NAME_LEN_MAX - 3
+        } else if s[NAME_LEN_MAX - 2] >= 0xe0 {
+            NAME_LEN_MAX - 2
+        } else if s[NAME_LEN_MAX - 1] >= 0xc0 {
+            NAME_LEN_MAX - 1
+        } else {
+            NAME_LEN_MAX
+        };
+        for (src, dst) in s.iter().take(len).zip(d.0.iter_mut()) {
+            *dst = *src;
         }
         d
     }
@@ -489,9 +497,41 @@ mod tests {
         a = Name::from_bytes("an overly long truncated name -><- cut here".as_bytes());
         assert_eq!(a.as_os_str(), "an overly long truncated name ->");
 
-        // truncated at UTF-8 code point
+        // truncated at UTF-8 code point - dangling 1 of 2
         a = Name::from_bytes("an overly long truncated name->ó<- cut here".as_bytes());
         assert_eq!(a.as_os_str(), "an overly long truncated name->");
+
+        // truncated at UTF-8 code point - trailing 2 byte
+        a = Name::from_bytes("an overly long truncated name ó<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "an overly long truncated name ó");
+
+        // truncated at UTF-8 code point - dangling 1 of 3
+        a = Name::from_bytes("an overly long truncated name->€<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "an overly long truncated name->");
+
+        // truncated at UTF-8 code point - dangling 2 of 3
+        a = Name::from_bytes("an overly long truncated name>€<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "an overly long truncated name>");
+
+        // truncated at UTF-8 code point - trailing 3 byte
+        a = Name::from_bytes("overly long truncated name - €<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "overly long truncated name - €");
+
+        // truncated at UTF-8 code point - dangling 1 of 4
+        a = Name::from_bytes("an overly long truncated name->𝄞<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "an overly long truncated name->");
+
+        // truncated at UTF-8 code point - dangling 2 of 4
+        a = Name::from_bytes("an overly long truncated name>𝄞<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "an overly long truncated name>");
+
+        // truncated at UTF-8 code point - dangling 3 of 4
+        a = Name::from_bytes("overly long truncated name ->𝄞<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "overly long truncated name ->");
+
+        // truncated at UTF-8 code point - trailing 4 byte
+        a = Name::from_bytes("overly long truncated name -𝄞<- cut here".as_bytes());
+        assert_eq!(a.as_os_str(), "overly long truncated name -𝄞");
     }
 
     #[test]
