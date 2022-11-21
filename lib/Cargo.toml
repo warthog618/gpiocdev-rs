@@ -12,7 +12,7 @@ keywords = ["linux", "gpio", "library", "embedded", "async"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-version = "0.3.0"
+version = "0.4.0"
 
 [dependencies]
 async-io = {version = "1.9.0", optional = true}
