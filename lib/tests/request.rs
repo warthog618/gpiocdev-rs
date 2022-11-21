@@ -144,8 +144,8 @@ mod builder {
                     .with_debounce_period(Duration::from_millis(offset as u64));
             }
             let res = Request::builder()
-                .on_chip(&simc.dev_path)
                 .with_config(cfg)
+                .on_chip(&simc.dev_path)
                 .as_input()
                 .request();
             assert_eq!(
