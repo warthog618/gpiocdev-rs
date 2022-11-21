@@ -411,7 +411,7 @@ impl Timestamp {
     pub fn from_nanos(t: u64) -> Self {
         let sec = (t / 1000000000) as i64;
         let nsec = (t as u32) % 1000000000;
-        Timestamp(Utc.timestamp(sec, nsec))
+        Timestamp(Utc.timestamp_opt(sec, nsec).unwrap())
     }
 }
 
