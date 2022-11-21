@@ -482,11 +482,13 @@ pub fn print_time(evtime: u64, timefmt: &TimeFmt) {
     match timefmt {
         TimeFmt::Seconds => print!("{}.{}", ts_sec, ts_nsec),
         TimeFmt::Localtime => {
-            let t = Local.from_utc_datetime(&NaiveDateTime::from_timestamp(ts_sec, ts_nsec));
+            let t = Local
+                .from_utc_datetime(&NaiveDateTime::from_timestamp_opt(ts_sec, ts_nsec).unwrap());
             print!("{}", t.format("%FT%T%.9f"));
         }
         TimeFmt::Utc => {
-            let t = Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(ts_sec, ts_nsec));
+            let t =
+                Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(ts_sec, ts_nsec).unwrap());
             print!("{}", t.format("%FT%T%.9fZ"));
         }
     }
