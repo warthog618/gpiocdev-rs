@@ -371,6 +371,7 @@ mod chip {
         if abiv == gpiocdev::AbiVersion::V2 {
             let req = builder
                 .with_config(gpiocdev::request::Config::default())
+                .on_chip(&simc.dev_path)
                 .with_line(0)
                 .with_edge_detection(gpiocdev::line::EdgeDetection::FallingEdge)
                 .with_event_clock(gpiocdev::line::EventClock::Realtime)
