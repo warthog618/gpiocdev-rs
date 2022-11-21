@@ -20,7 +20,7 @@ bitmaps = {version = "3.2"}
 chrono = "0.4"
 errno = "0.2"
 futures = {version = "0.3", optional = true}
-gpiocdev-uapi = {version = "0.3.0", path = "../uapi", default-features = false}
+gpiocdev-uapi = {version = "0.3", path = "../uapi", default-features = false}
 nohash-hasher = "0.2"
 thiserror = "1.0"
 tokio = {version = "1.21", features = ["net"], optional = true}
@@ -28,8 +28,8 @@ tokio-stream = {version = "0.1.11", optional = true}
 
 [dev-dependencies]
 anyhow = "1.0"
-async-std = {version = "1.12.0"}
-gpiosim = {version = "0.2.0"}
+async-std = {version = "1.12"}
+gpiosim = {version = "0.2"}
 tokio = {version = "1.21", features = ["macros", "rt", "time"]}
 
 [features]
