@@ -19,7 +19,6 @@ use gpiocdev_uapi::NUM_LINES_MAX;
 use gpiocdev_uapi::{v2, v2 as uapi};
 use nohash_hasher::IntMap;
 use std::cmp::max;
-#[cfg(feature = "uapi_v2")]
 use std::collections::HashMap;
 use std::fs::File;
 use std::mem;

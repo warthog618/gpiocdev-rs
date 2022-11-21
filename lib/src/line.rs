@@ -1682,7 +1682,7 @@ mod tests {
         fn from_v2() {
             let v2event = v2::LineInfoChangeEvent {
                 timestamp_ns: 1234,
-                kind: gpiocdev_uapi::v1::LineInfoChangeKind::Reconfigured,
+                kind: gpiocdev_uapi::v2::LineInfoChangeKind::Reconfigured,
                 info: v2::LineInfo {
                     offset: 32,
                     flags: v2::LineFlags::OPEN_DRAIN,
