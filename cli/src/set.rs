@@ -6,8 +6,7 @@ use super::common::{
     self, ActiveLowOpts, BiasOpts, ChipInfo, DriveOpts, LineOpts, ParseDurationError, UapiOpts,
 };
 use anyhow::{anyhow, bail, Context, Result};
-use clap::Parser;
-use colored::*;
+use clap::{Arg, ArgAction, Command, Parser};
 use daemonize::Daemonize;
 use gpiocdev::line::{Offset, Value, Values};
 use gpiocdev::request::{Config, Request};
@@ -20,7 +19,7 @@ use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::str::{FromStr, SplitWhitespace};
+use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 
@@ -98,10 +97,6 @@ pub struct Opts {
 
     #[command(flatten)]
     uapi_opts: UapiOpts,
-
-    /// Don't quote line names.
-    #[arg(long)]
-    unquoted: bool,
 }
 
 impl Opts {
@@ -228,6 +223,57 @@ impl Setter {
         rl.set_helper(Some(helper));
         let mut stdout = std::io::stdout();
         let prompt = "gpiocdev-set> ";
+        let cmd = Command::new("gpiocdev")
+            .no_binary_name(true)
+            .disable_help_flag(true)
+            .infer_subcommands(true)
+            .override_help(interactive_help())
+            .subcommand(
+                Command::new("get")
+                    .about("Display the current values of the given requested lines")
+                    .arg(
+                        Arg::new("lines")
+                            .required(false)
+                            .action(ArgAction::Append)
+                            .value_parser(parse_line),
+                    ),
+            )
+            .subcommand(
+                Command::new("set")
+                    .about("Update the values of the given requested lines")
+                    .help_template("{name} woot {about}")
+                    .arg(
+                        Arg::new("line_values")
+                            .value_name("line=value")
+                            .required(true)
+                            .action(ArgAction::Append)
+                            .value_parser(parse_line_value),
+                    ),
+            )
+            .subcommand(
+                Command::new("sleep")
+                    .about("Sleep for the specified period")
+                    .arg(
+                        Arg::new("duration")
+                            .required(true)
+                            .action(ArgAction::Set)
+                            .value_parser(common::parse_duration),
+                    ),
+            )
+            .subcommand(
+                Command::new("toggle")
+                    .about(
+                        "Toggle the values of the given requested lines\n\
+            If no lines are specified then all requested lines are toggled.",
+                    )
+                    .arg(
+                        Arg::new("lines")
+                            .required(false)
+                            .action(ArgAction::Append)
+                            .value_parser(parse_line),
+                    ),
+            )
+            .subcommand(Command::new("exit").about("Exit the program"));
         loop {
             /*
              * manually print the prompt, as rustyline doesn't if stdout
@@ -239,27 +285,70 @@ impl Setter {
             let readline = rl.readline(prompt);
             match readline {
                 Ok(line) => {
-                    let mut words = line.trim().split_ascii_whitespace();
-                    if let Err(err) = match words.next() {
-                        None => continue,
-                        Some("get") => self.do_get(words, opts.unquoted),
-                        Some("set") => self.do_set(words),
-                        Some("sleep") => self.do_sleep(words.next()),
-                        Some("toggle") => self.do_toggle(words),
-                        Some("exit") => return Ok(()),
-                        Some("help") => print_interactive_help(),
-                        Some("?") => print_interactive_help(),
-                        Some(x) => Err(anyhow!("unknown command: '{}'", x)),
-                    } {
-                        println!("{}", err);
-                        // clean in case the error leaves dirty lines.
-                        self.clean();
+                    match self.parse_command(cmd.clone(), &line) {
+                        Err(err) if err.is::<ExitCmdError>() => return Ok(()),
+                        Err(err) => {
+                            println!("{}", err);
+                            // clean in case the error leaves dirty lines.
+                            self.clean();
+                        }
+                        Ok(_) => {}
                     }
                 }
                 Err(ReadlineError::Interrupted) => return Ok(()),
                 Err(ReadlineError::Eof) => return Ok(()),
                 Err(err) => bail!(err),
             }
+        }
+    }
+
+    fn parse_command(&mut self, cmd: Command, line: &str) -> Result<()> {
+        let mut words = CommandWords::new(line);
+        let mut args = Vec::new();
+        while let Some(word) = &words.next() {
+            args.push(*word);
+        }
+        if words.inquote {
+            return Err(anyhow!(format!(
+                "missing closing quote in '{}'",
+                args.last().unwrap()
+            )));
+        }
+        match cmd.try_get_matches_from(args) {
+            Ok(opt) => match opt.subcommand() {
+                Some(("exit", _)) => Err(anyhow!(ExitCmdError {})),
+                Some(("get", am)) => {
+                    let lines: Vec<String> = am
+                        .get_many::<String>("lines")
+                        .unwrap_or_default()
+                        .cloned()
+                        .collect();
+                    self.do_get(lines.as_slice())
+                }
+                Some(("set", am)) => {
+                    let lvs: Vec<(String, LineValue)> = am
+                        .get_many::<(String, LineValue)>("line_values")
+                        .unwrap()
+                        .cloned()
+                        .collect();
+                    self.do_set(lvs.as_slice())
+                }
+                Some(("sleep", am)) => {
+                    let d: Duration = am.get_one::<Duration>("duration").unwrap().to_owned();
+                    self.do_sleep(d)
+                }
+                Some(("toggle", am)) => {
+                    let lines: Vec<String> = am
+                        .get_many::<String>("lines")
+                        .unwrap_or_default()
+                        .cloned()
+                        .collect();
+                    self.do_toggle(lines.as_slice())
+                }
+                Some((&_, _)) => Ok(()),
+                None => Ok(()),
+            },
+            Err(e) => Err(anyhow!(e)),
         }
     }
 
@@ -270,27 +359,25 @@ impl Setter {
         }
     }
 
-    fn do_get(&mut self, lines: std::str::SplitAsciiWhitespace, unquoted: bool) -> Result<()> {
-        let mut have_lines = false;
+    fn do_get(&mut self, lines: &[String]) -> Result<()> {
         let mut print_values = Vec::new();
         for id in lines {
             match self.lines.get(id) {
                 Some(line) => {
-                    print_values.push(if unquoted {
+                    print_values.push(if !id.contains(' ') {
                         format!("{}={}", id, line.value)
                     } else {
                         format!("\"{}\"={}", id, line.value)
                     });
-                    have_lines = true;
                 }
                 None => bail!("not a requested line: '{}'", id),
             }
         }
-        if !have_lines {
+        if print_values.is_empty() {
             // no lines specified, so return all lines
             for id in &self.line_ids {
                 let value = self.lines.get(id).unwrap().value;
-                print_values.push(if unquoted {
+                print_values.push(if !id.contains(' ') {
                     format!("{}={}", id, value)
                 } else {
                     format!("\"{}\"={}", id, value)
@@ -302,19 +389,14 @@ impl Setter {
         Ok(())
     }
 
-    fn do_set(&mut self, changes: std::str::SplitAsciiWhitespace) -> Result<()> {
-        for lv in changes {
-            match parse_line_value(lv) {
-                Err(e) => {
-                    bail!("invalid value: {}", e);
+    fn do_set(&mut self, changes: &[(String, LineValue)]) -> Result<()> {
+        for (id, value) in changes {
+            match self.lines.get_mut(id) {
+                Some(line) => {
+                    line.value = value.0;
+                    line.dirty = true;
                 }
-                Ok((id, value)) => match self.lines.get_mut(&id) {
-                    Some(line) => {
-                        line.value = value.0;
-                        line.dirty = true;
-                    }
-                    None => bail!("not a requested line: '{}'", id),
-                },
+                None => bail!("not a requested line: '{}'", id),
             }
         }
         if self.update()? {
@@ -323,42 +405,32 @@ impl Setter {
         Ok(())
     }
 
-    fn do_sleep(&mut self, duration: Option<&str>) -> Result<()> {
-        match duration {
-            Some(period) => match common::parse_duration(period) {
-                Ok(mut d) => {
-                    if self.last_held {
-                        self.last_held = false;
-                        if let Some(period) = self.hold_period {
-                            if d < period {
-                                // slept longer than that already
-                                return Ok(());
-                            }
-                            d -= period;
-                        }
-                    }
-                    thread::sleep(d);
+    fn do_sleep(&mut self, mut d: Duration) -> Result<()> {
+        if self.last_held {
+            self.last_held = false;
+            if let Some(period) = self.hold_period {
+                if d < period {
+                    // slept longer than that already
+                    return Ok(());
                 }
-                Err(e) => bail!("invalid duration: '{}'", e),
-            },
-            None => bail!("invalid command: require duration"),
+                d -= period;
+            }
         }
+        thread::sleep(d);
         Ok(())
     }
 
-    fn do_toggle(&mut self, lines: std::str::SplitAsciiWhitespace) -> Result<()> {
-        let mut have_lines = false;
+    fn do_toggle(&mut self, lines: &[String]) -> Result<()> {
         for id in lines {
             match self.lines.get_mut(id) {
                 Some(line) => {
                     line.value = line.value.not();
                     line.dirty = true;
-                    have_lines = true;
                 }
                 None => bail!("not a requested line: '{}'", id),
             }
         }
-        if !have_lines {
+        if lines.is_empty() {
             // no lines specified, so toggle all lines
             self.toggle_all_lines();
         }
@@ -428,7 +500,19 @@ impl Setter {
     }
 }
 
-fn print_interactive_help() -> Result<()> {
+#[derive(Debug)]
+struct ExitCmdError {}
+
+impl fmt::Display for ExitCmdError {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+}
+impl Error for ExitCmdError {}
+
+fn interactive_help() -> String {
+    let mut help = "COMMANDS:\n".to_owned();
+
     let cmds = [
         (
             "get [line]...",
@@ -447,14 +531,15 @@ fn print_interactive_help() -> Result<()> {
         ("help", "Print this help"),
         ("exit", "Exit the program"),
     ];
-    println!("{}", "COMMANDS:".underline());
-    for (cmd, help) in cmds {
-        print!("\n    {}", cmd.bold());
-        for line in help.split('\n') {
-            println!("\n            {}", line);
+    for (cmd, desc) in cmds {
+        let cmd_line = format!("\n    {}", cmd);
+        help.push_str(&cmd_line);
+        for line in desc.split('\n') {
+            let desc_line = format!("\n            {}\n", line);
+            help.push_str(&desc_line);
         }
     }
-    Ok(())
+    help
 }
 
 fn print_banner(lines: &[String]) {
@@ -481,14 +566,31 @@ struct Line {
     dirty: bool,
 }
 
+// strips quotes surrounding the whole string.
+fn unquoted(s: &str) -> &str {
+    if s.starts_with('"') && s.ends_with('"') && s.len() > 1 {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
+/// Parse a single line id
+fn parse_line(s: &str) -> std::result::Result<String, Box<dyn Error + Send + Sync + 'static>> {
+    Ok(unquoted(s).to_string())
+}
+
 /// Parse a single line=value pair
-fn parse_line_value(
-    s: &str,
-) -> std::result::Result<(String, LineValue), Box<dyn Error + Send + Sync + 'static>> {
+fn parse_line_value(s: &str) -> std::result::Result<(String, LineValue), anyhow::Error> {
     let pos = s
-        .find('=')
-        .ok_or_else(|| format!("invalid line=value: no '=' found in '{}'", s))?;
-    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
+        .rfind('=')
+        .ok_or_else(|| anyhow!("invalid line=value: no '=' found in '{}'", s))?;
+    let ln = unquoted(&s[..pos]);
+    if ln.contains('"') {
+        bail!("invalid line=value: semi-quoted line name in '{}'", s)
+    } else {
+        Ok((ln.to_string(), s[pos + 1..].parse()?))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -547,107 +649,100 @@ struct InteractiveHelper {
 }
 
 impl InteractiveHelper {
-    fn complete_set(&self, line: &str, pos: usize, words: SplitWhitespace) -> (usize, Vec<Pair>) {
+    fn complete_set(&self, mut pos: usize, mut words: CommandWords) -> (usize, Vec<Pair>) {
         let mut candidates = Vec::new();
-        let line_values: Vec<&'_ str> = words.collect();
-        if line_values.is_empty() {
-            for display in self.line_names.iter() {
-                candidates.push(line_value_pair(display))
-            }
-            return (pos, candidates);
+        let mut line_values = Vec::new();
+        while let Some(word) = &words.next() {
+            line_values.push(*word);
         }
         let selected: Vec<&'_ str> = line_values
             .iter()
             .filter(|lv| lv.contains('='))
-            .map(|lv| &lv[..lv.find('=').unwrap()])
+            .map(|lv| unquoted(&lv[..lv.find('=').unwrap()]))
             .collect();
         let unselected = self
             .line_names
             .iter()
             .filter(|l| !selected.contains(&l.as_str()));
-        if line.len() != line.trim_end().len() {
-            for display in unselected {
-                candidates.push(line_value_pair(display));
+        if !words.partial {
+            for line in unselected {
+                candidates.push(line_value_pair(line));
             }
             return (pos, candidates);
         }
-        let line_value = line_values.last().unwrap();
-        let mut vpos = pos;
-        match line_value.split_once('=') {
-            Some((_, value)) => {
+        let mut part_word = *line_values.last().unwrap();
+        match part_word.split_once('=') {
+            Some((_, part_value)) => {
                 const VALUES: [&str; 8] =
                     ["active", "inactive", "on", "off", "true", "false", "1", "0"];
-                vpos -= value.len();
-                for display in VALUES.iter().filter(|v| v.starts_with(value)) {
-                    candidates.push(word_pair(display))
+                pos -= part_value.len();
+                for value in VALUES.iter().filter(|v| v.starts_with(part_value)) {
+                    candidates.push(base_pair(value))
                 }
             }
             None => {
-                let part_name = line_value;
-                vpos -= part_name.len();
-                for display in unselected.filter(|l| l.starts_with(part_name)) {
-                    candidates.push(line_value_pair(display))
+                pos -= part_word.len();
+                part_word = unquoted(part_word);
+                if part_word.starts_with('"') {
+                    part_word = &part_word[1..];
+                }
+                for line in unselected.filter(|l| l.starts_with(part_word)) {
+                    candidates.push(line_value_pair(line))
                 }
             }
         }
-        (vpos, candidates)
+        (pos, candidates)
     }
 
-    fn complete_sleep(
-        &self,
-        _line: &str,
-        pos: usize,
-        words: SplitWhitespace,
-    ) -> (usize, Vec<Pair>) {
+    fn complete_sleep(&self, mut pos: usize, mut words: CommandWords) -> (usize, Vec<Pair>) {
         const UNITS: [&str; 4] = ["s", "ms", "us", "ns"];
         let mut candidates = Vec::new();
-        let mut upos = pos;
-        let times: Vec<&'_ str> = words.collect();
-        if times.len() == 1 {
-            let t = times[0];
+        let mut times = Vec::new();
+        while let Some(word) = &words.next() {
+            times.push(*word);
+        }
+        if words.partial && times.len() == 1 {
+            let t = &times[0];
             match t.find(|c: char| !c.is_ascii_digit()) {
                 Some(n) => {
                     let (_num, units) = t.split_at(n);
-                    upos -= units.len();
+                    pos -= units.len();
                     for display in UNITS.iter().filter(|u| u.starts_with(units)) {
-                        candidates.push(bare_pair(display))
+                        candidates.push(base_pair(display))
                     }
                 }
                 None => {
                     for display in UNITS.iter() {
-                        candidates.push(bare_pair(display))
+                        candidates.push(base_pair(display))
                     }
                 }
             }
         }
-        (upos, candidates)
+        (pos, candidates)
     }
 
-    fn complete_lines(&self, line: &str, pos: usize, words: SplitWhitespace) -> (usize, Vec<Pair>) {
-        let mut candidates = Vec::new();
-        let selected: Vec<&'_ str> = words.collect();
+    fn complete_lines(&self, pos: usize, mut words: CommandWords) -> (usize, Vec<Pair>) {
+        let mut selected = Vec::new();
+        while let Some(word) = &words.next() {
+            selected.push(unquoted(word));
+        }
         let unselected = self
             .line_names
             .iter()
             .filter(|l| !selected.contains(&l.as_str()));
-        let mut lpos = pos;
-        if line.len() != line.trim_end().len() {
-            for display in unselected {
-                candidates.push(word_pair(display))
-            }
-        } else {
-            let part_word = String::from(*selected.last().unwrap());
-            if self.line_names.contains(&part_word) {
-                for display in unselected {
-                    candidates.push(prespace_word_pair(display))
-                }
-            } else {
-                lpos -= part_word.len();
-                for display in unselected.filter(|l| l.starts_with(&part_word)) {
-                    candidates.push(word_pair(display))
-                }
-            }
+        if !words.partial {
+            let candidates = unselected.map(|l| line_pair(l)).collect();
+            return (pos, candidates);
         }
+        let mut part_word = *selected.last().unwrap();
+        let lpos = pos - part_word.len();
+        if part_word.starts_with('"') {
+            part_word = &part_word[1..];
+        }
+        let candidates = unselected
+            .filter(|l| l.starts_with(part_word))
+            .map(|l| line_pair(l))
+            .collect();
         (lpos, candidates)
     }
 }
@@ -661,56 +756,40 @@ impl Completer for InteractiveHelper {
         pos: usize,
         _ctx: &rustyline::Context<'_>,
     ) -> Result<(usize, Vec<Pair>), ReadlineError> {
-        const CMD_SET: [&str; 6] = ["exit", "get", "help", "set ", "sleep ", "toggle "];
+        const CMD_SET: [&str; 6] = ["exit", "get", "help", "set", "sleep", "toggle"];
         let cmd_pos = line.len() - line.trim_start().len();
-        let mut words = line[..pos].split_whitespace();
-        let mut candidates = Vec::new();
-        match words.next() {
+        let mut words = CommandWords::new(&line[cmd_pos..pos]);
+        Ok(match words.next() {
             Some(cmd) => {
-                if line.len() > cmd.len() + cmd_pos {
-                    return Ok(match cmd {
-                        "get" => self.complete_lines(line, pos, words),
-                        "set" => self.complete_set(line, pos, words),
-                        "sleep" => self.complete_sleep(line, pos, words),
-                        "toggle" => self.complete_lines(line, pos, words),
-                        _ => (cmd_pos, vec![]),
-                    });
-                } else {
+                if words.partial {
+                    let mut candidates = Vec::new();
                     for display in CMD_SET.iter().filter(|x| x.starts_with(cmd)) {
-                        candidates.push(cmd_pair(display))
+                        candidates.push(base_pair(display))
+                    }
+                    (cmd_pos, candidates)
+                } else {
+                    match cmd {
+                        "get" => self.complete_lines(pos, words),
+                        "set" => self.complete_set(pos, words),
+                        "sleep" => self.complete_sleep(pos, words),
+                        "toggle" => self.complete_lines(pos, words),
+                        _ => (cmd_pos, vec![]),
                     }
                 }
             }
             None => {
+                let mut candidates = Vec::new();
                 for display in CMD_SET.iter() {
-                    candidates.push(cmd_pair(display))
+                    candidates.push(base_pair(display))
                 }
+                (0, candidates)
             }
-        }
-        Ok((0, candidates))
+        })
     }
 }
 
-fn cmd_pair(candidate: &str) -> Pair {
-    let replacement = String::from(candidate);
-    let display = String::from(candidate.trim_end());
-    Pair {
-        display,
-        replacement,
-    }
-}
-
-fn prespace_word_pair(candidate: &str) -> Pair {
-    let display = String::from(candidate);
-    let mut replacement = String::from(' ');
-    replacement.push_str(candidate);
-    Pair {
-        display,
-        replacement,
-    }
-}
-
-fn word_pair(candidate: &str) -> Pair {
+// a pair that ends a command word
+fn base_pair(candidate: &str) -> Pair {
     let display = String::from(candidate);
     let mut replacement = display.clone();
     replacement.push(' ');
@@ -720,9 +799,34 @@ fn word_pair(candidate: &str) -> Pair {
     }
 }
 
+fn quotable(line: &str) -> String {
+    // force quotes iff necessary
+    if line.contains(' ') {
+        let mut quoted = "\"".to_string();
+        quoted.push_str(line);
+        quoted.push('"');
+        quoted
+    } else {
+        line.to_string()
+    }
+}
+
+// a pair that contains a line name - that may need to be quoted.
+fn line_pair(candidate: &str) -> Pair {
+    let display = String::from(candidate);
+    let mut replacement = quotable(candidate);
+    replacement.push(' ');
+    Pair {
+        display,
+        replacement,
+    }
+}
+
+// a pair that contains a line name - that may need to be quoted,
+// and will be followed by a value.
 fn line_value_pair(candidate: &str) -> Pair {
     let display = String::from(candidate);
-    let mut replacement = display.clone();
+    let mut replacement = quotable(candidate);
     replacement.push('=');
     Pair {
         display,
@@ -730,12 +834,56 @@ fn line_value_pair(candidate: &str) -> Pair {
     }
 }
 
-fn bare_pair(candidate: &str) -> Pair {
-    let display = String::from(candidate);
-    let replacement = display.clone();
-    Pair {
-        display,
-        replacement,
+struct CommandWords<'a> {
+    line: &'a str,
+    liter: std::str::CharIndices<'a>,
+    inquote: bool,
+    partial: bool,
+}
+
+impl CommandWords<'_> {
+    fn new(line: &str) -> CommandWords {
+        CommandWords {
+            line,
+            liter: line.char_indices(),
+            inquote: false,
+            partial: false,
+        }
+    }
+}
+
+impl<'a> Iterator for CommandWords<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<&'a str> {
+        let start;
+        loop {
+            match self.liter.next() {
+                Some((_, ' ')) => {}
+                Some((pos, c)) => {
+                    start = pos;
+                    if c == '"' {
+                        self.inquote = true;
+                    }
+                    break;
+                }
+                None => return None,
+            }
+        }
+        loop {
+            match self.liter.next() {
+                Some((_, '"')) if self.inquote => self.inquote = false,
+                Some((_, '"')) if !self.inquote => self.inquote = true,
+                Some((pos, ' ')) if !self.inquote => {
+                    return Some(&self.line[start..pos]);
+                }
+                Some((_, _)) => {}
+                None => {
+                    self.partial = true;
+                    return Some(&self.line[start..]);
+                }
+            }
+        }
     }
 }
 
@@ -744,6 +892,14 @@ mod tests {
     use super::*;
 
     mod parse {
+        #[test]
+        fn line() {
+            use super::parse_line;
+            assert_eq!(parse_line("unquoted").unwrap(), "unquoted".to_string());
+            assert_eq!(parse_line("\"semi").unwrap(), "\"semi".to_string());
+            assert_eq!(parse_line("\"quoted\"").unwrap(), "quoted".to_string());
+        }
+
         #[test]
         fn line_value() {
             use super::{parse_line_value, LineValue};
@@ -779,6 +935,28 @@ mod tests {
             assert_eq!(
                 parse_line_value("l=false").unwrap(),
                 ("l".to_string(), LineValue(Value::Inactive))
+            );
+            assert_eq!(
+                parse_line_value("\"quoted\"=false").unwrap(),
+                ("quoted".to_string(), LineValue(Value::Inactive))
+            );
+            assert_eq!(
+                parse_line_value("\"quoted\\ name\"=1").unwrap(),
+                ("quoted\\ name".to_string(), LineValue(Value::Active))
+            );
+            assert_eq!(
+                parse_line_value("\"quoted=false")
+                    .err()
+                    .unwrap()
+                    .to_string(),
+                "invalid line=value: semi-quoted line name in '\"quoted=false'"
+            );
+            assert_eq!(
+                parse_line_value("unquoted\"=false")
+                    .err()
+                    .unwrap()
+                    .to_string(),
+                "invalid line=value: semi-quoted line name in 'unquoted\"=false'"
             );
             assert_eq!(
                 parse_line_value("5").err().unwrap().to_string(),
@@ -840,6 +1018,69 @@ mod tests {
                 parse_time_sequence("bad").unwrap_err(),
                 ParseDurationError::NoDigits("bad".to_string())
             );
+        }
+    }
+
+    mod command_words {
+        use super::CommandWords;
+        #[test]
+        fn whole_words() {
+            let mut words = CommandWords::new("basic command line");
+            let mut word = words.next().unwrap();
+            assert_eq!(word, "basic");
+            assert!(!words.partial);
+            assert!(!words.inquote);
+            word = words.next().unwrap();
+            assert_eq!(word, "command");
+            assert!(!words.partial);
+            assert!(!words.inquote);
+            word = words.next().unwrap();
+            assert_eq!(word, "line");
+            assert!(words.partial);
+            assert!(!words.inquote);
+            assert_eq!(words.next(), None);
+            assert!(words.partial);
+            assert!(!words.inquote);
+        }
+
+        #[test]
+        fn quoted_words() {
+            let mut words = CommandWords::new("quoted \"command lines\" \"are awful");
+            let mut word = words.next().unwrap();
+            assert_eq!(word, "quoted");
+            assert!(!words.partial);
+            assert!(!words.inquote);
+            word = words.next().unwrap();
+            assert_eq!(word, "\"command lines\"");
+            assert!(!words.partial);
+            assert!(!words.inquote);
+            word = words.next().unwrap();
+            assert_eq!(word, "\"are awful");
+            assert!(words.partial);
+            assert!(words.inquote);
+            assert_eq!(words.next(), None);
+            assert!(words.partial);
+            assert!(words.inquote);
+        }
+
+        #[test]
+        fn quotes_mid_words() {
+            let mut words = CommandWords::new("quoted \"comm\"and\" lines\" \"are awful");
+            let mut word = words.next().unwrap();
+            assert_eq!(word, "quoted");
+            assert!(!words.partial);
+            assert!(!words.inquote);
+            word = words.next().unwrap();
+            assert_eq!(word, "\"comm\"and\" lines\"");
+            assert!(!words.partial);
+            assert!(!words.inquote);
+            word = words.next().unwrap();
+            assert_eq!(word, "\"are awful");
+            assert!(words.partial);
+            assert!(words.inquote);
+            assert_eq!(words.next(), None);
+            assert!(words.partial);
+            assert!(words.inquote);
         }
     }
 }
