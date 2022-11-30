@@ -298,12 +298,14 @@ impl<'a> Stream for EdgeEventStream<'a> {
     type Item = Result<EdgeEvent>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        if self.events.has_event()? {
+        // return any previously buffered event...
+        if !self.events.is_empty() {
             return Poll::Ready(Some(self.events.read_event()));
         }
+        // ... else go to the fd to check for new events
         let mut guard = ready!(self.req.0.poll_read_ready(cx)).map_err(crate::errno_from_ioerr)?;
         let res = Poll::Ready(Some(self.events.read_event()));
-        if !self.events.has_event()? {
+        if !self.req.0.get_ref().has_edge_event()? {
             guard.clear_ready();
         }
         res
