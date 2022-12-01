@@ -1225,6 +1225,15 @@ impl<'a> Iterator for SelectedIterator<'a> {
 ///
 /// Requests are built by the [`Builder`], which itself can be constructed by [`builder`](#method.builder).
 ///
+/// # Output Lifetime
+///
+/// The value of an output line is only guaranteed for the lifetime of the request.
+/// If the request is dropped then the output value becomes indeterminate - it may remain unchanged
+/// or it may reset to the default value (depending on a number of factors including the kernel driver
+/// for your hardware and whether other lines on the chip are still requested).
+///
+/// So keep the request alive to be sure of the output value.
+///
 /// # Event Buffering
 ///
 /// Events are buffered both in the kernel and in user space.
