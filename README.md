@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC0-1.0
 -->
 # gpiocdev-rs
 
-[![Build Status](https://img.shields.io/github/workflow/status/warthog618/gpiocdev-rs/Build.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/warthog618/gpiocdev-rs/rust.yml?logo=github&branch=master)](https://github.com/warthog618/gpiocdev-rs/actions/workflows/rust.yml)
 
 A Rust library for accessing GPIO lines on Linux platforms using the GPIO character device.
 

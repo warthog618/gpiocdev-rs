@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC0-1.0
 -->
 # gpiocdev
 
-[![Build Status](https://img.shields.io/github/workflow/status/warthog618/gpiocdev-rs/Build.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/warthog618/gpiocdev-rs/rust.yml?logo=github&branch=master)](https://github.com/warthog618/gpiocdev-rs/actions/workflows/rust.yml)
 [![github](https://img.shields.io/badge/github-warthog618/gpiocdev--rs-8da0cb.svg?logo=github)](https://github.com/warthog618/gpiocdev-rs)
 [![crate](https://img.shields.io/crates/v/gpiocdev.svg?color=fc8d62&logo=rust)](https://crates.io/crates/gpiocdev)
 ![LICENSE](https://img.shields.io/crates/l/gpiocdev.svg)
