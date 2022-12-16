@@ -65,7 +65,7 @@ fn is_chip_symlink() {
 fn is_chip_nonexistent() {
     let path = PathBuf::from("/dev/gpiochip_nonexistent");
     assert_eq!(
-        gpiocdev::chip::is_chip(&path),
+        gpiocdev::chip::is_chip(path),
         Err(gpiocdev::Error::OsError(Errno(2)))
     );
 }
@@ -156,7 +156,7 @@ mod chip {
     fn from_path_nonexistent() {
         let path = PathBuf::from("/dev/gpiochip_nonexistent");
         assert_eq!(
-            Chip::from_path(&path).unwrap_err(),
+            Chip::from_path(path).unwrap_err(),
             gpiocdev::Error::OsError(Errno(2))
         );
     }

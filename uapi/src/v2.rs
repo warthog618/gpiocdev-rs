@@ -390,7 +390,7 @@ pub struct LineConfigAttribute {
 /// [`LineConfig.num_attrs`]: struct@LineConfig
 #[repr(C)]
 #[derive(Clone, Debug, Default)]
-pub struct LineConfigAttributes(pub [LineConfigAttribute; NUM_ATTRS_MAX as usize]);
+pub struct LineConfigAttributes(pub [LineConfigAttribute; NUM_ATTRS_MAX]);
 
 /// Configuration for a set of requested lines.
 #[repr(C)]
@@ -568,7 +568,7 @@ impl LineInfo {
             ));
         }
         for i in 0..NUM_ATTRS_MAX {
-            if let Err(e) = self.attrs.0[i as usize].kind.validate() {
+            if let Err(e) = self.attrs.0[i].kind.validate() {
                 return Err(ValidationError::new(format!("attrs[{}].kind", i), e));
             }
         }

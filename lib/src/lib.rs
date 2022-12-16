@@ -539,7 +539,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Detect the most recent uAPI ABI supported by the platform.
 pub fn detect_abi_version() -> Result<AbiVersion> {
     for p in chip::chips()? {
-        if let Ok(c) = chip::Chip::from_path(&p) {
+        if let Ok(c) = chip::Chip::from_path(p) {
             return c.detect_abi_version();
         }
     }
@@ -549,7 +549,7 @@ pub fn detect_abi_version() -> Result<AbiVersion> {
 /// Check if the platform and library support a specific ABI version.
 pub fn supports_abi_version(abiv: AbiVersion) -> Result<()> {
     for p in chip::chips()? {
-        if let Ok(c) = chip::Chip::from_path(&p) {
+        if let Ok(c) = chip::Chip::from_path(p) {
             return c.supports_abi_version(abiv);
         }
     }

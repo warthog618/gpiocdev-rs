@@ -66,7 +66,7 @@ fn chip_path_from_id(id: &str) -> PathBuf {
 
 pub fn chip_lookup_from_id(id: &str) -> Result<PathBuf> {
     let path = chip_path_from_id(id);
-    chip::is_chip(&path).with_context(|| format!("cannot find GPIO chip character device '{}'", id))
+    chip::is_chip(path).with_context(|| format!("cannot find GPIO chip character device '{}'", id))
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
