@@ -8,11 +8,11 @@ categories = ["hardware-support", "os::linux-apis", "embedded", "api-bindings"]
 description = "A low level library to access GPIO lines on Linux using the GPIO character device"
 edition = "2021"
 rust-version = "1.60"
-keywords = ["linux", "gpio", "gpiochip", "ioctl", "library", "embedded"]
+keywords = ["linux", "gpio", "ioctl", "library", "embedded"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev-uapi"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-version = "0.3.1"
+version = "0.3.2"
 
 [dependencies]
 bitflags = "1.3"
