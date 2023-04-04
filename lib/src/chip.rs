@@ -12,7 +12,6 @@ use gpiocdev_uapi::v1 as uapi;
 use gpiocdev_uapi::v2 as uapi;
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi::{v1, v2};
-use std::collections::HashSet;
 use std::fmt;
 use std::fs;
 use std::mem;
@@ -51,16 +50,13 @@ pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
 /// The returned paths are sorted in name order and are confirmed to be GPIO character devices,
 /// so there is no need to check them with [`is_chip`].
 pub fn chips() -> Result<Vec<PathBuf>> {
-    let rd = std::fs::read_dir("/dev").map_err(crate::errno_from_ioerr)?;
-    let mut paths = HashSet::new();
-    rd.filter_map(|x| x.ok())
-        .map(|de| de.path())
-        .flat_map(is_chip)
-        .for_each(|p| {
-            paths.insert(p);
-        });
-    let mut chips = Vec::from_iter(paths);
-    chips.sort();
+    let mut chips = std::fs::read_dir("/dev")
+        .map_err(crate::errno_from_ioerr)?
+        .filter_map(|x| x.ok())
+        .flat_map(|de| is_chip(de.path()))
+        .collect::<Vec<PathBuf>>();
+    chips.sort_unstable_by(|a, b| human_sort::compare(&a.to_string_lossy(), &b.to_string_lossy()));
+    chips.dedup();
     Ok(chips)
 }
 

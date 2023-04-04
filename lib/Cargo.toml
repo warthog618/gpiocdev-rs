@@ -21,6 +21,7 @@ chrono = "0.4"
 errno = "0.3"
 futures = {version = "0.3", optional = true}
 gpiocdev-uapi = {version = "0.3", path = "../uapi", default-features = false}
+human-sort = "0.2"
 nohash-hasher = "0.2"
 thiserror = "1.0"
 tokio = {version = "1.21", features = ["net"], optional = true}
