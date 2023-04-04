@@ -37,9 +37,7 @@ The library makes no use of the deprecated **sysfs** GPIO API.
 
 ## Async Compatibility
 
-The majority of the GPIO uAPI is effectively non-blocking and so does not require any async specific treatment.
-
-The exceptions are waiting for edge events from [Request](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Request.html)s, and info change events from [Chip](https://docs.rs/gpiocdev/latest/gpiocdev/chip/struct.Chip.html)s.
+The majority of the GPIO uAPI is synchronous.  The exceptions are waiting for edge events from [Request](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Request.html)s, and info change events from [Chip](https://docs.rs/gpiocdev/latest/gpiocdev/chip/struct.Chip.html)s.
 Support for asynchronous wrappers around these are provided through features for the following reactors:
 
 |Reactor|Feature|Module|
@@ -48,6 +46,8 @@ Support for asynchronous wrappers around these are provided through features for
 |async-io|async_io|gpiocdev::async::async_io|
 
 Additionally, Chips and Requests also expose their underlying file descriptor, which may be used directly with an async reactor.  An example of this is the **gpiocdev-cli** [edges](https://github.com/warthog618/gpiocdev-rs/blob/master/cli/src/edges.rs) command, which can asynchronously wait on multiple lines spread across multiple chips using the [mio](https://crates.io/crates/mio) reactor.
+
+With respect to the synchronous uAPI functions, those can generally be considered non-blocking unless the GPIO line is provided by an expander connected to the host processor via a bus such as I2C or SPI.  In such cases calls to synchronous functions should be made from a separate thread so as not to stall the reactor.  The uAPI does not provide a definitive indication as to whether lines are hosted locally or on an expander, so it is up to the application to determine if that may be the case.  Even if the uAPI did provide an indicator, determining the approach most appropriate to interwork the reactor thread with the uAPI thread(s), and possibly other threads, is best left to the application.
 
 ## Example Usage
 
