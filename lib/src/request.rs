@@ -431,9 +431,9 @@ impl Builder {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn with_found_lines<'a>(
+    pub fn with_found_lines(
         &mut self,
-        lines: &HashMap<&'a str, super::FoundLine>,
+        lines: &HashMap<&str, super::FoundLine>,
     ) -> &mut Self {
         for line in lines.values() {
             if let Err(e) = self.cfg.with_found_line(line) {
@@ -892,9 +892,9 @@ impl Config {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn with_found_lines<'a>(
+    pub fn with_found_lines(
         &mut self,
-        lines: &HashMap<&'a str, super::FoundLine>,
+        lines: &HashMap<&str, super::FoundLine>,
     ) -> Result<&mut Self> {
         for line in lines.values() {
             self.with_found_line(line)?;
