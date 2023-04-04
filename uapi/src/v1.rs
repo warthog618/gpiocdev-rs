@@ -55,7 +55,7 @@ pub struct LineInfo {
 
 bitflags! {
     /// Flags indicating the configuration of a line.
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
     pub struct LineInfoFlags: u32 {
         /// The line is in use and is not available for request.
         const USED = 1;
@@ -230,7 +230,7 @@ bitflags! {
     /// Note that several of the flags, such as BIAS_PULL_UP and BIAS_PULL_DOWN are mutually
     /// exclusive.  The kernel will reject requests with flag combinations that do not make
     /// sense.
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
     pub struct HandleRequestFlags: u32 {
         /// Requests line as an input.
         const INPUT = 1;
@@ -456,7 +456,7 @@ pub struct EventRequest {
 
 bitflags! {
     /// Additional configuration flags for event requests.
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
     pub struct EventRequestFlags: u32 {
         /// Report rising edge events on the requested line.
         const RISING_EDGE = 1;
@@ -465,7 +465,7 @@ bitflags! {
         const FALLING_EDGE = 2;
 
         /// Report both rising and falling edge events on the requested line.
-        const BOTH_EDGES = Self::RISING_EDGE.bits | Self::FALLING_EDGE.bits;
+        const BOTH_EDGES = Self::RISING_EDGE.bits() | Self::FALLING_EDGE.bits();
     }
 }
 

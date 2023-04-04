@@ -216,7 +216,7 @@ impl Setter {
         let config = rustyline::Config::builder()
             .completion_type(CompletionType::List)
             .auto_add_history(true)
-            .max_history_size(20)
+            .max_history_size(20)?
             .history_ignore_space(true)
             .build();
         let mut rl = Editor::with_config(config)?;

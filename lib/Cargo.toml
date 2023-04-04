@@ -18,7 +18,7 @@ version = "0.4.2"
 async-io = {version = "1.9.0", optional = true}
 bitmaps = {version = "3.2"}
 chrono = "0.4"
-errno = "0.2"
+errno = "0.3"
 futures = {version = "0.3", optional = true}
 gpiocdev-uapi = {version = "0.3", path = "../uapi", default-features = false}
 nohash-hasher = "0.2"

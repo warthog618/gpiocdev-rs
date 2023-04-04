@@ -32,7 +32,7 @@ enum Ioctl {
 
 bitflags! {
     /// Flags indicating the configuration of a line.
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
     pub struct LineFlags: u64 {
         /// The line is in use and is not available for request.
         const USED = 1;
