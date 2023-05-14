@@ -36,7 +36,7 @@ tokio = {version = "1.21", features = ["macros", "rt", "time"]}
 [features]
 async_io = ["async-io", "futures"]
 async_tokio = ["tokio-stream", "tokio/net", "futures"]
-default = ["uapi_v2", "async_tokio"]
+default = ["uapi_v2"]
 uapi_v1 = ["gpiocdev-uapi/uapi_v1"]
 uapi_v2 = ["gpiocdev-uapi/uapi_v2"]
 
