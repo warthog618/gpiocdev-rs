@@ -113,8 +113,6 @@ impl Builder {
     /// Sends the request to the kernel using the appropriate uAPI call.
     ///
     /// On success returns the [`Request`] that provides access to the requested lines.
-    ///
-    /// This is the terminal operation for the `Builder`.
     pub fn request(&mut self) -> Result<Request> {
         if let Some(e) = &self.err {
             return Err(e.clone());
