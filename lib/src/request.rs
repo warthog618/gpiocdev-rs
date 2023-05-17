@@ -3042,7 +3042,6 @@ mod tests {
     }
 
     mod request {
-        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         use super::Request;
 
         #[test]
