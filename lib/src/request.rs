@@ -96,7 +96,7 @@ pub struct Builder {
     err: Option<Error>,
     /// The ABI version used to create the request, and so determines how to decode events.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    abiv: AbiVersion,
+    abiv: Option<AbiVersion>,
 }
 
 impl Builder {
@@ -115,7 +115,7 @@ impl Builder {
     /// On success returns the [`Request`] that provides access to the requested lines.
     ///
     /// This is the terminal operation for the `Builder`.
-    pub fn request(&self) -> Result<Request> {
+    pub fn request(&mut self) -> Result<Request> {
         if let Some(e) = &self.err {
             return Err(e.clone());
         }
@@ -126,7 +126,10 @@ impl Builder {
         self.do_request(&chip).map(|f| self.to_request(f))
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_request(&self, chip: &Chip) -> Result<File> {
+    fn do_request(&mut self, chip: &Chip) -> Result<File> {
+        if self.abiv.is_none() {
+            self.abiv = Some(chip.detect_abi_version()?);
+        }
         match self.to_uapi()? {
             UapiRequest::Handle(hr) => v1::get_line_handle(chip.fd, hr)
                 .map_err(|e| Error::UapiError(UapiCall::GetLineHandle, e)),
@@ -164,7 +167,7 @@ impl Builder {
             cfg: Arc::new(RwLock::new(self.cfg.clone())),
             user_event_buffer_size: max(self.user_event_buffer_size, 1),
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-            abiv: self.abiv,
+            abiv: self.abiv.unwrap(),
         }
     }
 
@@ -263,7 +266,7 @@ impl Builder {
     /// [`supports_abi_version`]: fn@crate::supports_abi_version
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn using_abi_version(&mut self, abiv: AbiVersion) -> &mut Self {
-        self.abiv = abiv;
+        self.abiv = Some(abiv);
         self
     }
 
@@ -431,10 +434,7 @@ impl Builder {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn with_found_lines(
-        &mut self,
-        lines: &HashMap<&str, super::FoundLine>,
-    ) -> &mut Self {
+    pub fn with_found_lines(&mut self, lines: &HashMap<&str, super::FoundLine>) -> &mut Self {
         for line in lines.values() {
             if let Err(e) = self.cfg.with_found_line(line) {
                 self.err = Some(e);
@@ -501,7 +501,7 @@ impl Builder {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_to_uapi(&self) -> Result<UapiRequest> {
-        match self.abiv {
+        match self.abiv.unwrap() {
             AbiVersion::V1 => self.to_v1(),
             AbiVersion::V2 => self.to_v2(),
         }
@@ -1923,7 +1923,7 @@ mod tests {
             assert_eq!(b.kernel_event_buffer_size, 0);
             assert_eq!(b.user_event_buffer_size, 0);
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-            assert_eq!(b.abiv, AbiVersion::V2);
+            assert_eq!(b.abiv, None);
         }
 
         #[test]
@@ -2003,13 +2003,13 @@ mod tests {
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         fn using_abi_version() {
             let mut b = Builder::default();
-            assert_eq!(b.abiv, AbiVersion::V2);
+            assert_eq!(b.abiv, None);
 
             b.using_abi_version(AbiVersion::V1);
-            assert_eq!(b.abiv, AbiVersion::V1);
+            assert_eq!(b.abiv, Some(AbiVersion::V1));
 
             b.using_abi_version(AbiVersion::V2);
-            assert_eq!(b.abiv, AbiVersion::V2);
+            assert_eq!(b.abiv, Some(AbiVersion::V2));
         }
 
         #[test]
@@ -3045,7 +3045,6 @@ mod tests {
 
     mod request {
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        use super::AbiVersion;
         use super::Request;
 
         #[test]
@@ -3057,7 +3056,7 @@ mod tests {
             assert_eq!(b.kernel_event_buffer_size, 0);
             assert_eq!(b.user_event_buffer_size, 0);
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-            assert_eq!(b.abiv, AbiVersion::V2);
+            assert_eq!(b.abiv, None);
         }
     }
 }

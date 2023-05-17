@@ -31,7 +31,7 @@ uAPI v2 specific features include:
 - reconfiguring edge detection without releasing the request
 - selection of source clock for edge events
 
-Compatibility with either uAPI version can be selected via features, with the default being uAPI v2.  If built with both, the library will automatically detect and use the most current available version, so defaulting to v2 and falling back to v1 if that is unavailable.
+Compatibility with either uAPI version can be selected via features, with the default being uAPI v2.  If built with both, the library can automatically detect and use the most current available version, so defaulting to v2 and falling back to v1 if that is unavailable.
 
 The library makes no use of the deprecated **sysfs** GPIO API.
 
