@@ -461,6 +461,10 @@ pub enum Error {
     /// The platform or library does not support the requested uAPI ABI version.
     #[error("{0} is not supported by the {1}.")]
     UnsupportedAbi(AbiVersion, AbiSupportKind),
+
+    /// The platform has no support for any uAPI ABI version.
+    #[error("uAPI ABI is not supported by the platform.")]
+    NoAbiSupport(),
 }
 
 fn errno_from_ioerr(e: std::io::Error) -> Errno {
