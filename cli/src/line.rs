@@ -59,9 +59,9 @@ pub struct Opts {
     #[command(flatten)]
     uapi_opts: UapiOpts,
 
-    /// Don't quote line or consumer names.
+    /// Quote line and consumer names.
     #[arg(long)]
-    unquoted: bool,
+    quoted: bool,
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
@@ -112,16 +112,16 @@ fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
                 })?;
                 let lname = if li.name.is_empty() {
                     "unnamed".to_string()
-                } else if opts.unquoted {
-                    li.name.to_string()
-                } else {
+                } else if opts.quoted {
                     format!("\"{}\"", li.name)
+                } else {
+                    li.name.to_string()
                 };
                 println!(
                     "\tline {:>3}:\t{:16}\t{}",
                     li.offset,
                     lname,
-                    common::stringify_attrs(&li, opts.unquoted),
+                    common::stringify_attrs(&li, opts.quoted),
                 );
             }
             return Ok(true);
@@ -147,7 +147,7 @@ fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Resul
                 for (idx, id) in opts.lines.iter().enumerate() {
                     if (id == &li.name) || (!opts.by_name && opts.chip.is_some() && id == &oname) {
                         counts[idx] += 1;
-                        print_line_info(&kci.name, &li, opts.unquoted);
+                        print_line_info(&kci.name, &li, opts.quoted);
                     }
                 }
             }
@@ -177,34 +177,34 @@ fn print_first_matching_lines(opts: &Opts) -> Result<()> {
         offsets.sort_unstable();
         offsets.dedup();
         let mut c = common::chip_from_path(&ci.path, opts.uapi_opts.abiv)?;
-        print_chip_line_info(&mut c, &offsets, opts.unquoted)?;
+        print_chip_line_info(&mut c, &offsets, opts.quoted)?;
     }
     r.validate(&opts.lines, &line_opts)
 }
 
-fn print_chip_line_info(chip: &mut Chip, lines: &[Offset], unquoted: bool) -> Result<()> {
+fn print_chip_line_info(chip: &mut Chip, lines: &[Offset], quoted: bool) -> Result<()> {
     for &offset in lines {
         let li = chip
             .line_info(offset)
             .with_context(|| format!("unable to read line {} info from {}", offset, chip.name()))?;
-        print_line_info(&chip.name(), &li, unquoted);
+        print_line_info(&chip.name(), &li, quoted);
     }
     Ok(())
 }
 
-fn print_line_info(chip_name: &str, li: &Info, unquoted: bool) {
+fn print_line_info(chip_name: &str, li: &Info, quoted: bool) {
     let lname = if li.name.is_empty() {
         "unnamed".to_string()
-    } else if unquoted {
-        li.name.to_string()
-    } else {
+    } else if quoted {
         format!("\"{}\"", li.name)
+    } else {
+        li.name.to_string()
     };
     println!(
         "{} {}\t{:16}\t{}",
         common::string_or_default(chip_name, "??"),
         li.offset,
         lname,
-        common::stringify_attrs(li, unquoted),
+        common::stringify_attrs(li, quoted),
     );
 }

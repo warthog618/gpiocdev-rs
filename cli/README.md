@@ -70,10 +70,10 @@ gpiochip1 1	"WL_ON"         	output
 ### get
 
 ```shell
-$ gpiocdev get RXD0 GPIO22
+$ gpiocdev get --quoted RXD0 GPIO22
 "RXD0"=active "GPIO22"=inactive
 
-$ gpiocdev get --unquoted RXD0 GPIO22
+$ gpiocdev get RXD0 GPIO22
 RXD0=active GPIO22=inactive
 
 $ gpiocdev get --numeric RXD0 GPIO22

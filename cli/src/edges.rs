@@ -98,9 +98,9 @@ pub struct Opts {
     #[command(flatten)]
     uapi_opts: UapiOpts,
 
-    /// Don't quote line names.
+    /// Quote line names.
     #[arg(long)]
-    unquoted: bool,
+    quoted: bool,
 }
 
 impl Opts {
@@ -257,10 +257,10 @@ fn print_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) 
         if opts.line_opts.chip.is_some() {
             print!("{} {} ", ci.name, event.offset);
         }
-        if opts.unquoted {
-            println!("{}", lname);
-        } else {
+        if opts.quoted {
             println!("\"{}\"", lname);
+        } else {
+            println!("{}", lname);
         }
     } else {
         println!("{} {}", ci.name, event.offset);

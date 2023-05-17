@@ -394,7 +394,7 @@ impl EdgeOpts {
 #[derive(Clone, Debug, Parser)]
 pub struct LinesOpts {}
 
-pub fn stringify_attrs(li: &gpiocdev::line::Info, unquoted: bool) -> String {
+pub fn stringify_attrs(li: &gpiocdev::line::Info, quoted: bool) -> String {
     use gpiocdev::line::{Direction, EventClock};
 
     let mut attrs = Vec::new();
@@ -438,10 +438,10 @@ pub fn stringify_attrs(li: &gpiocdev::line::Info, unquoted: bool) -> String {
     if li.used {
         if li.consumer.is_empty() {
             consumer = String::from("consumer=kernel");
-        } else if unquoted {
-            consumer = format!("consumer={}", li.consumer);
-        } else {
+        } else if quoted {
             consumer = format!("consumer=\"{}\"", li.consumer);
+        } else {
+            consumer = format!("consumer={}", li.consumer);
         }
         attrs.push(&consumer);
     }

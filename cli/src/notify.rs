@@ -77,9 +77,9 @@ pub struct Opts {
     #[command(flatten)]
     uapi_opts: UapiOpts,
 
-    /// Don't quote line or consumer names.
+    /// Quote line and consumer names.
     #[arg(long)]
-    unquoted: bool,
+    quoted: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -195,7 +195,7 @@ fn print_banner(lines: &[String]) {
 
 fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
     if let Some(format) = &opts.format {
-        return print_change_formatted(&event, format, ci, opts.unquoted);
+        return print_change_formatted(&event, format, ci, opts.quoted);
     }
     let evtime = if opts.utc || opts.localtime {
         monotonic_to_realtime(event.timestamp_ns)
@@ -209,24 +209,24 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
         if opts.line_opts.chip.is_some() {
             print!("{} {} ", ci.name, event.info.offset);
         }
-        if opts.unquoted {
-            println!("{}", lname);
-        } else {
+        if opts.quoted {
             println!("\"{}\"", lname);
+        } else {
+            println!("{}", lname);
         }
     } else {
         println!("{} {}", ci.name, event.info.offset);
     }
 }
 
-fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo, unquoted: bool) {
+fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo, quoted: bool) {
     let mut escaped = false;
 
     for chr in format.chars() {
         if escaped {
             match chr {
                 '%' => print!("%"),
-                'a' => print!("{}", common::stringify_attrs(&event.info, unquoted)),
+                'a' => print!("{}", common::stringify_attrs(&event.info, quoted)),
                 'c' => print!("{}", ci.name),
                 'C' => common::print_consumer(&event.info),
                 'e' => print!("{}", event_kind_num(event.kind)),
