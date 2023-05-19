@@ -12,6 +12,8 @@ use gpiocdev_uapi::v1 as uapi;
 use gpiocdev_uapi::v2 as uapi;
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi::{v1, v2};
+#[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+use std::cell::RefCell;
 use std::fmt;
 use std::fs;
 use std::mem;
@@ -86,7 +88,7 @@ pub struct Chip {
     /// Cached copy of _f.as_raw_fd() for syscalls, to avoid Arc<Mutex<>> overheads for ops.
     pub(crate) fd: RawFd,
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    abiv: AbiVersion,
+    abiv: RefCell<Option<AbiVersion>>,
 }
 
 impl Chip {
@@ -102,7 +104,7 @@ impl Chip {
             _f: f,
             fd,
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-            abiv: V2,
+            abiv: Default::default(),
         })
     }
 
@@ -118,7 +120,7 @@ impl Chip {
             _f: f,
             fd,
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-            abiv: V2,
+            abiv: Default::default(),
         })
     }
 
@@ -145,6 +147,16 @@ impl Chip {
         self.path.as_ref()
     }
 
+    // determine the actual abi version to use for subsequent uAPI operations.
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn actual_abi_version(&self) -> Result<AbiVersion> {
+        let mut abiv = self.abiv.borrow_mut();
+        if abiv.is_none() {
+            *abiv = Some(self.detect_abi_version()?);
+        }
+        Ok(abiv.unwrap())
+    }
+
     /// Find the info for the named line.
     ///
     /// Returns the first matching line.
@@ -161,7 +173,7 @@ impl Chip {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
-        let res = match self.abiv {
+        let res = match self.actual_abi_version()? {
             V1 => v1::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
             V2 => v2::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
         };
@@ -194,7 +206,7 @@ impl Chip {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
-        let res = match self.abiv {
+        let res = match self.actual_abi_version()? {
             V1 => v1::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
             V2 => v2::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
         };
@@ -234,6 +246,7 @@ impl Chip {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
+        self.actual_abi_version()?;
         // bbuf is statically sized to the greater of the v1/v2 size so it can be placed on the stack.
         debug_assert!(
             mem::size_of::<v2::LineInfoChangeEvent>() >= mem::size_of::<v1::LineInfoChangeEvent>()
@@ -313,13 +326,13 @@ impl Chip {
     /// Set the ABI version to use for subsequent operations.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn using_abi_version(&mut self, abiv: AbiVersion) -> &mut Self {
-        self.abiv = abiv;
+        self.abiv = RefCell::new(Some(abiv));
         self
     }
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn line_info_change_event_from_slice(&self, d: &[u8]) -> Result<InfoChangeEvent> {
-        Ok(match self.abiv {
+        Ok(match self.actual_abi_version()? {
             V1 => InfoChangeEvent::from(
                 v1::LineInfoChangeEvent::from_slice(d)
                     .map_err(|e| Error::UapiError(UapiCall::LICEFromBuf, e))?,
@@ -340,7 +353,9 @@ impl Chip {
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn line_info_change_event_size(&self) -> usize {
-        match self.abiv {
+        // may not be initialised if called via info_change_events()
+        // in which case return the larger of the two
+        match self.abiv.borrow().unwrap_or(V2) {
             V1 => mem::size_of::<v1::LineInfoChangeEvent>(),
             V2 => mem::size_of::<v2::LineInfoChangeEvent>(),
         }
