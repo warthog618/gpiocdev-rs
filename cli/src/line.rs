@@ -96,7 +96,8 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 }
 
 fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
-    match common::chip_from_path(p, opts.uapi_opts.abiv) {
+    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
+    match common::chip_from_path(p, abiv) {
         Ok(c) => {
             let kci = c
                 .info()
@@ -134,7 +135,7 @@ fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
 }
 
 fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Result<()> {
-    match common::chip_from_path(p, opts.uapi_opts.abiv) {
+    match common::chip_from_path(p, common::actual_abi_version(&opts.uapi_opts)?) {
         Ok(c) => {
             let kci = c
                 .info()
@@ -166,7 +167,8 @@ fn print_first_matching_lines(opts: &Opts) -> Result<()> {
         strict: false,
         by_name: opts.by_name,
     };
-    let r = common::resolve_lines(&opts.lines, &line_opts, opts.uapi_opts.abiv)?;
+    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
+    let r = common::resolve_lines(&opts.lines, &line_opts, abiv)?;
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut offsets: Vec<Offset> = r
             .lines
@@ -176,7 +178,7 @@ fn print_first_matching_lines(opts: &Opts) -> Result<()> {
             .collect();
         offsets.sort_unstable();
         offsets.dedup();
-        let mut c = common::chip_from_path(&ci.path, opts.uapi_opts.abiv)?;
+        let mut c = common::chip_from_path(&ci.path, abiv)?;
         print_chip_line_info(&mut c, &offsets, opts.quoted)?;
     }
     r.validate(&opts.lines, &line_opts)

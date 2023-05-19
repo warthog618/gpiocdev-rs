@@ -75,7 +75,8 @@ impl Opts {
 }
 
 pub fn cmd(opts: &Opts) -> Result<()> {
-    let r = common::resolve_lines(&opts.line, &opts.line_opts, opts.uapi_opts.abiv)?;
+    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
+    let r = common::resolve_lines(&opts.line, &opts.line_opts, abiv)?;
     r.validate(&opts.line, &opts.line_opts)?;
     let mut requests = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
@@ -92,7 +93,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         let mut bld = Request::from_config(cfg);
         bld.on_chip(&ci.path).with_consumer(&opts.consumer);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        bld.using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?);
+        bld.using_abi_version(abiv);
         let req = bld
             .request()
             .with_context(|| format!("failed to request lines {:?} from {}", offsets, ci.name))?;

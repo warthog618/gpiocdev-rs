@@ -164,7 +164,8 @@ impl Setter {
             .iter()
             .map(|(l, _v)| l.to_owned())
             .collect();
-        let r = common::resolve_lines(&self.line_ids, &opts.line_opts, opts.uapi_opts.abiv)?;
+        let abiv = common::actual_abi_version(&opts.uapi_opts)?;
+        let r = common::resolve_lines(&self.line_ids, &opts.line_opts, abiv)?;
         r.validate(&self.line_ids, &opts.line_opts)?;
         self.chips = r.chips;
 
@@ -194,7 +195,7 @@ impl Setter {
             let mut bld = Request::from_config(cfg);
             bld.on_chip(&ci.path).with_consumer(&opts.consumer);
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-            bld.using_abi_version(common::abi_version_from_opts(opts.uapi_opts.abiv)?);
+            bld.using_abi_version(abiv);
             let req = bld
                 .request()
                 .with_context(|| format!("failed to request and set lines on {}", ci.name))?;

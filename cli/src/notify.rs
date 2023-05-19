@@ -108,12 +108,13 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     } else {
         TimeFmt::Seconds
     };
-    let r = common::resolve_lines(&opts.lines, &opts.line_opts, opts.uapi_opts.abiv)?;
+    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
+    let r = common::resolve_lines(&opts.lines, &opts.line_opts, abiv)?;
     r.validate(&opts.lines, &opts.line_opts)?;
     let mut poll = Poll::new()?;
     let mut chips = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
-        let chip = common::chip_from_path(&ci.path, opts.uapi_opts.abiv)?;
+        let chip = common::chip_from_path(&ci.path, abiv)?;
 
         for offset in r
             .lines
