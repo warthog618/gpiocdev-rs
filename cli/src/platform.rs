@@ -19,15 +19,14 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         let mut f = v.split_ascii_whitespace();
         if let Some(v) = f.nth(2) {
             println!("Kernel {}", v);
-            print_abi_support();
             if opts.verbose {
                 print_unsupported_features(v)
             }
         }
     } else {
         println!("Kernel unknown");
-        print_abi_support();
     }
+    print_abi_support();
     Ok(())
 }
 
@@ -50,9 +49,9 @@ fn print_unsupported_features(version: &str) {
         if major >= 6 || (major == 5 && minor >= 19) {
             println!("Kernel supports all uAPI features.");
         } else if major == 5 && minor > 10 && minor < 19 {
-            println!("Kernel does not support HTE.");
+            println!("Kernel does not support HTE (added in 5.19).");
         } else if major < 5 || (major == 5 && minor < 5) {
-            println!("Kernel does not support bias or reconfigure.");
+            println!("Kernel does not support bias or reconfigure (added in 5.5).");
         }
     }
 }
