@@ -290,7 +290,6 @@ pub struct UapiOpts {
     /// The uAPI ABI version to use to perform the operation
     ///
     /// By default the latest uAPI version supported by the kernel is used.
-    // This is primarily aimed at debugging and so is a hidden option.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     #[arg(long, env = "GPIOCDEV_ABI_VERSION", value_enum, ignore_case = true)]
     pub abi_version: Option<AbiVersionFlags>,
