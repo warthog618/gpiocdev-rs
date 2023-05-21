@@ -36,7 +36,11 @@ pub fn chip_from_path(p: &Path, _abiv: AbiVersion) -> Result<Chip> {
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 pub fn actual_abi_version(opts: &UapiOpts) -> Result<AbiVersion> {
     Ok(match opts.abi_version {
-        Some(abiv) => abiv.into(),
+        Some(abiv) => {
+            let abiv = abiv.into();
+            gpiocdev::supports_abi_version(abiv)?;
+            abiv
+        }
         None => gpiocdev::detect_abi_version()?,
     })
 }
