@@ -463,7 +463,7 @@ pub enum Error {
     UnsupportedAbi(AbiVersion, AbiSupportKind),
 
     /// The platform has no support for any uAPI ABI version.
-    #[error("uAPI ABI is not supported by the platform.")]
+    #[error("uAPI ABI is not supported by the kernel.")]
     NoAbiSupport(),
 }
 
@@ -520,17 +520,17 @@ impl fmt::Display for UapiCall {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AbiSupportKind {
     /// The library does not have the feature enabled for the requested ABI version.
-    Library,
+    Build,
 
     /// The kernel running on the platform does not support the requested ABI version.
-    Platform,
+    Kernel,
 }
 
 impl fmt::Display for AbiSupportKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AbiSupportKind::Library => write!(f, "library"),
-            AbiSupportKind::Platform => write!(f, "platform"),
+            AbiSupportKind::Build => write!(f, "build"),
+            AbiSupportKind::Kernel => write!(f, "kernel"),
         }
     }
 }
@@ -625,10 +625,10 @@ mod tests {
         #[test]
         fn display() {
             use crate::AbiSupportKind;
-            let ask = AbiSupportKind::Library;
-            assert_eq!(format!("{}", ask), "library");
-            let ask = AbiSupportKind::Platform;
-            assert_eq!(format!("{}", ask), "platform");
+            let ask = AbiSupportKind::Build;
+            assert_eq!(format!("{}", ask), "build");
+            let ask = AbiSupportKind::Kernel;
+            assert_eq!(format!("{}", ask), "kernel");
         }
     }
 }

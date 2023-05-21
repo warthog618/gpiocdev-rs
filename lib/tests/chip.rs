@@ -760,7 +760,7 @@ mod chip {
             cdevc.supports_abi_version(gpiocdev::AbiVersion::V1),
             Err(gpiocdev::Error::UnsupportedAbi(
                 gpiocdev::AbiVersion::V1,
-                gpiocdev::AbiSupportKind::Library
+                gpiocdev::AbiSupportKind::Build
             ))
         );
         #[cfg(feature = "uapi_v2")]
@@ -770,7 +770,7 @@ mod chip {
             cdevc.supports_abi_version(gpiocdev::AbiVersion::V2),
             Err(gpiocdev::Error::UnsupportedAbi(
                 gpiocdev::AbiVersion::V2,
-                gpiocdev::AbiSupportKind::Library
+                gpiocdev::AbiSupportKind::Build
             ))
         );
     }

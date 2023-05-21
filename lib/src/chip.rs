@@ -296,17 +296,17 @@ impl Chip {
             V1 => v1::get_line_info(self.fd, 0).map(|_| ()),
             V2 => v2::get_line_info(self.fd, 0).map(|_| ()),
         };
-        res.map_err(|_| Error::UnsupportedAbi(abiv, AbiSupportKind::Platform))
+        res.map_err(|_| Error::UnsupportedAbi(abiv, AbiSupportKind::Kernel))
     }
     #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         match abiv {
             V1 => uapi::get_line_info(self.fd, 0)
                 .map(|_| ())
-                .map_err(|_| Error::UnsupportedAbi(V1, AbiSupportKind::Platform)),
+                .map_err(|_| Error::UnsupportedAbi(V1, AbiSupportKind::Kernel)),
             V2 => Err(Error::UnsupportedAbi(
                 AbiVersion::V2,
-                AbiSupportKind::Library,
+                AbiSupportKind::Build,
             )),
         }
     }
@@ -315,10 +315,10 @@ impl Chip {
         match abiv {
             V2 => uapi::get_line_info(self.fd, 0)
                 .map(|_| ())
-                .map_err(|_| Error::UnsupportedAbi(V2, AbiSupportKind::Platform)),
+                .map_err(|_| Error::UnsupportedAbi(V2, AbiSupportKind::Kernel)),
             V1 => Err(Error::UnsupportedAbi(
                 AbiVersion::V1,
-                AbiSupportKind::Library,
+                AbiSupportKind::Build,
             )),
         }
     }
