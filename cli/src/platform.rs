@@ -47,9 +47,9 @@ fn print_abi_support() {
 
 fn print_unsupported_features(version: &str) {
     if let Some((major, minor)) = parse_version(version) {
-        if major >= 6 {
+        if major >= 6 || (major == 5 && minor >= 19) {
             println!("Kernel supports all uAPI features.");
-        } else if major == 5 && minor > 10 {
+        } else if major == 5 && minor > 10 && minor < 19 {
             println!("Kernel does not support HTE.");
         } else if major < 5 || (major == 5 && minor < 5) {
             println!("Kernel does not support bias or reconfigure.");
