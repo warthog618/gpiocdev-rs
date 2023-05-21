@@ -58,24 +58,24 @@ struct Opts {
 
 #[derive(Parser)]
 enum Command {
-    /// Get info about GPIO chips.
+    /// Get information about GPIO chips.
     Chip(chip::Opts),
 
-    /// Monitor lines for edge events.
+    /// Monitor GPIO lines for edge events.
     Edges(edges::Opts),
 
-    /// Read the values of lines.
+    /// Read the levels of GPIO lines.
     Get(get::Opts),
 
-    /// Get information for lines.
+    /// Get information about GPIO lines (everything but levels).
     Line(line::Opts),
 
     /// Monitor lines for requests and changes to configuration state.
     Notify(notify::Opts),
 
-    /// Get information about the platform.
+    /// Get information about the platform GPIO uAPI support.
     Platform(platform::Opts),
 
-    /// Set the values of lines.
+    /// Set the levels of GPIO lines.
     Set(set::Opts),
 }
