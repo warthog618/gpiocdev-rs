@@ -13,6 +13,7 @@ mod edges;
 mod get;
 mod line;
 mod notify;
+mod platform;
 mod set;
 
 fn main() -> ExitCode {
@@ -25,6 +26,7 @@ fn main() -> ExitCode {
                 Command::Line(cfg) => line::cmd(&cfg),
                 Command::Set(cfg) => set::cmd(&cfg),
                 Command::Notify(cfg) => notify::cmd(&cfg),
+                Command::Platform(cfg) => platform::cmd(&cfg),
             };
             match res {
                 Ok(()) => return ExitCode::SUCCESS,
@@ -70,6 +72,9 @@ enum Command {
 
     /// Monitor lines for requests and changes to configuration state.
     Notify(notify::Opts),
+
+    /// Get information about the platform.
+    Platform(platform::Opts),
 
     /// Set the values of lines.
     Set(set::Opts),
