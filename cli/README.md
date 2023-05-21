@@ -21,18 +21,19 @@ A utility to control GPIO lines on Linux using GPIO character devices.
 Usage: gpiocdev [OPTIONS] <COMMAND>
 
 Commands:
-  chip    Get info about GPIO chips
-  edges   Monitor lines for edge events
-  get     Read the values of lines
-  line    Get information for lines
-  notify  Monitor lines for requests and changes to configuration state
-  set     Set the value of lines
-  help    Print this message or the help of the given subcommand(s)
+  chip      Get information about GPIO chips
+  edges     Monitor GPIO lines for edge events
+  get       Read the levels of GPIO lines
+  line      Get information about GPIO lines (everything but levels)
+  notify    Monitor lines for requests and changes to configuration state
+  platform  Get information about the platform GPIO uAPI support
+  set       Set the levels of GPIO lines
+  help      Print this message or the help of the given subcommand(s)
 
 Options:
   -v, --verbose  Provide more detailed error messages
-  -h, --help     Print help information
-  -V, --version  Print version information
+  -h, --help     Print help
+  -V, --version  Print version
 ```
 
 Refer to the help for each subcommand for more details.
@@ -52,29 +53,29 @@ gpiochip1 [raspberrypi-exp-gpio] (8 lines)
 ```shell
 $ gpiocdev line -c 1
 gpiochip1 - 8 lines:
-	line   0:	"BT_ON"         	output
-	line   1:	"WL_ON"         	output
-	line   2:	"PWR_LED_OFF"   	output active-low consumer="led1"
-	line   3:	"GLOBAL_RESET"  	output
-	line   4:	"VDD_SD_IO_SEL" 	output consumer="vdd-sd-io"
-	line   5:	"CAM_GPIO"      	output consumer="cam1_regulator"
-	line   6:	"SD_PWR_ON"     	output consumer="sd_vcc_reg"
-	line   7:	"SD_OC_N"       	input
+	line   0:	BT_ON         	output
+	line   1:	WL_ON         	output
+	line   2:	PWR_LED_OFF   	output active-low consumer=led1
+	line   3:	GLOBAL_RESET  	output
+	line   4:	VDD_SD_IO_SEL 	output consumer=vdd-sd-io
+	line   5:	CAM_GPIO      	output consumer=cam1_regulator
+	line   6:	SD_PWR_ON     	output consumer=sd_vcc_reg
+	line   7:	SD_OC_N       	input
 
 $ gpiocdev line RXD0 GPIO22 WL_ON
-gpiochip0 22	"GPIO22"        	input
-gpiochip0 33	"RXD0"          	input
-gpiochip1 1	"WL_ON"         	output
+gpiochip0 22	GPIO22        	input
+gpiochip0 33	RXD0          	input
+gpiochip1 1	WL_ON         	output
 ```
 
 ### get
 
 ```shell
-$ gpiocdev get --quoted RXD0 GPIO22
-"RXD0"=active "GPIO22"=inactive
-
 $ gpiocdev get RXD0 GPIO22
 RXD0=active GPIO22=inactive
+
+$ gpiocdev get --quoted RXD0 GPIO22
+"RXD0"=active "GPIO22"=inactive
 
 $ gpiocdev get --numeric RXD0 GPIO22
 1 0
@@ -83,9 +84,9 @@ $ gpiocdev get --numeric RXD0 GPIO22
 ### set
 
 ```shell
-gpiocdev set GPIO22=active
+$ gpiocdev set GPIO22=active
 
-gpiocdev set GPIO17=1
+$ gpiocdev set GPIO17=1
 ```
 
 Interactive mode:
@@ -93,16 +94,16 @@ Interactive mode:
 ```shell
 $ gpiocdev set -i GPIO23=1 GPIO24=0
 gpiocdev-set> get
-"GPIO23"=active "GPIO24"=inactive
+GPIO23=active GPIO24=inactive
 gpiocdev-set> toggle 
 gpiocdev-set> get
-"GPIO23"=inactive "GPIO24"=active
+GPIO23=inactive GPIO24=active
 gpiocdev-set> toggle GPIO23
 gpiocdev-set> get
-"GPIO23"=active "GPIO24"=active
+GPIO23=active GPIO24=active
 gpiocdev-set> set GPIO24=0
 gpiocdev-set> get
-"GPIO23"=active "GPIO24"=inactive
+GPIO23=active GPIO24=inactive
 gpiocdev-set> exit
 ```
 
@@ -110,30 +111,47 @@ gpiocdev-set> exit
 
 ```shell
 $ gpiocdev edges GPIO22
-264.429997058	rising	"GPIO22"
-270.948800095	falling	"GPIO22"
-279.482197087	rising	"GPIO22"
+264.429997058	rising	GPIO22
+270.948800095	falling	GPIO22
+279.482197087	rising	GPIO22
 
 $ gpiocdev edges --localtime GPIO22
-2022-10-10T08:01:59.078908766	falling	"GPIO22"
-2022-10-10T08:01:59.810733200	rising	"GPIO22"
-2022-10-10T08:02:00.497461672	falling	"GPIO22"
+2022-10-10T08:01:59.078908766	falling	GPIO22
+2022-10-10T08:01:59.810733200	rising	GPIO22
+2022-10-10T08:02:00.497461672	falling	GPIO22
 ```
 
 ### notify
 
 ```shell
 $ gpiocdev notify GPIO23
-390.467444514	requested	"GPIO23"
-390.467655548	released	"GPIO23"
-391.701420722	requested	"GPIO23"
-391.701624886	released	"GPIO23"
+390.467444514	requested	GPIO23
+390.467655548	released	GPIO23
+391.701420722	requested	GPIO23
+391.701624886	released	GPIO23
 
 $ gpiocdev notify --localtime GPIO23
-2022-10-10T08:03:35.365989261	requested	"GPIO23"
-2022-10-10T08:03:35.366200648	released	"GPIO23"
-2022-10-10T08:03:35.884780936	requested	"GPIO23"
-2022-10-10T08:03:35.884881408	released	"GPIO23"
+2022-10-10T08:03:35.365989261	requested	GPIO23
+2022-10-10T08:03:35.366200648	released	GPIO23
+2022-10-10T08:03:35.884780936	requested	GPIO23
+2022-10-10T08:03:35.884881408	released	GPIO23
+```
+
+### plaftorm
+
+```shell
+$ gpiocdev platform
+Kernel 5.4.237-yocto-standard
+uAPI ABI v1 is supported.
+uAPI ABI v2 is not supported by the kernel.
+```
+
+```shell
+$ gpiocdev platform -v
+Kernel 5.15.0-72-generic
+Kernel does not support HTE (added in 5.19).
+uAPI ABI v1 is supported.
+uAPI ABI v2 is supported.
 ```
 
 ## ABI compatibility
@@ -146,10 +164,11 @@ that only supports v1.
 Either or both uAPI versions can be supported in the one executable.
 By default both are supported, with the most recent ABI supported by the
 kernel being used.
+The ```--abi-version``` option can be used to force the use of a particular ABI.
 
 ## libgpiod compatibility
 
-The tools are plug compatible with the proposed tools for **libgpiod v2**, though
+The tools are plug compatible with the **libgpiod v2** tools, though
 unlike those can also work with both GPIO uAPI v1 and v2.
 
 The subcommands map to libgpiod tools as follows:
@@ -160,6 +179,7 @@ The subcommands map to libgpiod tools as follows:
 | get | gpioget | - |
 | line | gpioinfo | info |
 | notify | gpionotify | - |
+| platform | - | - |
 |set | gpioset | - |
 
 The subcommand aliases provide an alternative drawn from the libgpiod tool
