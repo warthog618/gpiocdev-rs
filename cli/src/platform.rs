@@ -49,7 +49,9 @@ fn print_unsupported_features(version: &str) {
         if major >= 6 || (major == 5 && minor >= 19) {
             println!("Kernel supports all uAPI features.");
         } else if major == 5 && minor > 10 && minor < 19 {
-            println!("Kernel does not support HTE (added in 5.19).");
+            println!("Kernel does not support event_clock hte (added in 5.19).");
+        } else if major == 5 && minor == 10 {
+            println!("Kernel does not support event_clock realtime (added in 5.11) or hte (added in 5.19).");
         } else if major < 5 || (major == 5 && minor < 5) {
             println!("Kernel does not support bias or reconfigure (added in 5.5).");
         }
