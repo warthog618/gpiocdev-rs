@@ -12,6 +12,8 @@ use gpiocdev_uapi::v1 as uapi;
 use gpiocdev_uapi::v2 as uapi;
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi::{v1, v2};
+#[cfg(feature = "serde")]
+use serde_derive::{Deserialize, Serialize};
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
 use std::cell::RefCell;
 use std::fmt;
@@ -373,6 +375,7 @@ impl AsRawFd for Chip {
 
 /// The publicly available information for a GPIO chip.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(rename_all = "camelCase"))]
 pub struct Info {
     /// The system name for the chip, such as "*gpiochip0*".
     pub name: String,

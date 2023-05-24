@@ -11,11 +11,14 @@ use gpiocdev_uapi::{v2, v2 as uapi};
 use nohash_hasher::IntMap;
 use std::collections::hash_map::Iter;
 use std::time::Duration;
+#[cfg(feature = "serde")]
+use serde_derive::{Deserialize, Serialize};
 
 /// The configuration settings for a single line.
 ///
 // Note it does not contain the offset to allow it to be applied to multiple lines.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Config {
     /// The direction setting for the line.
     pub direction: Option<Direction>,
@@ -177,6 +180,7 @@ impl From<&Config> for v1::HandleRequestFlags {
 
 /// The publicly available information for a line.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(rename_all = "camelCase"))]
 pub struct Info {
     /// The line offset on the GPIO chip.
     pub offset: Offset,
@@ -204,21 +208,25 @@ pub struct Info {
     pub direction: Direction,
 
     /// The bias state of the line.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub bias: Option<Bias>,
 
     /// The drive applied to output lines.
     ///
     /// Only relevant for output lines.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub drive: Option<Drive>,
 
     /// The edge detection state for the line.
     ///
     /// Only relevant for input lines.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub edge_detection: Option<EdgeDetection>,
 
     /// The source clock for edge event timestamps.
     ///
     /// Only relevant for input lines with edge detection.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub event_clock: Option<EventClock>,
 
     /// The debounce period.
@@ -226,6 +234,7 @@ pub struct Info {
     /// Only relevant for input lines with edge detection.
     ///
     /// None or a zero value means no debounce.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub debounce_period: Option<Duration>,
 }
 
@@ -296,6 +305,7 @@ pub type Offsets = Vec<Offset>;
 /// | **Active-Low**  | Active | Inactive |
 ///
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Value {
     /// The line is inactive.
     Inactive,
@@ -363,6 +373,7 @@ impl From<u8> for Value {
 ///
 /// Lines are identified by their offset.
 #[derive(Debug, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Values(IntMap<Offset, Value>);
 impl Values {
     /// overlays the values from src over the values in the dst.
@@ -476,6 +487,7 @@ impl Values {
 
 /// The direction of a line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Direction {
     /// The line is an input.
     Input,
@@ -509,6 +521,7 @@ impl From<v2::LineFlags> for Direction {
 
 /// The bias settings for a line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Bias {
     /// The line has pull-up enabled.
     PullUp,
@@ -557,6 +570,7 @@ impl TryFrom<v2::LineFlags> for Bias {
 
 /// The drive policy settings for an output line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Drive {
     /// The line is driven when both active and inactive.
     ///
@@ -611,6 +625,7 @@ impl TryFrom<v2::LineFlags> for Drive {
 
 /// The edge detection options for an input line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EdgeDetection {
     /// Edge detection is only enabled on rising edges.
     ///
@@ -645,6 +660,7 @@ impl TryFrom<v2::LineFlags> for EdgeDetection {
 
 /// The available clock sources for [`EdgeEvent`] timestamps.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EventClock {
     /// The **CLOCK_MONOTONIC** is used as the source for edge event timestamps.
     ///
@@ -682,6 +698,7 @@ impl From<v2::LineFlags> for EventClock {
 ///
 /// ABI v1 does not provide the seqno nor line_seqno fields.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(rename_all = "camelCase"))]
 pub struct EdgeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     ///
@@ -736,6 +753,7 @@ impl From<&v2::LineEdgeEvent> for EdgeEvent {
 
 /// The cause of an [`EdgeEvent`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EdgeKind {
     /// Indicates the line transitioned from inactive to active.
     Rising = 1,
@@ -754,6 +772,7 @@ impl From<uapi::LineEdgeEventKind> for EdgeKind {
 
 /// The details of a change to the [`Info`] for a line.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct InfoChangeEvent {
     /// The updated line info.
     pub info: Info,
@@ -789,6 +808,7 @@ impl From<&v2::LineInfoChangeEvent> for InfoChangeEvent {
 
 /// The cause of a [`InfoChangeEvent`]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum InfoChangeKind {
     /// Line has been requested.
     Requested = 1,
