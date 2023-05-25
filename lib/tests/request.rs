@@ -42,14 +42,14 @@ mod builder {
 
         #[test]
         fn request_debounced() {
-            let sim = Simpleton::new(10);
+            let s = Simpleton::new(10);
 
             let mut builder = Request::builder();
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             builder.using_abi_version(V1);
 
             let res = builder
-                .on_chip(&sim.chip().dev_path)
+                .on_chip(s.dev_path())
                 .with_line(1)
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
@@ -63,14 +63,14 @@ mod builder {
 
         #[test]
         fn request_event_clock() {
-            let sim = Simpleton::new(10);
+            let s = Simpleton::new(10);
 
             let mut builder = Request::builder();
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             builder.using_abi_version(V1);
 
             let res = builder
-                .on_chip(&sim.chip().dev_path)
+                .on_chip(s.dev_path())
                 .with_line(1)
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
@@ -87,14 +87,14 @@ mod builder {
 
         #[test]
         fn request_kernel_event_buffer_size() {
-            let sim = Simpleton::new(10);
+            let s = Simpleton::new(10);
 
             let mut builder = Request::builder();
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             builder.using_abi_version(V1);
 
             let res = builder
-                .on_chip(&sim.chip().dev_path)
+                .on_chip(s.dev_path())
                 .with_line(1)
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
@@ -135,8 +135,7 @@ mod builder {
 
         #[test]
         fn request_too_complicated() {
-            let sim = Simpleton::new(25);
-            let simc = sim.chip();
+            let s = Simpleton::new(25);
 
             let mut cfg = gpiocdev::request::Config::default();
             for offset in 1..20 {
@@ -145,7 +144,7 @@ mod builder {
             }
             let res = Request::builder()
                 .with_config(cfg)
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .as_input()
                 .request();
             assert_eq!(
@@ -158,13 +157,12 @@ mod builder {
         fn request_debounced() {
             use gpiocdev::line::{Direction, EdgeDetection, EventClock};
 
-            let sim = Simpleton::new(10);
-            let simc = sim.chip();
-            let cdevc = Chip::from_path(&simc.dev_path).unwrap();
+            let s = Simpleton::new(10);
+            let c = Chip::from_path(s.dev_path()).unwrap();
             let offset = 1;
 
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
@@ -172,7 +170,7 @@ mod builder {
                 .request()
                 .unwrap();
 
-            let info = cdevc.line_info(offset).unwrap();
+            let info = c.line_info(offset).unwrap();
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Input);
             assert_eq!(info.edge_detection, Some(EdgeDetection::BothEdges));
@@ -186,14 +184,13 @@ mod builder {
         fn request_event_clock() {
             use gpiocdev::line::{Direction, EdgeDetection, EventClock};
 
-            let sim = Simpleton::new(10);
-            let simc = sim.chip();
-            let cdevc = Chip::from_path(&simc.dev_path).unwrap();
+            let s = Simpleton::new(10);
+            let c = Chip::from_path(s.dev_path()).unwrap();
             let offset = 1;
 
             let mut builder = Request::builder();
             builder
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
@@ -201,7 +198,7 @@ mod builder {
 
             let req = builder.request().unwrap();
 
-            let info = cdevc.line_info(offset).unwrap();
+            let info = c.line_info(offset).unwrap();
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Input);
             assert_eq!(info.edge_detection, Some(EdgeDetection::BothEdges));
@@ -223,10 +220,10 @@ mod builder {
         fn request_kernel_event_buffer_size() {
             use gpiocdev::line::EdgeDetection;
 
-            let sim = Simpleton::new(10);
+            let s = Simpleton::new(10);
 
             let res = Request::builder()
-                .on_chip(&sim.chip().dev_path)
+                .on_chip(s.dev_path())
                 .with_line(1)
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
@@ -244,13 +241,12 @@ mod builder {
         use gpiocdev::line::{Bias, Direction, Drive, EdgeDetection};
 
         // config menagerie on simpleton
-        let sim = Simpleton::new(10);
-        let simc = sim.chip();
-        let cdevc = Chip::from_path(&simc.dev_path).unwrap();
+        let s = Simpleton::new(10);
+        let c = Chip::from_path(s.dev_path()).unwrap();
         let offset = 1;
 
         let mut builder = Request::builder();
-        builder.on_chip(&simc.dev_path).with_line(offset);
+        builder.on_chip(s.dev_path()).with_line(offset);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
 
@@ -258,14 +254,14 @@ mod builder {
 
         let req = builder.as_output(Value::Inactive).request().unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, None);
         assert_eq!(info.drive, Some(Drive::PushPull));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(simc.get_level(offset).unwrap(), Level::Low);
+        assert_eq!(s.get_level(offset).unwrap(), Level::Low);
 
         drop(req);
         let req = builder
@@ -275,14 +271,14 @@ mod builder {
             .request()
             .unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::PullUp));
         assert_eq!(info.drive, Some(Drive::OpenDrain));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(simc.get_level(offset).unwrap(), Level::High);
+        assert_eq!(s.get_level(offset).unwrap(), Level::High);
 
         drop(req);
         let req = builder
@@ -292,14 +288,14 @@ mod builder {
             .request()
             .unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::PullDown));
         assert_eq!(info.drive, Some(Drive::OpenSource));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(simc.get_level(offset).unwrap(), Level::Low);
+        assert_eq!(s.get_level(offset).unwrap(), Level::Low);
 
         drop(req);
         let req = builder
@@ -309,29 +305,29 @@ mod builder {
             .request()
             .unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::Disabled));
         assert_eq!(info.drive, Some(Drive::PushPull));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(simc.get_level(offset).unwrap(), Level::High);
+        assert_eq!(s.get_level(offset).unwrap(), Level::High);
 
         drop(req);
 
         // -- single line inputs, all field variants
 
         let mut builder = Request::builder();
-        builder.on_chip(&simc.dev_path).with_line(offset).as_input();
+        builder.on_chip(s.dev_path()).with_line(offset).as_input();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
 
         let req = builder.request().unwrap();
 
-        simc.set_pull(offset, Level::High).unwrap();
+        s.set_pull(offset, Level::High).unwrap();
         propagation_delay();
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Input);
         assert_eq!(info.bias, None);
@@ -348,7 +344,7 @@ mod builder {
             .request()
             .unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(info.active_low);
         assert_eq!(info.direction, Direction::Input);
         assert_eq!(info.bias, Some(Bias::PullUp));
@@ -368,7 +364,7 @@ mod builder {
             .request()
             .unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Input);
         assert_eq!(info.bias, Some(Bias::PullDown));
@@ -388,7 +384,7 @@ mod builder {
             .request()
             .unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Input);
         assert_eq!(info.bias, Some(Bias::Disabled));
@@ -407,14 +403,14 @@ mod builder {
         let offsets = &[2, 7];
         let mut builder = Request::builder();
         builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_lines(offsets)
             .as_input();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
         let req = builder.request().unwrap();
         for offset in offsets {
-            let info = cdevc.line_info(*offset).unwrap();
+            let info = c.line_info(*offset).unwrap();
             assert!(info.used);
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Input);
@@ -430,7 +426,7 @@ mod builder {
         builder.as_output(Value::Active);
         let req = builder.request().unwrap();
         for offset in offsets {
-            let info = cdevc.line_info(*offset).unwrap();
+            let info = c.line_info(*offset).unwrap();
             assert!(info.used);
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Output);
@@ -444,12 +440,11 @@ mod builder {
     }
 
     fn request_mixed_config(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
 
         let mut builder = Request::builder();
         builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(1)
             .as_input()
             .with_line(2)
@@ -468,13 +463,12 @@ mod builder {
     }
 
     fn request_invalid_offset(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
 
         let mut builder = Request::builder();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
-        builder.on_chip(&simc.dev_path).with_line(5).as_input();
+        builder.on_chip(s.dev_path()).with_line(5).as_input();
         let res = builder.request().unwrap_err();
         if abiv == AbiVersion::V2 {
             assert_eq!(
@@ -508,10 +502,10 @@ mod builder {
 
     #[test]
     fn request_symlink_chip() {
-        let sim = Simpleton::new(4);
+        let s = Simpleton::new(4);
         let mut path = PathBuf::from("/tmp");
         path.push(gpiosim::unique_name("gpiocdev_builder", None));
-        let link = Symlink::new(&sim.chip().dev_path, &path).unwrap();
+        let link = Symlink::new(s.chip().dev_path(), &path).unwrap();
         let req = Request::builder()
             .on_chip(&link.src)
             .with_line(2)
@@ -593,15 +587,14 @@ mod request {
 
         #[test]
         fn reconfigure_edge_detection_change() {
-            let sim = Simpleton::new(20);
-            let simc = sim.chip();
+            let s = Simpleton::new(20);
             let offsets = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
             let mut builder = Request::builder();
             #[cfg(feature = "uapi_v2")]
             builder.using_abi_version(gpiocdev::AbiVersion::V1);
             let req = builder
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_lines(offsets)
                 .as_input()
                 .request()
@@ -638,13 +631,12 @@ mod request {
 
         #[test]
         fn edge_events() {
-            let sim = Simpleton::new(3);
-            let simc = sim.chip();
+            let s = Simpleton::new(3);
             let offset = 2;
 
             let mut builder = Request::builder();
             builder
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .as_input()
                 .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
@@ -653,13 +645,13 @@ mod request {
             let req = builder.request().unwrap();
 
             // create four events
-            simc.toggle(offset).unwrap();
+            s.toggle(offset).unwrap();
             propagation_delay();
-            simc.toggle(offset).unwrap();
+            s.toggle(offset).unwrap();
             propagation_delay();
-            simc.toggle(offset).unwrap();
+            s.toggle(offset).unwrap();
             propagation_delay();
-            simc.toggle(offset).unwrap();
+            s.toggle(offset).unwrap();
             propagation_delay();
 
             let mut iter = req.edge_events();
@@ -696,15 +688,14 @@ mod request {
 
         #[test]
         fn edge_event_from_slice() {
-            let sim = Simpleton::new(3);
-            let simc = sim.chip();
+            let s = Simpleton::new(3);
             let offset = 2;
 
             let mut builder = Request::builder();
             #[cfg(feature = "uapi_v2")]
             builder.using_abi_version(gpiocdev::AbiVersion::V1);
             let req = builder
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .as_input()
                 .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -713,13 +704,13 @@ mod request {
             let mut buf = vec![0; req.edge_event_size() * 3];
 
             // create four events
-            simc.toggle(offset).unwrap();
+            s.toggle(offset).unwrap();
             propagation_delay();
-            simc.toggle(offset).unwrap();
+            s.toggle(offset).unwrap();
             propagation_delay();
-            simc.toggle(offset).unwrap();
+            s.toggle(offset).unwrap();
             propagation_delay();
-            simc.toggle(offset).unwrap();
+            s.toggle(offset).unwrap();
             propagation_delay();
 
             // read a buffer full
@@ -761,12 +752,11 @@ mod request {
 
         #[test]
         fn edge_event_size() {
-            let sim = Simpleton::new(3);
-            let simc = sim.chip();
+            let s = Simpleton::new(3);
             let offset = 0;
 
             let mut builder = Request::builder();
-            builder.on_chip(&simc.dev_path).with_line(offset).as_input();
+            builder.on_chip(s.dev_path()).with_line(offset).as_input();
             #[cfg(feature = "uapi_v2")]
             builder.using_abi_version(gpiocdev::AbiVersion::V1);
 
@@ -836,12 +826,11 @@ mod request {
 
         #[test]
         fn reconfigure_too_complicated() {
-            let sim = Simpleton::new(20);
-            let simc = sim.chip();
+            let s = Simpleton::new(20);
             let offsets = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_lines(offsets)
                 .as_input()
                 .request()
@@ -861,12 +850,11 @@ mod request {
 
         #[test]
         fn reconfigure_ignores_unrequested_lines() {
-            let sim = Simpleton::new(20);
-            let simc = sim.chip();
+            let s = Simpleton::new(20);
             let offsets = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_lines(offsets)
                 .as_input()
                 .request()
@@ -882,12 +870,11 @@ mod request {
 
         #[test]
         fn edge_events() {
-            let sim = Simpleton::new(3);
-            let simc = sim.chip();
+            let s = Simpleton::new(3);
             let offsets = &[1, 2];
 
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_lines(offsets)
                 .as_input()
                 .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -895,13 +882,13 @@ mod request {
                 .unwrap();
 
             // create four events
-            simc.toggle(1).unwrap();
+            s.toggle(1).unwrap();
             propagation_delay();
-            simc.toggle(2).unwrap();
+            s.toggle(2).unwrap();
             propagation_delay();
-            simc.toggle(1).unwrap();
+            s.toggle(1).unwrap();
             propagation_delay();
-            simc.toggle(2).unwrap();
+            s.toggle(2).unwrap();
             propagation_delay();
 
             let mut iter = req.edge_events();
@@ -933,12 +920,11 @@ mod request {
         #[test]
         #[cfg(feature = "uapi_v2")]
         fn edge_event_from_slice() {
-            let sim = Simpleton::new(3);
-            let simc = sim.chip();
+            let s = Simpleton::new(3);
             let offsets = &[1, 2];
 
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_lines(offsets)
                 .as_input()
                 .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -947,13 +933,13 @@ mod request {
             let mut buf = vec![0; req.edge_event_size() * 3];
 
             // create four events
-            simc.toggle(1).unwrap();
+            s.toggle(1).unwrap();
             propagation_delay();
-            simc.toggle(2).unwrap();
+            s.toggle(2).unwrap();
             propagation_delay();
-            simc.toggle(1).unwrap();
+            s.toggle(1).unwrap();
             propagation_delay();
-            simc.toggle(2).unwrap();
+            s.toggle(2).unwrap();
             propagation_delay();
 
             // read a buffer full
@@ -995,13 +981,12 @@ mod request {
 
         #[test]
         fn edge_event_size() {
-            let sim = Simpleton::new(3);
-            let simc = sim.chip();
+            let s = Simpleton::new(3);
             let offset = 2;
 
             // v2
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .as_input()
                 .request()
@@ -1014,8 +999,7 @@ mod request {
 
     #[allow(unused)]
     fn value(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offsets = &[0, 1, 2];
 
         let mut builder = Request::builder();
@@ -1023,7 +1007,7 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_lines(offsets)
             .as_input()
             .request()
@@ -1033,12 +1017,12 @@ mod request {
             let v = req.value(*offset).unwrap();
             assert_eq!(v, Value::Inactive);
 
-            simc.pullup(*offset).unwrap();
+            s.pullup(*offset).unwrap();
             propagation_delay();
             let v = req.value(*offset).unwrap();
             assert_eq!(v, Value::Active);
 
-            simc.pulldown(*offset).unwrap();
+            s.pulldown(*offset).unwrap();
             propagation_delay();
             let v = req.value(*offset).unwrap();
             assert_eq!(v, Value::Inactive);
@@ -1054,8 +1038,7 @@ mod request {
 
     #[allow(unused)]
     fn values(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(5);
-        let simc = sim.chip();
+        let s = Simpleton::new(5);
         let offsets = &[0, 1, 3];
 
         let mut builder = Request::builder();
@@ -1063,7 +1046,7 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_lines(offsets)
             .as_input()
             .request()
@@ -1078,8 +1061,8 @@ mod request {
         assert_eq!(vals.get(3), Some(Value::Inactive));
 
         println!("vals: {:?}", vals);
-        simc.pullup(1).unwrap();
-        simc.pullup(3).unwrap();
+        s.pullup(1).unwrap();
+        s.pullup(3).unwrap();
         propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         println!("vals: {:?}", vals);
@@ -1087,8 +1070,8 @@ mod request {
         assert_eq!(vals.get(1), Some(Value::Active));
         assert_eq!(vals.get(3), Some(Value::Active));
 
-        simc.pullup(0).unwrap();
-        simc.pulldown(3).unwrap();
+        s.pullup(0).unwrap();
+        s.pulldown(3).unwrap();
         propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Active));
@@ -1097,8 +1080,8 @@ mod request {
 
         // explicit full set
         let mut vals = Values::from_offsets(offsets);
-        simc.pulldown(0).unwrap();
-        simc.pullup(3).unwrap();
+        s.pulldown(0).unwrap();
+        s.pullup(3).unwrap();
         propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Inactive));
@@ -1106,7 +1089,7 @@ mod request {
         assert_eq!(vals.get(3), Some(Value::Active));
 
         // subset
-        simc.pulldown(0).unwrap();
+        s.pulldown(0).unwrap();
         propagation_delay();
         let mut vals = Values::from_offsets(&[0, 3]);
         assert!(req.values(&mut vals).is_ok());
@@ -1131,8 +1114,7 @@ mod request {
 
     #[allow(unused)]
     fn set_value(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offsets = &[0, 1, 2];
 
         let mut builder = Request::builder();
@@ -1140,7 +1122,7 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_lines(offsets)
             .as_output(Value::Inactive)
             .request()
@@ -1148,13 +1130,13 @@ mod request {
 
         if abiv == gpiocdev::AbiVersion::V2 {
             for offset in offsets {
-                assert_eq!(simc.get_level(*offset).unwrap(), gpiosim::Level::Low);
+                assert_eq!(s.get_level(*offset).unwrap(), gpiosim::Level::Low);
 
                 assert!(req.set_value(*offset, Value::Active).is_ok());
-                assert_eq!(simc.get_level(*offset).unwrap(), gpiosim::Level::High);
+                assert_eq!(s.get_level(*offset).unwrap(), gpiosim::Level::High);
 
                 assert!(req.set_value(*offset, Value::Inactive).is_ok());
-                assert_eq!(simc.get_level(*offset).unwrap(), gpiosim::Level::Low);
+                assert_eq!(s.get_level(*offset).unwrap(), gpiosim::Level::Low);
             }
         } else {
             for offset in offsets {
@@ -1180,8 +1162,7 @@ mod request {
     fn set_values(abiv: gpiocdev::AbiVersion) {
         use gpiosim::Level;
 
-        let sim = Simpleton::new(5);
-        let simc = sim.chip();
+        let s = Simpleton::new(5);
         let offsets = &[0, 1, 3];
 
         let mut builder = Request::builder();
@@ -1189,7 +1170,7 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_lines(offsets)
             .as_output(Value::Active)
             .request()
@@ -1199,23 +1180,23 @@ mod request {
 
         // full set
         assert!(req.set_values(&vals).is_ok());
-        assert_eq!(simc.get_level(0).unwrap(), Level::Low);
-        assert_eq!(simc.get_level(1).unwrap(), Level::Low);
-        assert_eq!(simc.get_level(3).unwrap(), Level::Low);
+        assert_eq!(s.get_level(0).unwrap(), Level::Low);
+        assert_eq!(s.get_level(1).unwrap(), Level::Low);
+        assert_eq!(s.get_level(3).unwrap(), Level::Low);
 
         vals.set(1, Value::Active);
         vals.set(3, Value::Active);
         assert!(req.set_values(&vals).is_ok());
-        assert_eq!(simc.get_level(0).unwrap(), Level::Low);
-        assert_eq!(simc.get_level(1).unwrap(), Level::High);
-        assert_eq!(simc.get_level(3).unwrap(), Level::High);
+        assert_eq!(s.get_level(0).unwrap(), Level::Low);
+        assert_eq!(s.get_level(1).unwrap(), Level::High);
+        assert_eq!(s.get_level(3).unwrap(), Level::High);
 
         vals.set(0, Value::Active);
         vals.set(3, Value::Inactive);
         assert!(req.set_values(&vals).is_ok());
-        assert_eq!(simc.get_level(0).unwrap(), Level::High);
-        assert_eq!(simc.get_level(1).unwrap(), Level::High);
-        assert_eq!(simc.get_level(3).unwrap(), Level::Low);
+        assert_eq!(s.get_level(0).unwrap(), Level::High);
+        assert_eq!(s.get_level(1).unwrap(), Level::High);
+        assert_eq!(s.get_level(3).unwrap(), Level::Low);
 
         if abiv == gpiocdev::AbiVersion::V2 {
             // subset
@@ -1223,24 +1204,24 @@ mod request {
             vals.set(1, Value::Inactive);
             vals.set(3, Value::Active);
             assert!(req.set_values(&vals).is_ok());
-            assert_eq!(simc.get_level(0).unwrap(), Level::High);
-            assert_eq!(simc.get_level(1).unwrap(), Level::Low);
-            assert_eq!(simc.get_level(3).unwrap(), Level::High);
+            assert_eq!(s.get_level(0).unwrap(), Level::High);
+            assert_eq!(s.get_level(1).unwrap(), Level::Low);
+            assert_eq!(s.get_level(3).unwrap(), Level::High);
 
             // singular
             let mut vals = Values::default();
             vals.set(3, Value::Inactive);
             assert!(req.set_values(&vals).is_ok());
-            assert_eq!(simc.get_level(0).unwrap(), Level::High);
-            assert_eq!(simc.get_level(1).unwrap(), Level::Low);
-            assert_eq!(simc.get_level(3).unwrap(), Level::Low);
+            assert_eq!(s.get_level(0).unwrap(), Level::High);
+            assert_eq!(s.get_level(1).unwrap(), Level::Low);
+            assert_eq!(s.get_level(3).unwrap(), Level::Low);
 
             // empty set
             let mut vals = Values::default();
             assert!(req.set_values(&vals).is_ok());
-            assert_eq!(simc.get_level(0).unwrap(), Level::Low);
-            assert_eq!(simc.get_level(1).unwrap(), Level::Low);
-            assert_eq!(simc.get_level(3).unwrap(), Level::Low);
+            assert_eq!(s.get_level(0).unwrap(), Level::Low);
+            assert_eq!(s.get_level(1).unwrap(), Level::Low);
+            assert_eq!(s.get_level(3).unwrap(), Level::Low);
         } else {
             // subset
             let mut vals = Values::default();
@@ -1281,9 +1262,9 @@ mod request {
         vals.set(0, Value::Active);
         vals.set(1, Value::Active);
         assert!(req.set_values(&vals).is_ok());
-        assert_eq!(simc.get_level(0).unwrap(), Level::High);
-        assert_eq!(simc.get_level(1).unwrap(), Level::High);
-        assert_eq!(simc.get_level(3).unwrap(), Level::Low);
+        assert_eq!(s.get_level(0).unwrap(), Level::High);
+        assert_eq!(s.get_level(1).unwrap(), Level::High);
+        assert_eq!(s.get_level(3).unwrap(), Level::Low);
     }
 
     #[allow(unused)]
@@ -1291,9 +1272,8 @@ mod request {
         use gpiocdev::line::{Bias, Direction, Drive, EdgeDetection};
         use gpiosim::Level;
 
-        let sim = Simpleton::new(5);
-        let simc = sim.chip();
-        let cdevc = gpiocdev::chip::Chip::from_path(&simc.dev_path).unwrap();
+        let s = Simpleton::new(5);
+        let c = gpiocdev::chip::Chip::from_path(s.dev_path()).unwrap();
         let offset = 1;
 
         let mut builder = Request::builder();
@@ -1301,7 +1281,7 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_active_low()
             .with_bias(gpiocdev::line::Bias::PullDown)
@@ -1309,14 +1289,14 @@ mod request {
             .request()
             .unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::PullDown));
         assert_eq!(info.drive, Some(Drive::OpenDrain));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(simc.get_level(offset).unwrap(), Level::Low);
+        assert_eq!(s.get_level(offset).unwrap(), Level::Low);
 
         let mut cfg = req.config();
         cfg.with_bias(gpiocdev::line::Bias::PullUp)
@@ -1324,20 +1304,19 @@ mod request {
             .as_active_high();
         assert!(req.reconfigure(&cfg).is_ok());
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::PullUp));
         assert_eq!(info.drive, Some(Drive::OpenSource));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(simc.get_level(offset).unwrap(), Level::High);
+        assert_eq!(s.get_level(offset).unwrap(), Level::High);
     }
 
     #[allow(unused)]
     fn has_edge_event(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let mut builder = Request::builder();
@@ -1345,7 +1324,7 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1353,15 +1332,14 @@ mod request {
             .unwrap();
         assert_eq!(req.has_edge_event(), Ok(false));
 
-        simc.pullup(offset).unwrap();
+        s.pullup(offset).unwrap();
         propagation_delay();
         assert_eq!(req.has_edge_event(), Ok(true));
     }
 
     #[allow(unused)]
     fn wait_edge_event(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let mut builder = Request::builder();
@@ -1369,7 +1347,7 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1378,14 +1356,13 @@ mod request {
 
         assert_eq!(req.wait_edge_event(Duration::from_millis(1)), Ok(false));
 
-        simc.pullup(offset).unwrap();
+        s.pullup(offset).unwrap();
         assert_eq!(req.wait_edge_event(Duration::from_millis(1)), Ok(true));
     }
 
     #[allow(unused)]
     fn read_edge_event(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 1;
 
         let mut builder = Request::builder();
@@ -1393,14 +1370,14 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
             .request()
             .unwrap();
 
-        simc.pullup(offset).unwrap();
+        s.pullup(offset).unwrap();
         assert_eq!(req.wait_edge_event(Duration::from_millis(1)), Ok(true));
         let evt = req.read_edge_event().unwrap();
         assert_eq!(evt.kind, EdgeKind::Rising);
@@ -1413,7 +1390,7 @@ mod request {
             assert_eq!(evt.seqno, 0);
         }
 
-        simc.pulldown(offset).unwrap();
+        s.pulldown(offset).unwrap();
         assert_eq!(req.wait_edge_event(Duration::from_millis(1)), Ok(true));
         let evt = req.read_edge_event().unwrap();
         assert_eq!(evt.kind, EdgeKind::Falling);
@@ -1428,15 +1405,14 @@ mod request {
 
     #[allow(unused)]
     fn read_edge_events_into_slice(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let mut builder = Request::builder();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1445,13 +1421,13 @@ mod request {
         let mut buf = vec![0; req.edge_event_size() * 3];
 
         // create four events
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
 
         // read a buffer full
@@ -1465,8 +1441,7 @@ mod request {
 
     #[allow(unused)]
     fn new_edge_event_buffer(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let mut builder = Request::builder();
@@ -1474,7 +1449,7 @@ mod request {
         builder.using_abi_version(abiv);
 
         let req = builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1491,12 +1466,11 @@ mod edge_event_buffer {
 
     #[test]
     fn capacity() {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .request()
@@ -1512,12 +1486,11 @@ mod edge_event_buffer {
 
     #[test]
     fn len() {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1527,13 +1500,13 @@ mod edge_event_buffer {
         assert!(buf.is_empty());
 
         // create four events
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
         assert_eq!(buf.len(), 0);
 
@@ -1558,12 +1531,11 @@ mod edge_event_buffer {
 
     #[test]
     fn is_empty() {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1573,9 +1545,9 @@ mod edge_event_buffer {
         assert!(buf.is_empty());
 
         // create two events
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay();
         assert!(buf.is_empty());
 
@@ -1591,12 +1563,11 @@ mod edge_event_buffer {
 
     #[test]
     fn has_event() {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1605,7 +1576,7 @@ mod edge_event_buffer {
         let mut buf = req.new_edge_event_buffer(4);
         assert_eq!(buf.has_event(), Ok(false));
 
-        simc.pullup(offset).unwrap();
+        s.pullup(offset).unwrap();
         propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
         _ = buf.read_event().unwrap();
@@ -1614,12 +1585,11 @@ mod edge_event_buffer {
 
     #[test]
     fn read_event() {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1628,7 +1598,7 @@ mod edge_event_buffer {
         let mut buf = req.new_edge_event_buffer(4);
         assert_eq!(buf.has_event(), Ok(false));
 
-        simc.pullup(offset).unwrap();
+        s.pullup(offset).unwrap();
         propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
         let evt = buf.read_event().unwrap();
@@ -1640,7 +1610,7 @@ mod edge_event_buffer {
             assert_eq!(evt.seqno, 1);
         }
 
-        simc.pulldown(offset).unwrap();
+        s.pulldown(offset).unwrap();
         propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
         let evt = buf.read_event().unwrap();
@@ -1654,12 +1624,11 @@ mod edge_event_buffer {
 
     #[test]
     fn wait_event() {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -1668,7 +1637,7 @@ mod edge_event_buffer {
         let mut buf = req.new_edge_event_buffer(4);
         assert_eq!(buf.has_event(), Ok(false));
 
-        simc.pullup(offset).unwrap();
+        s.pullup(offset).unwrap();
         let evt = buf.wait_event(Duration::from_millis(1)).unwrap();
         assert_eq!(evt.kind, EdgeKind::Rising);
         assert_eq!(evt.offset, offset);
@@ -1678,7 +1647,7 @@ mod edge_event_buffer {
             assert_eq!(evt.seqno, 1);
         }
 
-        simc.pulldown(offset).unwrap();
+        s.pulldown(offset).unwrap();
         let evt = buf.wait_event(Duration::from_millis(1)).unwrap();
         assert_eq!(evt.kind, EdgeKind::Falling);
         #[cfg(feature = "uapi_v2")]

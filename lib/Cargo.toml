@@ -30,7 +30,7 @@ tokio-stream = {version = "0.1.11", optional = true}
 [dev-dependencies]
 anyhow = "1.0"
 async-std = {version = "1.12"}
-gpiosim = {version = "0.2"}
+gpiosim = {version = "0.3", path = "../../gpiosim"}
 tokio = {version = "1.21", features = ["macros", "rt", "time"]}
 
 [features]

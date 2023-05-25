@@ -43,19 +43,17 @@ mod chip {
         use gpiocdev::r#async::tokio::AsyncChip;
         use tokio_stream::StreamExt;
 
-        let sim = gpiosim::Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = new_chip(&simc.dev_path, abiv);
-        let chip_path = simc.dev_path.clone();
+        let s = gpiosim::Simpleton::new(4);
+        let c = new_chip(s.dev_path(), abiv);
         let offset = 3;
 
-        assert!(cdevc.watch_line_info(offset).is_ok());
+        assert!(c.watch_line_info(offset).is_ok());
 
-        let asyncchip = AsyncChip::new(cdevc);
-        let mut events = asyncchip.info_change_events();
+        let ac = AsyncChip::new(c);
+        let mut events = ac.info_change_events();
         // request
         let req = Request::builder()
-            .on_chip(chip_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .request()
@@ -86,25 +84,24 @@ mod chip {
         use gpiocdev::r#async::tokio::AsyncChip;
         use std::time::Duration;
 
-        let sim = gpiosim::Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = new_chip(&simc.dev_path, abiv);
-        let chip = AsyncChip::new(cdevc);
+        let s = gpiosim::Simpleton::new(4);
+        let c = new_chip(s.dev_path(), abiv);
+        let ac = AsyncChip::new(c);
 
-        for offset in 0..simc.cfg.num_lines {
-            assert_eq!(chip.as_ref().has_line_info_change_event(), Ok(false));
-            assert!(chip.as_ref().watch_line_info(offset).is_ok());
-            assert_eq!(chip.as_ref().has_line_info_change_event(), Ok(false));
+        for offset in 0..s.config().num_lines {
+            assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(false));
+            assert!(ac.as_ref().watch_line_info(offset).is_ok());
+            assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(false));
 
             // request
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .as_input()
                 .request()
                 .unwrap();
-            assert_eq!(chip.as_ref().has_line_info_change_event(), Ok(true));
-            let evt = chip.read_line_info_change_event().await.unwrap();
+            assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(true));
+            let evt = ac.read_line_info_change_event().await.unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Requested);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
@@ -120,8 +117,8 @@ mod chip {
                     .with_debounce_period(Duration::from_millis(10));
             }
             req.reconfigure(&cfg).unwrap();
-            assert_eq!(chip.as_ref().has_line_info_change_event(), Ok(true));
-            let evt = chip.read_line_info_change_event().await.unwrap();
+            assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(true));
+            let evt = ac.read_line_info_change_event().await.unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Reconfigured);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
@@ -139,7 +136,7 @@ mod chip {
 
             // release
             drop(req);
-            let evt = chip.read_line_info_change_event().await.unwrap();
+            let evt = ac.read_line_info_change_event().await.unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Released);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.edge_detection, None);
@@ -149,9 +146,9 @@ mod chip {
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn new_chip(path: &Path, abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
-        let mut cdevc = Chip::from_path(path).unwrap();
-        cdevc.using_abi_version(abiv);
-        cdevc
+        let mut c = Chip::from_path(path).unwrap();
+        c.using_abi_version(abiv);
+        c
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn new_chip(path: &Path, _abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
@@ -219,13 +216,12 @@ mod request {
 
     #[allow(unused)]
     async fn read_edge_event(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::Simpleton::new(4);
-        let simc = sim.chip();
+        let s = gpiosim::Simpleton::new(4);
         let offset = 2;
 
         let mut builder = Request::builder();
         builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
@@ -238,7 +234,7 @@ mod request {
         let res = time::timeout(Duration::from_millis(10), req.read_edge_event()).await;
         assert!(res.is_err());
 
-        simc.pullup(offset).unwrap();
+        s.pullup(offset).unwrap();
         let evt = req.read_edge_event().await.unwrap();
         assert_eq!(evt.offset, offset);
         assert_eq!(evt.kind, EdgeKind::Rising);
@@ -251,7 +247,7 @@ mod request {
         let res = time::timeout(Duration::from_millis(10), req.read_edge_event()).await;
         assert!(res.is_err());
 
-        simc.pulldown(offset).unwrap();
+        s.pulldown(offset).unwrap();
         let evt = req.read_edge_event().await.unwrap();
         assert_eq!(evt.offset, offset);
         assert_eq!(evt.kind, EdgeKind::Falling);
@@ -266,13 +262,12 @@ mod request {
     }
 
     async fn read_edge_events_into_slice(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::Simpleton::new(3);
-        let simc = sim.chip();
+        let s = gpiosim::Simpleton::new(3);
         let offset = 1;
 
         let mut builder = Request::builder();
         builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
@@ -284,13 +279,13 @@ mod request {
         let mut buf = vec![0; req.as_ref().edge_event_size() * 3];
 
         // create four events
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
 
         // read a buffer full
@@ -359,13 +354,12 @@ mod request {
     }
 
     async fn new_edge_event_stream(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::Simpleton::new(4);
-        let simc = sim.chip();
+        let s = gpiosim::Simpleton::new(4);
         let offset = 2;
 
         let mut builder = Request::builder();
         builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
@@ -376,13 +370,13 @@ mod request {
         let req = AsyncRequest::new(builder.request().unwrap());
 
         // create four events
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
 
         let mut iter = req.new_edge_event_stream(2);
@@ -433,13 +427,12 @@ mod request {
     }
 
     async fn edge_events(abiv: gpiocdev::AbiVersion) {
-        let sim = gpiosim::Simpleton::new(4);
-        let simc = sim.chip();
+        let s = gpiosim::Simpleton::new(4);
         let offset = 0;
 
         let mut builder = Request::builder();
         builder
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
@@ -449,13 +442,13 @@ mod request {
 
         let req = AsyncRequest::new(builder.request().unwrap());
         // create four events
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
-        simc.toggle(offset).unwrap();
+        s.toggle(offset).unwrap();
         propagation_delay().await;
 
         let mut iter = req.edge_events();

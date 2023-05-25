@@ -27,22 +27,22 @@ fn find_named_line() {
         .unwrap();
 
     let l = gpiocdev::find_named_line("fl banana").unwrap();
-    assert_eq!(l.chip, sim.chips()[0].dev_path);
+    assert_eq!(l.chip, *sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
     assert_eq!(l.offset, l.info.offset);
 
     let l = gpiocdev::find_named_line("fl piggly").unwrap();
-    assert_eq!(l.chip, sim.chips()[1].dev_path);
+    assert_eq!(&l.chip, sim.chips()[1].dev_path());
     assert_eq!(l.info.offset, 4);
     assert_eq!(l.offset, l.info.offset);
 
     let l = gpiocdev::find_named_line("fl apple").unwrap();
     // depending on how other tests are running, the order of the sim chips is not 100% predictable.
-    if sim.chips()[0].dev_path < sim.chips()[1].dev_path {
-        assert_eq!(l.chip, sim.chips()[0].dev_path);
+    if sim.chips()[0].dev_path() < sim.chips()[1].dev_path() {
+        assert_eq!(&l.chip, sim.chips()[0].dev_path());
         assert_eq!(l.info.offset, 6);
     } else {
-        assert_eq!(l.chip, sim.chips()[1].dev_path);
+        assert_eq!(&l.chip, sim.chips()[1].dev_path());
         assert_eq!(l.info.offset, 5);
     }
     assert_eq!(l.offset, l.info.offset);
@@ -70,25 +70,25 @@ fn find_named_lines() {
     let found = gpiocdev::find_named_lines(&["fls banana"], true).unwrap();
     assert_eq!(found.len(), 1);
     let l = found.get(&"fls banana").unwrap();
-    assert_eq!(*l.chip, sim.chips()[0].dev_path);
+    assert_eq!(&l.chip, sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
     assert_eq!(l.offset, l.info.offset);
 
     let found = gpiocdev::find_named_lines(&["fls piggly"], true).unwrap();
     assert_eq!(found.len(), 1);
     let l = found.get(&"fls piggly").unwrap();
-    assert_eq!(*l.chip, sim.chips()[1].dev_path);
+    assert_eq!(&l.chip, sim.chips()[1].dev_path());
     assert_eq!(l.info.offset, 4);
     assert_eq!(l.offset, l.info.offset);
 
     let found = gpiocdev::find_named_lines(&["fls apple"], false).unwrap();
     assert_eq!(found.len(), 1);
     let l = found.get(&"fls apple").unwrap();
-    if sim.chips()[0].dev_path < sim.chips()[1].dev_path {
-        assert_eq!(*l.chip, sim.chips()[0].dev_path);
+    if sim.chips()[0].dev_path() < sim.chips()[1].dev_path() {
+        assert_eq!(&l.chip, sim.chips()[0].dev_path());
         assert_eq!(l.info.offset, 6);
     } else {
-        assert_eq!(*l.chip, sim.chips()[1].dev_path);
+        assert_eq!(&l.chip, sim.chips()[1].dev_path());
         assert_eq!(l.info.offset, 5);
     }
     assert_eq!(l.offset, l.info.offset);
@@ -108,14 +108,14 @@ fn find_named_lines() {
     let found =
         gpiocdev::find_named_lines(&["fls apple", "fls banana", "fls nada"], false).unwrap();
     let l = found.get(&"fls banana").unwrap();
-    assert_eq!(*l.chip, sim.chips()[0].dev_path);
+    assert_eq!(&l.chip, sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
     let l = found.get(&"fls apple").unwrap();
-    if sim.chips()[0].dev_path < sim.chips()[1].dev_path {
-        assert_eq!(*l.chip, sim.chips()[0].dev_path);
+    if sim.chips()[0].dev_path() < sim.chips()[1].dev_path() {
+        assert_eq!(&l.chip, sim.chips()[0].dev_path());
         assert_eq!(l.info.offset, 6);
     } else {
-        assert_eq!(*l.chip, sim.chips()[1].dev_path);
+        assert_eq!(&l.chip, sim.chips()[1].dev_path());
         assert_eq!(l.info.offset, 5);
     }
     assert!(found.get(&"fls nada").is_none());
@@ -126,14 +126,14 @@ fn detect_abi_version() {
     // assumes a kernel with both v1 and v2 supported.
 
     // to ensure there is at least one chip
-    let sim = gpiosim::Simpleton::new(4);
+    let s = gpiosim::Simpleton::new(4);
 
     #[cfg(feature = "uapi_v2")]
     assert_eq!(gpiocdev::detect_abi_version(), Ok(gpiocdev::AbiVersion::V2));
     #[cfg(not(feature = "uapi_v2"))]
     assert_eq!(gpiocdev::detect_abi_version(), Ok(gpiocdev::AbiVersion::V1));
 
-    drop(sim);
+    drop(s);
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn supports_abi_version() {
     // assumes a kernel with both v1 and v2 supported.
 
     // to ensure there is at least one chip
-    let sim = gpiosim::Simpleton::new(4);
+    let s = gpiosim::Simpleton::new(4);
 
     #[cfg(feature = "uapi_v1")]
     assert_eq!(
@@ -170,5 +170,5 @@ fn supports_abi_version() {
         ))
     );
 
-    drop(sim);
+    drop(s);
 }

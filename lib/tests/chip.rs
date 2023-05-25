@@ -47,7 +47,10 @@ impl Drop for Symlink {
 fn is_chip() {
     let cc = bag_of_chips();
     for c in cc.chips() {
-        assert_eq!(gpiocdev::chip::is_chip(&c.dev_path).unwrap(), c.dev_path);
+        assert_eq!(
+            gpiocdev::chip::is_chip(c.dev_path()).unwrap(),
+            *c.dev_path()
+        );
     }
 }
 
@@ -56,7 +59,7 @@ fn is_chip_symlink() {
     let cc = bag_of_chips();
     let mut path = PathBuf::from("/tmp");
     path.push(gpiosim::unique_name("gpiocdev_chip", None));
-    let link = Symlink::new(&cc.chips()[0].dev_path, &path).unwrap();
+    let link = Symlink::new(cc.chips()[0].dev_path(), &path).unwrap();
     // locates and reports the path of the actual device
     assert_eq!(*gpiocdev::chip::is_chip(&link.src).unwrap(), *link.dst);
 }
@@ -95,9 +98,9 @@ fn chips() {
     for c in cc.chips() {
         // all chips in the test set must be in the system
         assert!(
-            system_chips.contains(&c.dev_path),
+            system_chips.contains(c.dev_path()),
             "{:?} not found in system chips",
-            c.dev_path
+            c.dev_path()
         );
     }
 }
@@ -132,12 +135,12 @@ mod chip {
 
     #[test]
     fn from_path() {
-        let sim = bag_of_chips();
-        for c in sim.chips() {
+        let s = bag_of_chips();
+        for c in s.chips() {
             assert!(
-                Chip::from_path(&c.dev_path).is_ok(),
+                Chip::from_path(c.dev_path()).is_ok(),
                 "failed to open {:?}",
-                c.dev_path
+                c.dev_path()
             );
         }
     }
@@ -147,7 +150,7 @@ mod chip {
         let cc = bag_of_chips();
         let mut path = PathBuf::from("/tmp");
         path.push(gpiosim::unique_name("gpiocdev_chip", None));
-        let link = Symlink::new(&cc.chips()[0].dev_path, &path).unwrap();
+        let link = Symlink::new(cc.chips()[0].dev_path(), &path).unwrap();
         // constructs and reports the path of the actual device
         assert_eq!(Chip::from_path(&link.src).unwrap().path(), link.dst);
     }
@@ -181,65 +184,65 @@ mod chip {
 
     #[test]
     fn info() {
-        let sim = bag_of_chips();
-        for simc in sim.chips() {
-            let cdevc = Chip::from_path(&simc.dev_path).unwrap();
-            let info = cdevc.info().unwrap();
-            assert_eq!(info.num_lines, simc.cfg.num_lines);
-            assert_eq!(info.label.as_str(), simc.cfg.label);
-            assert_eq!(info.name.as_str(), simc.chip_name);
+        let s = bag_of_chips();
+        for sc in s.chips() {
+            let c = Chip::from_path(sc.dev_path()).unwrap();
+            let info = c.info().unwrap();
+            assert_eq!(info.num_lines, sc.config().num_lines);
+            assert_eq!(info.label.as_str(), sc.config().label);
+            assert_eq!(info.name.as_str(), sc.chip_name);
         }
     }
 
     #[test]
     fn name() {
-        let sim = bag_of_chips();
-        for simc in sim.chips() {
-            let ch = Chip::from_path(&simc.dev_path).unwrap();
-            assert_eq!(ch.name().as_str(), simc.chip_name);
+        let s = bag_of_chips();
+        for sc in s.chips() {
+            let ch = Chip::from_path(sc.dev_path()).unwrap();
+            assert_eq!(ch.name().as_str(), sc.chip_name);
         }
     }
 
     #[test]
     fn path() {
-        let sim = bag_of_chips();
-        for simc in sim.chips() {
-            let cdevc = Chip::from_path(&simc.dev_path).unwrap();
-            assert_eq!(cdevc.path(), simc.dev_path);
+        let s = bag_of_chips();
+        for sc in s.chips() {
+            let c = Chip::from_path(sc.dev_path()).unwrap();
+            assert_eq!(c.path(), sc.dev_path());
         }
     }
 
     #[test]
     fn find_line_info() {
-        let sim = detailed_sim();
-        for simc in sim.chips() {
-            let cdevc = Chip::from_path(&simc.dev_path).unwrap();
-            for (offset, name) in &simc.cfg.names {
-                let info = cdevc.find_line_info(name).unwrap();
+        let s = detailed_sim();
+        for sc in s.chips() {
+            let c = Chip::from_path(sc.dev_path()).unwrap();
+            for (offset, name) in &sc.config().names {
+                let info = c.find_line_info(name).unwrap();
                 assert_eq!(info.offset, *offset);
                 assert_eq!(info.name, *name);
             }
 
             // non-existent
-            assert!(cdevc.find_line_info("not such line").is_none())
+            assert!(c.find_line_info("not such line").is_none())
         }
     }
 
     fn line_info(abiv: gpiocdev::AbiVersion) {
-        let sim = detailed_sim();
-        for simc in sim.chips() {
-            let cdevc = new_chip(&simc.dev_path, abiv);
+        let s = detailed_sim();
+        for sc in s.chips() {
+            let c = new_chip(sc.dev_path(), abiv);
             // names, offsets and used
-            for (offset, name) in &simc.cfg.names {
-                let info = cdevc.line_info(*offset).unwrap();
+            for (offset, name) in &sc.config().names {
+                let info = c.line_info(*offset).unwrap();
                 assert_eq!(info.name.as_str(), name);
                 assert_eq!(info.offset, *offset);
-                assert_eq!(info.used, simc.cfg.hogs.contains_key(offset))
+                assert_eq!(info.used, sc.config().hogs.contains_key(offset))
             }
 
             // consumer, direction and used
-            for (offset, hog) in &simc.cfg.hogs {
-                let info = cdevc.line_info(*offset).unwrap();
+            for (offset, hog) in &sc.config().hogs {
+                let info = c.line_info(*offset).unwrap();
                 assert_eq!(info.consumer.as_str(), &hog.consumer);
                 assert_eq!(info.offset, *offset);
                 assert_eq!(
@@ -255,16 +258,15 @@ mod chip {
         }
 
         // config menagerie on simpleton
-        let sim = Simpleton::new(10);
-        let simc = sim.chip();
+        let s = Simpleton::new(10);
         let offset = 1;
         // Combinations covering all possible active low, bias, drive,
         // edge detection enum values.
         let mut builder = Request::builder();
-        builder.on_chip(&simc.dev_path).with_line(offset);
+        builder.on_chip(s.dev_path()).with_line(offset);
 
-        let cdevc = new_chip(&simc.dev_path, abiv);
-        let res = cdevc.line_info(11);
+        let c = new_chip(s.dev_path(), abiv);
+        let res = c.line_info(11);
         assert_eq!(
             res,
             Err(gpiocdev::Error::UapiError(
@@ -280,7 +282,7 @@ mod chip {
             .request()
             .unwrap();
 
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(info.active_low);
         assert_eq!(info.direction, gpiocdev::line::Direction::Output);
         assert_eq!(info.bias, Some(gpiocdev::line::Bias::PullDown));
@@ -291,7 +293,7 @@ mod chip {
             .with_drive(gpiocdev::line::Drive::OpenSource)
             .as_active_high();
         req.reconfigure(&cfg).unwrap();
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, gpiocdev::line::Direction::Output);
         assert_eq!(info.bias, Some(gpiocdev::line::Bias::PullUp));
@@ -300,7 +302,7 @@ mod chip {
         cfg.with_bias(gpiocdev::line::Bias::Disabled)
             .with_drive(gpiocdev::line::Drive::PushPull);
         req.reconfigure(&cfg).unwrap();
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, gpiocdev::line::Direction::Output);
         assert_eq!(info.bias, Some(gpiocdev::line::Bias::Disabled));
@@ -313,7 +315,7 @@ mod chip {
         drop(req);
         cfg.with_edge_detection(gpiocdev::line::EdgeDetection::RisingEdge);
         let req = builder.with_config(cfg.clone()).request().unwrap();
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert_eq!(info.direction, gpiocdev::line::Direction::Input);
         if abiv == gpiocdev::AbiVersion::V1 {
             assert_eq!(info.edge_detection, None);
@@ -332,7 +334,7 @@ mod chip {
         drop(req);
         cfg.with_edge_detection(gpiocdev::line::EdgeDetection::FallingEdge);
         let req = builder.with_config(cfg.clone()).request().unwrap();
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert_eq!(info.direction, gpiocdev::line::Direction::Input);
         if abiv == gpiocdev::AbiVersion::V1 {
             assert_eq!(info.edge_detection, None);
@@ -351,7 +353,7 @@ mod chip {
         drop(req);
         cfg.with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
         let req = builder.with_config(cfg.clone()).request().unwrap();
-        let info = cdevc.line_info(offset).unwrap();
+        let info = c.line_info(offset).unwrap();
         assert_eq!(info.direction, gpiocdev::line::Direction::Input);
         if abiv == gpiocdev::AbiVersion::V1 {
             assert_eq!(info.edge_detection, None);
@@ -371,7 +373,7 @@ mod chip {
         if abiv == gpiocdev::AbiVersion::V2 {
             let req = builder
                 .with_config(gpiocdev::request::Config::default())
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(0)
                 .with_edge_detection(gpiocdev::line::EdgeDetection::FallingEdge)
                 .with_event_clock(gpiocdev::line::EventClock::Realtime)
@@ -383,8 +385,8 @@ mod chip {
                 .request()
                 .unwrap();
 
-            let cdevc = Chip::from_path(&simc.dev_path).unwrap();
-            let info = cdevc.line_info(0).unwrap();
+            let c = Chip::from_path(s.dev_path()).unwrap();
+            let info = c.line_info(0).unwrap();
             assert_eq!(info.direction, gpiocdev::line::Direction::Input);
             assert_eq!(
                 info.edge_detection,
@@ -394,7 +396,7 @@ mod chip {
             assert_eq!(info.event_clock, Some(gpiocdev::line::EventClock::Realtime));
             assert_eq!(info.debounce_period, Some(Duration::from_millis(10)));
 
-            let info = cdevc.line_info(1).unwrap();
+            let info = c.line_info(1).unwrap();
             assert_eq!(info.direction, gpiocdev::line::Direction::Input);
             assert_eq!(
                 info.edge_detection,
@@ -482,13 +484,12 @@ mod chip {
     }
 
     fn watch_line_info(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = new_chip(&simc.dev_path, abiv);
+        let s = Simpleton::new(4);
+        let c = new_chip(s.dev_path(), abiv);
         let offset = 2;
 
         assert_eq!(
-            cdevc.watch_line_info(5),
+            c.watch_line_info(5),
             Err(gpiocdev::Error::UapiError(
                 gpiocdev::UapiCall::WatchLineInfo,
                 gpiocdev_uapi::Error::Os(Errno(22))
@@ -496,7 +497,7 @@ mod chip {
         );
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_consumer("watch info")
             .with_line(offset)
             .as_input()
@@ -511,23 +512,22 @@ mod chip {
             used: true,
             ..Default::default()
         };
-        let res = cdevc.watch_line_info(offset);
+        let res = c.watch_line_info(offset);
         assert_eq!(res, Ok(xinfo));
-        assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
+        assert_eq!(c.has_line_info_change_event(), Ok(false));
 
         drop(req);
-        assert_eq!(cdevc.has_line_info_change_event(), Ok(true));
+        assert_eq!(c.has_line_info_change_event(), Ok(true));
     }
 
     #[test]
     fn unwatch_line_info() {
-        let sim = Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = Chip::from_path(&simc.dev_path).unwrap();
+        let s = Simpleton::new(4);
+        let c = Chip::from_path(s.dev_path()).unwrap();
         let offset = 3;
 
         assert_eq!(
-            cdevc.unwatch_line_info(5),
+            c.unwatch_line_info(5),
             Err(gpiocdev::Error::UapiError(
                 gpiocdev::UapiCall::UnwatchLineInfo,
                 gpiocdev_uapi::Error::Os(Errno(22))
@@ -535,75 +535,73 @@ mod chip {
         );
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .request()
             .unwrap();
 
-        assert!(cdevc.watch_line_info(offset).is_ok());
-        assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
+        assert!(c.watch_line_info(offset).is_ok());
+        assert_eq!(c.has_line_info_change_event(), Ok(false));
 
         drop(req);
-        assert_eq!(cdevc.has_line_info_change_event(), Ok(true));
-        _ = cdevc.read_line_info_change_event();
+        assert_eq!(c.has_line_info_change_event(), Ok(true));
+        _ = c.read_line_info_change_event();
 
-        assert!(cdevc.unwatch_line_info(offset).is_ok());
+        assert!(c.unwatch_line_info(offset).is_ok());
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .request()
             .unwrap();
-        assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
+        assert_eq!(c.has_line_info_change_event(), Ok(false));
 
         drop(req);
-        assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
+        assert_eq!(c.has_line_info_change_event(), Ok(false));
     }
 
     fn has_line_info_change_event(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = new_chip(&simc.dev_path, abiv);
+        let s = Simpleton::new(4);
+        let c = new_chip(s.dev_path(), abiv);
 
-        for offset in 0..simc.cfg.num_lines {
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
-            assert!(cdevc.watch_line_info(offset).is_ok());
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
+        for offset in 0..s.config().num_lines {
+            assert_eq!(c.has_line_info_change_event(), Ok(false));
+            assert!(c.watch_line_info(offset).is_ok());
+            assert_eq!(c.has_line_info_change_event(), Ok(false));
 
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .request()
                 .unwrap();
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(true));
-            _ = cdevc.read_line_info_change_event();
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
+            assert_eq!(c.has_line_info_change_event(), Ok(true));
+            _ = c.read_line_info_change_event();
+            assert_eq!(c.has_line_info_change_event(), Ok(false));
 
             drop(req);
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(true));
-            _ = cdevc.read_line_info_change_event();
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
+            assert_eq!(c.has_line_info_change_event(), Ok(true));
+            _ = c.read_line_info_change_event();
+            assert_eq!(c.has_line_info_change_event(), Ok(false));
         }
     }
 
     fn read_line_info_change_event(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = new_chip(&simc.dev_path, abiv);
+        let s = Simpleton::new(4);
+        let c = new_chip(s.dev_path(), abiv);
 
-        for offset in 0..simc.cfg.num_lines {
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
-            assert!(cdevc.watch_line_info(offset).is_ok());
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(false));
+        for offset in 0..s.config().num_lines {
+            assert_eq!(c.has_line_info_change_event(), Ok(false));
+            assert!(c.watch_line_info(offset).is_ok());
+            assert_eq!(c.has_line_info_change_event(), Ok(false));
 
             // request
             let req = Request::builder()
-                .on_chip(&simc.dev_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .as_input()
                 .request()
                 .unwrap();
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(true));
-            let evt = cdevc.read_line_info_change_event().unwrap();
+            assert_eq!(c.has_line_info_change_event(), Ok(true));
+            let evt = c.read_line_info_change_event().unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Requested);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
@@ -619,8 +617,8 @@ mod chip {
                     .with_debounce_period(Duration::from_millis(10));
             }
             req.reconfigure(&cfg).unwrap();
-            assert_eq!(cdevc.has_line_info_change_event(), Ok(true));
-            let evt = cdevc.read_line_info_change_event().unwrap();
+            assert_eq!(c.has_line_info_change_event(), Ok(true));
+            let evt = c.read_line_info_change_event().unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Reconfigured);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
@@ -638,7 +636,7 @@ mod chip {
 
             // release
             drop(req);
-            let evt = cdevc.read_line_info_change_event().unwrap();
+            let evt = c.read_line_info_change_event().unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Released);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.edge_detection, None);
@@ -646,40 +644,45 @@ mod chip {
         }
     }
 
+    // this test is failing on 6.4.0-rc3 (and possibly earlier)
+    // so this is still a WIP
     fn info_change_events(abiv: gpiocdev::AbiVersion) {
-        use gpiocdev::line::InfoChangeKind;
+        use gpiocdev::line::{Bias, InfoChangeKind};
+        use std::sync::mpsc;
         use std::thread;
-
-        let sim = Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = new_chip(&simc.dev_path, abiv);
-        let chip_path = simc.dev_path.clone();
+        let s = Simpleton::new(4);
+        let c = new_chip(s.dev_path(), abiv);
         let offset = 0;
 
-        assert!(cdevc.watch_line_info(offset).is_ok());
-
+        let (bg_tx, bg_rx) = mpsc::channel();
+        assert!(c.watch_line_info(offset).is_ok());
         let t = thread::spawn(move || {
-            // allow time for the iter to block
-            thread::sleep(Duration::from_millis(10));
-
             // request
             let req = Request::builder()
-                .on_chip(chip_path)
+                .on_chip(s.dev_path())
                 .with_line(offset)
                 .as_input()
                 .request()
                 .unwrap();
 
-            // reconfigure
+            // reconfigure pullup
+            bg_rx.recv().unwrap();
             let mut cfg = req.config();
-            cfg.with_bias(gpiocdev::line::Bias::PullUp);
+            cfg.with_bias(Bias::PullUp);
             req.reconfigure(&cfg).unwrap();
 
-            // release
+            // reconfigure pulldown
+            bg_rx.recv().unwrap();
+            cfg.with_bias(Bias::PullDown);
+            req.reconfigure(&cfg).unwrap();
+
+            bg_rx.recv().unwrap();
+            // req will drop when thread is joined...
+            // even if dropped explicitly here??
             drop(req);
         });
         let mut count = 0;
-        for res in cdevc.info_change_events() {
+        for res in c.info_change_events() {
             assert!(res.is_ok());
             if let Ok(evt) = res {
                 assert_eq!(evt.info.offset, offset);
@@ -687,50 +690,68 @@ mod chip {
                     assert_eq!(evt.kind, InfoChangeKind::Requested);
                 } else if count == 1 {
                     assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
+                    assert_eq!(evt.info.bias, Some(Bias::PullUp));
                 } else {
-                    assert_eq!(evt.kind, InfoChangeKind::Released);
+                    assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
+                    assert_eq!(evt.info.bias, Some(Bias::PullDown));
                     break;
                 }
                 count += 1;
+                // kick the bg thread
+                bg_tx.send(1).unwrap();
             }
         }
-
+        bg_tx.send(1).unwrap();
         let res = t.join();
         assert!(res.is_ok());
+        assert!(c
+            .wait_line_info_change_event(Duration::from_millis(10))
+            .is_ok());
+        let res = c.read_line_info_change_event(); // !!! kernel returns ENODEV??
+        println!("read: {:?}", res); // debug print to see the result
+        assert!(res.is_ok());
+        // a fun check to see if the fd is still readable
+        // - comment out the previous assert to get there
+        assert!(c
+            .wait_line_info_change_event(Duration::from_millis(10))
+            .is_ok());
+        if let Ok(evt) = res {
+            assert_eq!(evt.kind, InfoChangeKind::Released);
+            assert_eq!(evt.info.bias, None);
+        }
     }
 
     fn wait_info_change_event(abiv: gpiocdev::AbiVersion) {
-        let sim = Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = new_chip(&simc.dev_path, abiv);
+        let s = Simpleton::new(4);
+        let c = new_chip(s.dev_path(), abiv);
         let offset = 0;
 
-        assert!(cdevc.watch_line_info(offset).is_ok());
+        assert!(c.watch_line_info(offset).is_ok());
         assert_eq!(
-            cdevc.wait_line_info_change_event(Duration::from_millis(1)),
+            c.wait_line_info_change_event(Duration::from_millis(1)),
             Ok(false)
         );
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .request()
             .unwrap();
 
         assert_eq!(
-            cdevc.wait_line_info_change_event(Duration::from_millis(1)),
+            c.wait_line_info_change_event(Duration::from_millis(1)),
             Ok(true)
         );
 
-        _ = cdevc.read_line_info_change_event();
+        _ = c.read_line_info_change_event();
         assert_eq!(
-            cdevc.wait_line_info_change_event(Duration::from_millis(1)),
+            c.wait_line_info_change_event(Duration::from_millis(1)),
             Ok(false)
         );
 
         drop(req);
         assert_eq!(
-            cdevc.wait_line_info_change_event(Duration::from_millis(1)),
+            c.wait_line_info_change_event(Duration::from_millis(1)),
             Ok(true)
         );
     }
@@ -738,36 +759,34 @@ mod chip {
     #[test]
     fn detect_abi_version() {
         // assumes a kernel with both v1 and v2 supported.
-        let sim = Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = Chip::from_path(&simc.dev_path).unwrap();
+        let s = Simpleton::new(4);
+        let c = Chip::from_path(s.dev_path()).unwrap();
         #[cfg(feature = "uapi_v2")]
-        assert_eq!(cdevc.detect_abi_version(), Ok(gpiocdev::AbiVersion::V2));
+        assert_eq!(c.detect_abi_version(), Ok(gpiocdev::AbiVersion::V2));
         #[cfg(not(feature = "uapi_v2"))]
-        assert_eq!(cdevc.detect_abi_version(), Ok(gpiocdev::AbiVersion::V1));
+        assert_eq!(c.detect_abi_version(), Ok(gpiocdev::AbiVersion::V1));
     }
 
     #[test]
     fn supports_abi_version() {
         // assumes a kernel with both v1 and v2 supported.
-        let sim = Simpleton::new(4);
-        let simc = sim.chip();
-        let cdevc = Chip::from_path(&simc.dev_path).unwrap();
+        let s = Simpleton::new(4);
+        let c = Chip::from_path(s.dev_path()).unwrap();
         #[cfg(feature = "uapi_v1")]
-        assert_eq!(cdevc.supports_abi_version(gpiocdev::AbiVersion::V1), Ok(()));
+        assert_eq!(c.supports_abi_version(gpiocdev::AbiVersion::V1), Ok(()));
         #[cfg(not(feature = "uapi_v1"))]
         assert_eq!(
-            cdevc.supports_abi_version(gpiocdev::AbiVersion::V1),
+            c.supports_abi_version(gpiocdev::AbiVersion::V1),
             Err(gpiocdev::Error::UnsupportedAbi(
                 gpiocdev::AbiVersion::V1,
                 gpiocdev::AbiSupportKind::Build
             ))
         );
         #[cfg(feature = "uapi_v2")]
-        assert_eq!(cdevc.supports_abi_version(gpiocdev::AbiVersion::V2), Ok(()));
+        assert_eq!(c.supports_abi_version(gpiocdev::AbiVersion::V2), Ok(()));
         #[cfg(not(feature = "uapi_v2"))]
         assert_eq!(
-            cdevc.supports_abi_version(gpiocdev::AbiVersion::V2),
+            c.supports_abi_version(gpiocdev::AbiVersion::V2),
             Err(gpiocdev::Error::UnsupportedAbi(
                 gpiocdev::AbiVersion::V2,
                 gpiocdev::AbiSupportKind::Build
@@ -778,14 +797,13 @@ mod chip {
     #[test]
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn using_abi_version() {
-        let sim = Simpleton::new(3);
-        let simc = sim.chip();
+        let s = Simpleton::new(3);
         let offset = 2;
 
-        let mut cdevc = Chip::from_path(&simc.dev_path).unwrap();
+        let mut c = Chip::from_path(s.dev_path()).unwrap();
 
         let req = Request::builder()
-            .on_chip(&simc.dev_path)
+            .on_chip(s.dev_path())
             .with_line(offset)
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
@@ -794,7 +812,7 @@ mod chip {
             .unwrap();
 
         // defaults to v2
-        let info_v2 = cdevc.line_info(offset).unwrap();
+        let info_v2 = c.line_info(offset).unwrap();
         assert_eq!(info_v2.direction, gpiocdev::line::Direction::Input);
         assert_eq!(
             info_v2.edge_detection,
@@ -806,8 +824,8 @@ mod chip {
         );
 
         // using v1
-        cdevc.using_abi_version(gpiocdev::AbiVersion::V1);
-        let info_v1 = cdevc.line_info(offset).unwrap();
+        c.using_abi_version(gpiocdev::AbiVersion::V1);
+        let info_v1 = c.line_info(offset).unwrap();
         assert_eq!(info_v1.offset, offset);
         assert_eq!(info_v1.direction, gpiocdev::line::Direction::Input);
         // v1 does not report edge detection, event clock or debounce period
@@ -816,10 +834,10 @@ mod chip {
         assert_eq!(info_v1.event_clock, None);
 
         // using v2 again
-        cdevc.using_abi_version(gpiocdev::AbiVersion::V2);
+        c.using_abi_version(gpiocdev::AbiVersion::V2);
 
         // using v2 again
-        let info_v2b = cdevc.line_info(offset).unwrap();
+        let info_v2b = c.line_info(offset).unwrap();
         assert_eq!(info_v2, info_v2b);
 
         drop(req);
@@ -827,9 +845,9 @@ mod chip {
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn new_chip(path: &Path, abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
-        let mut cdevc = Chip::from_path(path).unwrap();
-        cdevc.using_abi_version(abiv);
-        cdevc
+        let mut c = Chip::from_path(path).unwrap();
+        c.using_abi_version(abiv);
+        c
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn new_chip(path: &Path, _abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
