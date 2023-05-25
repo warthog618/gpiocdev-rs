@@ -677,8 +677,6 @@ mod chip {
             req.reconfigure(&cfg).unwrap();
 
             bg_rx.recv().unwrap();
-            // req will drop when thread is joined...
-            // even if dropped explicitly here??
             drop(req);
         });
         let mut count = 0;
@@ -686,39 +684,49 @@ mod chip {
             assert!(res.is_ok());
             if let Ok(evt) = res {
                 assert_eq!(evt.info.offset, offset);
-                if count == 0 {
-                    assert_eq!(evt.kind, InfoChangeKind::Requested);
-                } else if count == 1 {
-                    assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
-                    assert_eq!(evt.info.bias, Some(Bias::PullUp));
-                } else {
-                    assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
-                    assert_eq!(evt.info.bias, Some(Bias::PullDown));
-                    break;
+                match count {
+                    0 => assert_eq!(evt.kind, InfoChangeKind::Requested),
+                    1 => {
+                        assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
+                        assert_eq!(evt.info.bias, Some(Bias::PullUp));
+                    },
+                    2 => {
+                        assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
+                        assert_eq!(evt.info.bias, Some(Bias::PullDown));
+                         // !!! debugging - catch the Released separately
+                         bg_tx.send(1).unwrap();
+                         break
+                    },
+                    _ => {
+                        assert_eq!(evt.kind, InfoChangeKind::Released);
+                        assert_eq!(evt.info.bias, None);
+                        break
+                    }
                 }
                 count += 1;
                 // kick the bg thread
                 bg_tx.send(1).unwrap();
             }
         }
-        bg_tx.send(1).unwrap();
         let res = t.join();
         assert!(res.is_ok());
-        assert!(c
-            .wait_line_info_change_event(Duration::from_millis(10))
-            .is_ok());
+        // !!! debugging
+        assert_eq!(c
+            .wait_line_info_change_event(Duration::from_millis(100)),
+            Ok(true));
         let res = c.read_line_info_change_event(); // !!! kernel returns ENODEV??
         println!("read: {:?}", res); // debug print to see the result
-        assert!(res.is_ok());
-        // a fun check to see if the fd is still readable
-        // - comment out the previous assert to get there
-        assert!(c
-            .wait_line_info_change_event(Duration::from_millis(10))
-            .is_ok());
+        assert!(res.is_ok()); // 6.4.0-rc3 fails here
         if let Ok(evt) = res {
             assert_eq!(evt.kind, InfoChangeKind::Released);
             assert_eq!(evt.info.bias, None);
         }
+        // a fun check to see if the fd is still readable
+        // - comment out the failing assert to get there
+        // pre-bug kernels will fail here
+        assert_eq!(c
+            .wait_line_info_change_event(Duration::from_millis(100)),
+            Ok(true));
     }
 
     fn wait_info_change_event(abiv: gpiocdev::AbiVersion) {
