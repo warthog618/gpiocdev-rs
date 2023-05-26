@@ -1314,6 +1314,11 @@ mod tests {
         fn to_v1() {
             let offsets = Vec::from([1, 5, 3, 8]);
             let mut src = Values::default();
+            let dst = src.to_v1(&[]);
+            assert_eq!(dst.get(0), 0); // 1
+            assert_eq!(dst.get(1), 0); // 5
+            assert_eq!(dst.get(2), 0); // 3
+            assert_eq!(dst.get(3), 0); // 8
             src.set(1, Value::Active);
             src.set(3, Value::Inactive);
             src.set(7, Value::Active); // should be ignored
@@ -1330,6 +1335,8 @@ mod tests {
         fn to_v2() {
             let offsets = Vec::from([1, 5, 3, 8]);
             let mut src = Values::default();
+            let dst = src.to_v2(&[]);
+            assert!(dst.bits.is_empty());
             src.set(1, Value::Active);
             src.set(3, Value::Inactive);
             src.set(7, Value::Active); // should be ignored

@@ -319,6 +319,12 @@ impl Builder {
         self
     }
 
+    /// Do not set the direction of the selected lines.
+    pub fn as_is(&mut self) -> &mut Self {
+        self.cfg.as_is();
+        self
+    }
+
     /// Set the selected lines to active low.
     pub fn as_active_low(&mut self) -> &mut Self {
         self.cfg.as_active_low();
@@ -437,6 +443,9 @@ impl Builder {
             if let Err(e) = self.cfg.with_found_line(line) {
                 self.err = Some(e);
             }
+        }
+        for line in lines.values() {
+            self.cfg.select_line(&line.offset);
         }
         self
     }
@@ -772,7 +781,7 @@ impl Config {
     /// Note that selecting a line as output will default its value to inactive.
     /// To provide a value use [`with_value`], or use [`as_output(value)`] instead.
     ///
-    /// To determine the state of en existing output line, first request it [`as_is`],
+    /// To determine the state of an existing output line, first request it [`as_is`],
     /// then reconfigure it as an output with an appropriate value.
     ///
     /// [`with_value`]: #method.with_value
@@ -862,7 +871,7 @@ impl Config {
             self.on_chip(&line.chip);
         }
         if self.chip == line.chip {
-            self.with_line(line.info.offset);
+            self.with_line(line.offset);
             Ok(self)
         } else {
             Err(Error::InvalidArgument(
@@ -896,6 +905,9 @@ impl Config {
     ) -> Result<&mut Self> {
         for line in lines.values() {
             self.with_found_line(line)?;
+        }
+        for line in lines.values() {
+            self.select_line(&line.offset);
         }
         Ok(self)
     }
@@ -1018,10 +1030,10 @@ impl Config {
         if !self.lcfg.contains_key(offset) {
             self.lcfg.insert(*offset, self.base.clone());
         }
-        if !self.selected.iter().any(|x| *x == *offset) {
+        if self.selected.iter().all(|x| *x != *offset) {
             self.selected.push(*offset);
         }
-        if !self.offsets.iter().any(|x| *x == *offset) {
+        if self.offsets.iter().all(|x| *x != *offset) {
             self.offsets.push(*offset);
         }
     }
@@ -2786,6 +2798,151 @@ mod tests {
         }
 
         #[test]
+        fn with_found_line() {
+            use crate::FoundLine;
+
+            let mut cfg = Config::default();
+
+            // add one
+            assert!(cfg
+                .with_found_line(&FoundLine {
+                    offset: 3,
+                    ..Default::default()
+                })
+                .is_ok());
+            assert_eq!(cfg.offsets, &[3]);
+            assert_eq!(cfg.selected, &[3]);
+
+            // and another
+            assert!(cfg
+                .with_found_line(&FoundLine {
+                    offset: 7,
+                    ..Default::default()
+                })
+                .is_ok());
+            assert_eq!(cfg.offsets, &[3, 7]);
+            assert_eq!(cfg.selected, &[7]);
+
+            // and another
+            assert!(cfg
+                .with_found_line(&FoundLine {
+                    offset: 5,
+                    ..Default::default()
+                })
+                .is_ok());
+            assert_eq!(cfg.offsets, &[3, 7, 5]);
+            assert_eq!(cfg.selected, &[5]);
+
+            // and a duplicate
+            assert!(cfg
+                .with_found_line(&FoundLine {
+                    offset: 7,
+                    ..Default::default()
+                })
+                .is_ok());
+            assert_eq!(cfg.offsets, &[3, 7, 5]);
+            assert_eq!(cfg.selected, &[7]);
+        }
+
+        fn sorted(s: &[u32]) -> Vec<u32> {
+            let mut x = s.to_vec();
+            x.sort();
+            x
+        }
+
+        #[test]
+        fn with_found_lines() {
+            use crate::FoundLine;
+
+            let mut cfg = Config::default();
+
+            // add some
+            let lines: HashMap<&str, FoundLine> = [
+                (
+                    "three",
+                    FoundLine {
+                        offset: 3,
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "five",
+                    FoundLine {
+                        offset: 5,
+                        ..Default::default()
+                    },
+                ),
+            ]
+            .iter()
+            .cloned()
+            .collect();
+            assert!(cfg.with_found_lines(&lines).is_ok());
+            assert_eq!(sorted(&cfg.offsets), &[3, 5]);
+            assert_eq!(sorted(&cfg.selected), &[3, 5]);
+            assert_eq!(cfg.lcfg.len(), 2);
+            assert!(cfg.lcfg.contains_key(&3));
+            assert!(cfg.lcfg.contains_key(&5));
+
+            // add more
+            let lines: HashMap<&str, FoundLine> = [
+                (
+                    "seven",
+                    FoundLine {
+                        offset: 7,
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "one",
+                    FoundLine {
+                        offset: 1,
+                        ..Default::default()
+                    },
+                ),
+            ]
+            .iter()
+            .cloned()
+            .collect();
+            assert!(cfg.with_found_lines(&lines).is_ok());
+            assert_eq!(sorted(&cfg.offsets), &[1, 3, 5, 7]);
+            assert_eq!(sorted(&cfg.selected), &[1, 7]);
+            assert_eq!(cfg.lcfg.len(), 4);
+            assert!(cfg.lcfg.contains_key(&1));
+            assert!(cfg.lcfg.contains_key(&3));
+            assert!(cfg.lcfg.contains_key(&5));
+            assert!(cfg.lcfg.contains_key(&7));
+
+            // add duplicates
+            let lines: HashMap<&str, FoundLine> = [
+                (
+                    "one",
+                    FoundLine {
+                        offset: 1,
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "five",
+                    FoundLine {
+                        offset: 5,
+                        ..Default::default()
+                    },
+                ),
+            ]
+            .iter()
+            .cloned()
+            .collect();
+            assert!(cfg.with_found_lines(&lines).is_ok());
+            assert_eq!(sorted(&cfg.offsets), &[1, 3, 5, 7]);
+            assert_eq!(sorted(&cfg.selected), &[1, 5]);
+            assert_eq!(cfg.lcfg.len(), 4);
+            assert!(cfg.lcfg.contains_key(&1));
+            assert!(cfg.lcfg.contains_key(&3));
+            assert!(cfg.lcfg.contains_key(&5));
+            assert!(cfg.lcfg.contains_key(&7));
+        }
+
+        #[test]
         fn with_value() {
             let mut cfg = Config::default();
             assert_eq!(cfg.base.value, None);
@@ -3045,10 +3202,30 @@ mod tests {
         use super::Request;
 
         #[test]
-        fn request_builder() {
+        fn builder() {
             let b = Request::builder();
             assert_eq!(b.cfg.chip.as_os_str(), "");
             assert_eq!(b.cfg.num_lines(), 0);
+            assert_eq!(b.consumer.as_str(), "");
+            assert_eq!(b.kernel_event_buffer_size, 0);
+            assert_eq!(b.user_event_buffer_size, 0);
+            #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+            assert_eq!(b.abiv, None);
+        }
+
+        #[test]
+        fn from_config() {
+            use super::line::Value;
+            use super::Config;
+
+            let mut cfg = Config::default();
+            cfg.with_line(3)
+                .as_input()
+                .with_line(5)
+                .as_output(Value::Active);
+            let b = Request::from_config(cfg);
+            assert_eq!(b.cfg.chip.as_os_str(), "");
+            assert_eq!(b.cfg.num_lines(), 2);
             assert_eq!(b.consumer.as_str(), "");
             assert_eq!(b.kernel_event_buffer_size, 0);
             assert_eq!(b.user_event_buffer_size, 0);

@@ -620,6 +620,8 @@ dependencies = [
 [[package]]
 name = "gpiosim"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25366bc95a3941fc43c4e3016aab68504df05cef8a6eeaecb7060ad8554f1991"
 dependencies = [
  "global_counter",
  "nohash-hasher",

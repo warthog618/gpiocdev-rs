@@ -134,6 +134,18 @@ mod chip {
     }
 
     #[test]
+    fn from_name() {
+        let s = bag_of_chips();
+        for c in s.chips() {
+            assert!(
+                Chip::from_name(&c.chip_name).is_ok(),
+                "failed to open {:?}",
+                c.dev_path()
+            );
+        }
+    }
+
+    #[test]
     fn from_path() {
         let s = bag_of_chips();
         for c in s.chips() {

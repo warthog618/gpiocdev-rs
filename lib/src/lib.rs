@@ -224,7 +224,7 @@ pub fn find_named_lines<'a>(
 ///     .request()?;
 /// # Ok(())
 /// # }
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct FoundLine {
     /// The path to the chip containing the line.
     pub chip: PathBuf,
@@ -383,12 +383,6 @@ pub enum AbiVersion {
     V1,
     /// GPIO uAPI v2
     V2,
-}
-
-impl Default for AbiVersion {
-    fn default() -> Self {
-        Self::V2
-    }
 }
 
 impl fmt::Display for AbiVersion {

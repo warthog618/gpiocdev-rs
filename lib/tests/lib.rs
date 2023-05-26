@@ -125,6 +125,9 @@ fn find_named_lines() {
 fn detect_abi_version() {
     // assumes a kernel with both v1 and v2 supported.
 
+    // can't test NoChips case, as cannot guarantee no chips
+    // (even if we check there may be other tests creating them concurrently)
+
     // to ensure there is at least one chip
     let s = gpiosim::Simpleton::new(4);
 
