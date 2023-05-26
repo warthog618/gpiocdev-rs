@@ -644,8 +644,6 @@ mod chip {
         }
     }
 
-    // this test is failing on 6.4.0-rc3 (and possibly earlier)
-    // so this is still a WIP
     fn info_change_events(abiv: gpiocdev::AbiVersion) {
         use gpiocdev::line::{Bias, InfoChangeKind};
         use std::sync::mpsc;
@@ -685,22 +683,22 @@ mod chip {
             if let Ok(evt) = res {
                 assert_eq!(evt.info.offset, offset);
                 match count {
-                    0 => assert_eq!(evt.kind, InfoChangeKind::Requested),
+                    0 => {
+                        assert_eq!(evt.kind, InfoChangeKind::Requested);
+                        assert_eq!(evt.info.bias, None);
+                    }
                     1 => {
                         assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
                         assert_eq!(evt.info.bias, Some(Bias::PullUp));
-                    },
+                    }
                     2 => {
                         assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
                         assert_eq!(evt.info.bias, Some(Bias::PullDown));
-                         // !!! debugging - catch the Released separately
-                         bg_tx.send(1).unwrap();
-                         break
-                    },
+                    }
                     _ => {
                         assert_eq!(evt.kind, InfoChangeKind::Released);
                         assert_eq!(evt.info.bias, None);
-                        break
+                        break;
                     }
                 }
                 count += 1;
@@ -710,23 +708,6 @@ mod chip {
         }
         let res = t.join();
         assert!(res.is_ok());
-        // !!! debugging
-        assert_eq!(c
-            .wait_line_info_change_event(Duration::from_millis(100)),
-            Ok(true));
-        let res = c.read_line_info_change_event(); // !!! kernel returns ENODEV??
-        println!("read: {:?}", res); // debug print to see the result
-        assert!(res.is_ok()); // 6.4.0-rc3 fails here
-        if let Ok(evt) = res {
-            assert_eq!(evt.kind, InfoChangeKind::Released);
-            assert_eq!(evt.info.bias, None);
-        }
-        // a fun check to see if the fd is still readable
-        // - comment out the failing assert to get there
-        // pre-bug kernels will fail here
-        assert_eq!(c
-            .wait_line_info_change_event(Duration::from_millis(100)),
-            Ok(true));
     }
 
     fn wait_info_change_event(abiv: gpiocdev::AbiVersion) {
