@@ -24,13 +24,13 @@ use serde_derive::{Deserialize, Serialize};
 pub struct EdgeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     ///
-    /// The interpretation of this field depends on line [`EventClock`] configuration
-    /// and uAPI ABI version, and so is left raw here.
+    /// The interpretation of this field depends on line [`EventClock`](super::EventClock)
+    /// configuration and uAPI ABI version, and so is left raw here.
     ///
-    /// **CLOCK_REALTIME** can be converted to [`Timestamp`](super::Timestamp).
+    /// **CLOCK_REALTIME** can be converted to [`Timestamp`](crate::Timestamp).
     ///
     /// **CLOCK_MONOTONIC** is intended for comparing times between events and
-    /// should be converted to [`Duration`].
+    /// should be converted to [`Duration`](std::time::Duration).
     pub timestamp_ns: u64,
 
     /// The event trigger identifier.
