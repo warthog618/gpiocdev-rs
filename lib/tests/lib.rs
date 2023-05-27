@@ -29,12 +29,10 @@ fn find_named_line() {
     let l = gpiocdev::find_named_line("fl banana").unwrap();
     assert_eq!(l.chip, *sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
-    assert_eq!(l.offset, l.info.offset);
 
     let l = gpiocdev::find_named_line("fl piggly").unwrap();
     assert_eq!(&l.chip, sim.chips()[1].dev_path());
     assert_eq!(l.info.offset, 4);
-    assert_eq!(l.offset, l.info.offset);
 
     let l = gpiocdev::find_named_line("fl apple").unwrap();
     // depending on how other tests are running, the order of the sim chips is not 100% predictable.
@@ -45,7 +43,6 @@ fn find_named_line() {
         assert_eq!(&l.chip, sim.chips()[1].dev_path());
         assert_eq!(l.info.offset, 5);
     }
-    assert_eq!(l.offset, l.info.offset);
 
     assert!(gpiocdev::find_named_line("fl nada").is_none())
 }
@@ -72,14 +69,12 @@ fn find_named_lines() {
     let l = found.get(&"fls banana").unwrap();
     assert_eq!(&l.chip, sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
-    assert_eq!(l.offset, l.info.offset);
 
     let found = gpiocdev::find_named_lines(&["fls piggly"], true).unwrap();
     assert_eq!(found.len(), 1);
     let l = found.get(&"fls piggly").unwrap();
     assert_eq!(&l.chip, sim.chips()[1].dev_path());
     assert_eq!(l.info.offset, 4);
-    assert_eq!(l.offset, l.info.offset);
 
     let found = gpiocdev::find_named_lines(&["fls apple"], false).unwrap();
     assert_eq!(found.len(), 1);
@@ -91,7 +86,6 @@ fn find_named_lines() {
         assert_eq!(&l.chip, sim.chips()[1].dev_path());
         assert_eq!(l.info.offset, 5);
     }
-    assert_eq!(l.offset, l.info.offset);
 
     let found = gpiocdev::find_named_lines(&["fls apple"], true);
     assert_eq!(

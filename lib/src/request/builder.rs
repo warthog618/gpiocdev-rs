@@ -90,7 +90,7 @@ pub struct Builder {
     err: Option<Error>,
     /// The ABI version used to create the request, and so determines how to decode events.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    pub(super)abiv: Option<AbiVersion>,
+    pub(super) abiv: Option<AbiVersion>,
 }
 
 impl Builder {
@@ -433,13 +433,8 @@ impl Builder {
     /// # }
     /// ```
     pub fn with_found_lines(&mut self, lines: &HashMap<&str, crate::FoundLine>) -> &mut Self {
-        for line in lines.values() {
-            if let Err(e) = self.cfg.with_found_line(line) {
-                self.err = Some(e);
-            }
-        }
-        for line in lines.values() {
-            self.cfg.select_line(&line.offset);
+        if let Err(e) = self.cfg.with_found_lines(lines) {
+            self.err = Some(e);
         }
         self
     }
@@ -600,10 +595,8 @@ enum UapiRequest {
 }
 
 fn default_consumer() -> String {
-        format!("gpiocdev-p{}", std::process::id())
-    }
-    
-    
+    format!("gpiocdev-p{}", std::process::id())
+}
 
 #[cfg(test)]
 mod tests {

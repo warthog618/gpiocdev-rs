@@ -16,7 +16,7 @@ mod builder {
     use super::*;
     use errno::Errno;
     use gpiocdev::chip::{Chip, ErrorKind};
-    use gpiocdev::line::{Bias, Direction, Drive};
+    use gpiocdev::line::{Bias, Direction, Drive, Info};
     use gpiocdev::Error::GpioChip as ChipError;
     use gpiocdev::FoundLine;
 
@@ -553,10 +553,12 @@ mod builder {
             .unwrap();
         let s = &sim.chips()[0];
 
-        let line = gpiocdev::FoundLine {
+        let line = FoundLine {
             chip: s.dev_path().clone(),
-            offset: 3,
-            ..Default::default()
+            info: Info {
+                offset: 3,
+                ..Default::default()
+            },
         };
         let mut builder = Request::builder();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -576,18 +578,22 @@ mod builder {
         let mut lines: HashMap<&str, FoundLine> = [
             (
                 "three",
-                gpiocdev::FoundLine {
+                FoundLine {
                     chip: s.dev_path().clone(),
-                    offset: 3,
-                    ..Default::default()
+                    info: Info {
+                        offset: 3,
+                        ..Default::default()
+                    },
                 },
             ),
             (
                 "five",
-                gpiocdev::FoundLine {
+                FoundLine {
                     chip: s.dev_path().clone(),
-                    offset: 5,
-                    ..Default::default()
+                    info: Info {
+                        offset: 5,
+                        ..Default::default()
+                    },
                 },
             ),
         ]
@@ -797,7 +803,6 @@ mod builder {
 
 mod request {
     use super::*;
-
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
         use super::propagation_delay;

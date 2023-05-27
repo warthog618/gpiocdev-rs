@@ -279,7 +279,7 @@ impl Config {
             self.on_chip(&line.chip);
         }
         if self.chip == line.chip {
-            self.with_line(line.offset);
+            self.with_line(line.info.offset);
             Ok(self)
         } else {
             Err(Error::InvalidArgument(
@@ -315,7 +315,7 @@ impl Config {
             self.with_found_line(line)?;
         }
         for line in lines.values() {
-            self.select_line(&line.offset);
+            self.select_line(&line.info.offset);
         }
         Ok(self)
     }
@@ -955,47 +955,25 @@ mod tests {
 
     #[test]
     fn with_found_line() {
-        use crate::FoundLine;
-
         let mut cfg = Config::default();
 
         // add one
-        assert!(cfg
-            .with_found_line(&FoundLine {
-                offset: 3,
-                ..Default::default()
-            })
-            .is_ok());
+        assert!(cfg.with_found_line(&3.into()).is_ok());
         assert_eq!(cfg.offsets, &[3]);
         assert_eq!(cfg.selected, &[3]);
 
         // and another
-        assert!(cfg
-            .with_found_line(&FoundLine {
-                offset: 7,
-                ..Default::default()
-            })
-            .is_ok());
+        assert!(cfg.with_found_line(&7.into()).is_ok());
         assert_eq!(cfg.offsets, &[3, 7]);
         assert_eq!(cfg.selected, &[7]);
 
         // and another
-        assert!(cfg
-            .with_found_line(&FoundLine {
-                offset: 5,
-                ..Default::default()
-            })
-            .is_ok());
+        assert!(cfg.with_found_line(&5.into()).is_ok());
         assert_eq!(cfg.offsets, &[3, 7, 5]);
         assert_eq!(cfg.selected, &[5]);
 
         // and a duplicate
-        assert!(cfg
-            .with_found_line(&FoundLine {
-                offset: 7,
-                ..Default::default()
-            })
-            .is_ok());
+        assert!(cfg.with_found_line(&7.into()).is_ok());
         assert_eq!(cfg.offsets, &[3, 7, 5]);
         assert_eq!(cfg.selected, &[7]);
     }
@@ -1013,25 +991,10 @@ mod tests {
         let mut cfg = Config::default();
 
         // add some
-        let lines: HashMap<&str, FoundLine> = [
-            (
-                "three",
-                FoundLine {
-                    offset: 3,
-                    ..Default::default()
-                },
-            ),
-            (
-                "five",
-                FoundLine {
-                    offset: 5,
-                    ..Default::default()
-                },
-            ),
-        ]
-        .iter()
-        .cloned()
-        .collect();
+        let lines: HashMap<&str, FoundLine> = [("three", 3.into()), ("five", 5.into())]
+            .iter()
+            .cloned()
+            .collect();
         assert!(cfg.with_found_lines(&lines).is_ok());
         assert_eq!(sorted(&cfg.offsets), &[3, 5]);
         assert_eq!(sorted(&cfg.selected), &[3, 5]);
@@ -1040,25 +1003,10 @@ mod tests {
         assert!(cfg.lcfg.contains_key(&5));
 
         // add more
-        let lines: HashMap<&str, FoundLine> = [
-            (
-                "seven",
-                FoundLine {
-                    offset: 7,
-                    ..Default::default()
-                },
-            ),
-            (
-                "one",
-                FoundLine {
-                    offset: 1,
-                    ..Default::default()
-                },
-            ),
-        ]
-        .iter()
-        .cloned()
-        .collect();
+        let lines: HashMap<&str, FoundLine> = [("seven", 7.into()), ("one", 1.into())]
+            .iter()
+            .cloned()
+            .collect();
         assert!(cfg.with_found_lines(&lines).is_ok());
         assert_eq!(sorted(&cfg.offsets), &[1, 3, 5, 7]);
         assert_eq!(sorted(&cfg.selected), &[1, 7]);
@@ -1069,25 +1017,10 @@ mod tests {
         assert!(cfg.lcfg.contains_key(&7));
 
         // add duplicates
-        let lines: HashMap<&str, FoundLine> = [
-            (
-                "one",
-                FoundLine {
-                    offset: 1,
-                    ..Default::default()
-                },
-            ),
-            (
-                "five",
-                FoundLine {
-                    offset: 5,
-                    ..Default::default()
-                },
-            ),
-        ]
-        .iter()
-        .cloned()
-        .collect();
+        let lines: HashMap<&str, FoundLine> = [("one", 1.into()), ("five", 5.into())]
+            .iter()
+            .cloned()
+            .collect();
         assert!(cfg.with_found_lines(&lines).is_ok());
         assert_eq!(sorted(&cfg.offsets), &[1, 3, 5, 7]);
         assert_eq!(sorted(&cfg.selected), &[1, 5]);

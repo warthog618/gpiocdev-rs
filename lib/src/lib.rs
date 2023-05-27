@@ -121,7 +121,7 @@ pub fn lines() -> Result<LineIterator> {
 /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
 /// let req = Request::builder()
 ///     .on_chip(&led0.chip)
-///     .with_line(led0.offset)
+///     .with_line(led0.info.offset)
 ///     .as_output(Value::Active)
 ///     .request()?;
 /// # Ok(())
@@ -157,7 +157,7 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 ///     .as_input()
 ///     .request()?;
 /// let sensor1 = sensors.get("SENSOR1").unwrap();
-/// let value = req.value(sensor1.offset)?;
+/// let value = req.value(sensor1.info.offset)?;
 /// # Ok(())
 /// # }
 ///```
@@ -178,7 +178,7 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 ///     .with_found_line(&led0)
 ///     .as_output(Value::Active)
 ///     .request()?;
-/// let value = req.value(sensor0.offset)?;
+/// let value = req.value(sensor0.info.offset)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -228,10 +228,17 @@ pub fn find_named_lines<'a>(
 pub struct FoundLine {
     /// The path to the chip containing the line.
     pub chip: PathBuf,
-    /// The offset of the line on the chip.
-    pub offset: line::Offset,
     /// The info of the line.
     pub info: line::Info,
+}
+
+#[cfg(test)]
+impl From<line::Offset> for FoundLine {
+    fn from(offset: line::Offset) -> Self {
+        let mut f = FoundLine::default();
+        f.info.offset = offset;
+        f
+    }
 }
 
 /// An iterator for all lines in the system available to the caller.
@@ -314,7 +321,6 @@ impl Iterator for LineIterator {
         if let Some(linfo) = self.next_line_info() {
             return Some(FoundLine {
                 chip: self.chip.path().to_path_buf(),
-                offset: linfo.offset,
                 info: linfo,
             });
         }
@@ -324,7 +330,6 @@ impl Iterator for LineIterator {
             if let Some(linfo) = self.next_line_info() {
                 return Some(FoundLine {
                     chip: self.chip.path().to_path_buf(),
-                    offset: linfo.offset,
                     info: linfo,
                 });
             }
