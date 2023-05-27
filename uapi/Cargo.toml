@@ -12,11 +12,11 @@ keywords = ["linux", "gpio", "ioctl", "library", "embedded"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev-uapi"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-version = "0.3.2"
+version = "0.3.3"
 
 [dependencies]
 bitflags = "2.0"
-bitmaps = {version = "3.2"}
+bitmaps = "3.2"
 errno = "0.3"
 libc = "0.2"
 nix = "0.26"
