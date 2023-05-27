@@ -5,9 +5,6 @@ use crate::chip::Chip;
 use crate::line::{self, Bias, Direction, Drive, EdgeDetection, EventClock, Offset, Value};
 use crate::request::{Config, Request};
 use crate::{AbiVersion, Error, Result, UapiCall};
-#[cfg(feature = "uapi_v2")]
-#[cfg(not(feature = "uapi_v2"))]
-use gpiocdev_uapi::v1 as uapi;
 #[cfg(feature = "uapi_v1")]
 use gpiocdev_uapi::v1;
 #[cfg(feature = "uapi_v2")]

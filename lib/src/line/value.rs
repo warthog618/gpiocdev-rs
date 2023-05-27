@@ -22,10 +22,11 @@ use std::collections::hash_map::Iter;
 /// | **Active-High** | Inactive | Active |
 /// | **Active-Low**  | Active | Inactive |
 ///
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Value {
     /// The line is inactive.
+    #[default]
     Inactive,
     /// The line is active.
     Active,
@@ -39,11 +40,7 @@ impl Value {
         }
     }
 }
-impl Default for Value {
-    fn default() -> Self {
-        Self::Inactive
-    }
-}
+
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {

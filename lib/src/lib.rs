@@ -373,7 +373,7 @@ pub mod request;
 /// The uAPI ABI versions available to interact with the kernel.
 ///
 /// Two versions of the Linux GPIO uAPI ABI currently exist, with v1 being released in
-/// Linux v4.8 and v2 being released in Linux v5.10.
+/// Linux 4.8 and v2 being released in Linux 5.10.
 /// Both versions of the uAPI ABI are supported by `gpiocdev`, both individually and combined,
 /// with the library defaulting to v2.
 ///
@@ -382,11 +382,12 @@ pub mod request;
 /// * `V2` is the current ABI and is used by default.
 /// * `V1` is more restrictive than V2, so some information and features are
 /// unavailable, but the ABI itself is more widely available.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum AbiVersion {
     /// GPIO uAPI v1
     V1,
     /// GPIO uAPI v2
+    #[default]
     V2,
 }
 

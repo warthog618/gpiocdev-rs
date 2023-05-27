@@ -30,20 +30,17 @@ pub type Offset = u32;
 pub type Offsets = Vec<Offset>;
 
 /// The direction of a line.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Direction {
     /// The line is an input.
+    #[default]
     Input,
 
     /// The line is an output.
     Output,
 }
-impl Default for Direction {
-    fn default() -> Self {
-        Self::Input
-    }
-}
+
 #[cfg(feature = "uapi_v1")]
 impl From<v1::LineInfoFlags> for Direction {
     fn from(flags: v1::LineInfoFlags) -> Self {
@@ -113,12 +110,13 @@ impl TryFrom<v2::LineFlags> for Bias {
 }
 
 /// The drive policy settings for an output line.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Drive {
     /// The line is driven when both active and inactive.
     ///
     /// This is the default if drive is not specified.
+    #[default]
     PushPull,
 
     /// The line is driven when low and set high impedance when high.
@@ -127,11 +125,7 @@ pub enum Drive {
     /// The line is driven when high and set high impedance when low.
     OpenSource,
 }
-impl Default for Drive {
-    fn default() -> Self {
-        Self::PushPull
-    }
-}
+
 #[cfg(feature = "uapi_v1")]
 impl TryFrom<v1::LineInfoFlags> for Drive {
     type Error = ();
@@ -203,12 +197,13 @@ impl TryFrom<v2::LineFlags> for EdgeDetection {
 }
 
 /// The available clock sources for [`EdgeEvent`] timestamps.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EventClock {
     /// The **CLOCK_MONOTONIC** is used as the source for edge event timestamps.
     ///
     /// This is the default for ABI v2.
+    #[default]
     Monotonic,
 
     /// The **CLOCK_REALTIME** is used as the source for edge event timestamps.
@@ -220,11 +215,7 @@ pub enum EventClock {
     /// enabled and suitable supporting hardware.
     Hte,
 }
-impl Default for EventClock {
-    fn default() -> Self {
-        Self::Monotonic
-    }
-}
+
 #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
 impl From<v2::LineFlags> for EventClock {
     fn from(flags: v2::LineFlags) -> Self {
