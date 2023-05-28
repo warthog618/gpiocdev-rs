@@ -41,7 +41,7 @@ impl Editor {
         _ = stdout.flush();
         match self.rl.readline(self.prompt.as_str()) {
             Ok(line) => Ok(line),
-            Err(ReadlineError::Interrupted) => Ok("".to_string()),
+            Err(ReadlineError::Interrupted) => Ok("exit".to_string()),
             Err(ReadlineError::Eof) => Ok("".to_string()),
             Err(e) => Err(anyhow!(e)),
         }
