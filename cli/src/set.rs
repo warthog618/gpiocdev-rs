@@ -163,8 +163,7 @@ impl Setter {
             .map(|(l, _v)| l.to_owned())
             .collect();
         let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-        let r = common::resolve_lines(&self.line_ids, &opts.line_opts, abiv)?;
-        r.validate(&self.line_ids, &opts.line_opts)?;
+        let r = common::Resolver::resolve(&self.line_ids, &opts.line_opts, abiv)?;
         self.chips = r.chips;
 
         // find set of lines for each chip
@@ -261,7 +260,7 @@ impl Setter {
             )
             .subcommand(Command::new("exit").about("Exit the program"));
         loop {
-            let line = rl.next_line()?;
+            let line = rl.readline()?;
             if !line.is_empty() {
                 match self.parse_command(cmd.clone(), &line) {
                     Err(err) if err.is::<ExitCmdError>() => return Ok(()),

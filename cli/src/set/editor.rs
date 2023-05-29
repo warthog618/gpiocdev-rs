@@ -29,7 +29,7 @@ impl Editor {
         Ok(Editor { rl, prompt: prompt.to_string() })
     }
 
-    pub(super) fn next_line(&mut self) -> Result<String> {
+    pub(super) fn readline(&mut self) -> Result<String> {
         use std::io::Write;
         let mut stdout = std::io::stdout();
         /*

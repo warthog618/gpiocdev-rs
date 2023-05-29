@@ -168,7 +168,7 @@ fn print_first_matching_lines(opts: &Opts) -> Result<()> {
         by_name: opts.by_name,
     };
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::resolve_lines(&opts.lines, &line_opts, abiv)?;
+    let r = common::Resolver::resolve_unvalidated(&opts.lines, &line_opts, abiv)?;
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut offsets: Vec<Offset> = r
             .lines

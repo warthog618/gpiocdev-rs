@@ -109,8 +109,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         TimeFmt::Seconds
     };
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::resolve_lines(&opts.lines, &opts.line_opts, abiv)?;
-    r.validate(&opts.lines, &opts.line_opts)?;
+    let r = common::Resolver::resolve(&opts.lines, &opts.line_opts, abiv)?;
     let mut poll = Poll::new()?;
     let mut chips = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
@@ -203,7 +202,7 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
     } else {
         event.timestamp_ns
     };
-    common::print_time(evtime, timefmt);
+    common::format_time(evtime, timefmt);
     print!("\t{}\t", event_kind_name(event.kind));
 
     if let Some(lname) = ci.named_lines.get(&event.info.offset) {
@@ -220,26 +219,46 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
     }
 }
 
+fn consumer(li: &gpiocdev::line::Info) -> &str {
+    if li.used {
+        if li.consumer.is_empty() {
+            "kernel"
+        } else {
+            &li.consumer
+        }
+    } else {
+        "unused"
+    }
+}
+
 fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo, quoted: bool) {
+    use common::{format_time, stringify_attrs};
+
     let mut escaped = false;
 
     for chr in format.chars() {
         if escaped {
             match chr {
                 '%' => print!("%"),
-                'a' => print!("{}", common::stringify_attrs(&event.info, quoted)),
+                'a' => print!("{}", stringify_attrs(&event.info, quoted)),
                 'c' => print!("{}", ci.name),
-                'C' => common::print_consumer(&event.info),
+                'C' => print!("{}", consumer(&event.info)),
                 'e' => print!("{}", event_kind_num(event.kind)),
                 'E' => print!("{}", event_kind_name(event.kind)),
-                'l' => common::print_line_name(ci, &event.info.offset),
-                'L' => common::print_time(
-                    monotonic_to_realtime(event.timestamp_ns),
-                    &TimeFmt::Localtime,
+                'l' => print!("{}", ci.line_name(&event.info.offset).unwrap_or("unnamed")),
+                'L' => print!(
+                    "{}",
+                    format_time(
+                        monotonic_to_realtime(event.timestamp_ns),
+                        &TimeFmt::Localtime,
+                    )
                 ),
                 'o' => print!("{}", event.info.offset),
-                'S' => common::print_time(event.timestamp_ns, &TimeFmt::Seconds),
-                'U' => common::print_time(monotonic_to_realtime(event.timestamp_ns), &TimeFmt::Utc),
+                'S' => print!("{}", format_time(event.timestamp_ns, &TimeFmt::Seconds)),
+                'U' => print!(
+                    "{}",
+                    format_time(monotonic_to_realtime(event.timestamp_ns), &TimeFmt::Utc)
+                ),
                 x => print!("%{}", x),
             }
             escaped = false;

@@ -76,8 +76,7 @@ impl Opts {
 
 pub fn cmd(opts: &Opts) -> Result<()> {
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::resolve_lines(&opts.line, &opts.line_opts, abiv)?;
-    r.validate(&opts.line, &opts.line_opts)?;
+    let r = common::Resolver::resolve(&opts.line, &opts.line_opts, abiv)?;
     let mut requests = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut cfg = Config::default();

@@ -165,8 +165,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 
     let timefmt = time_format_from_opts(opts);
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::resolve_lines(&opts.lines, &opts.line_opts, abiv)?;
-    r.validate(&opts.lines, &opts.line_opts)?;
+    let r = common::Resolver::resolve(&opts.lines, &opts.line_opts, abiv)?;
     let mut poll = Poll::new()?;
     let mut reqs = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
@@ -252,7 +251,7 @@ fn print_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) 
     if let Some(format) = &opts.format {
         return print_edge_formatted(event, format, ci);
     }
-    common::print_time(event.timestamp_ns, timefmt);
+    common::format_time(event.timestamp_ns, timefmt);
     print!("\t{}\t", event_kind_name(event.kind));
     if let Some(lname) = ci.named_lines.get(&event.offset) {
         if opts.line_opts.chip.is_some() {
@@ -283,6 +282,8 @@ fn event_kind_num(kind: EdgeKind) -> u8 {
 }
 
 fn print_edge_formatted(event: &EdgeEvent, format: &str, ci: &ChipInfo) {
+    use common::format_time;
+
     let mut escaped = false;
 
     for chr in format.chars() {
@@ -292,11 +293,11 @@ fn print_edge_formatted(event: &EdgeEvent, format: &str, ci: &ChipInfo) {
                 'c' => print!("{}", ci.name),
                 'e' => print!("{}", event_kind_num(event.kind)),
                 'E' => print!("{}", event_kind_name(event.kind)),
-                'l' => common::print_line_name(ci, &event.offset),
-                'L' => common::print_time(event.timestamp_ns, &TimeFmt::Localtime),
+                'l' => print!("{}", ci.line_name(&event.offset).unwrap_or("unnamed")),
+                'L' => print!("{}", format_time(event.timestamp_ns, &TimeFmt::Localtime)),
                 'o' => print!("{}", event.offset),
-                'S' => common::print_time(event.timestamp_ns, &TimeFmt::Seconds),
-                'U' => common::print_time(event.timestamp_ns, &TimeFmt::Utc),
+                'S' => print!("{}", format_time(event.timestamp_ns, &TimeFmt::Seconds)),
+                'U' => print!("{}", format_time(event.timestamp_ns, &TimeFmt::Utc)),
                 x => print!("%{}", x),
             }
             escaped = false;
