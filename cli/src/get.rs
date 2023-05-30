@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::common::{self, ActiveLowOpts, BiasOpts, ChipOffset, LineOpts, UapiOpts};
+use super::common::{self, ChipOffset};
 use anyhow::{Context, Result};
 use clap::Parser;
 use gpiocdev::line::{Offset, Value, Values};
@@ -22,7 +22,7 @@ pub struct Opts {
     line: Vec<String>,
 
     #[command(flatten)]
-    line_opts: LineOpts,
+    line_opts: common::LineOpts,
 
     /// Request the line as-is rather than as an input
     ///
@@ -34,10 +34,10 @@ pub struct Opts {
     as_is: bool,
 
     #[command(flatten)]
-    active_low_opts: ActiveLowOpts,
+    active_low_opts: common::ActiveLowOpts,
 
     #[command(flatten)]
-    bias_opts: BiasOpts,
+    bias_opts: common::BiasOpts,
 
     /// Wait between requesting the lines and reading the values
     ///
@@ -52,7 +52,7 @@ pub struct Opts {
     pub numeric: bool,
 
     #[command(flatten)]
-    uapi_opts: UapiOpts,
+    uapi_opts: common::UapiOpts,
 
     /// The consumer label applied to requested lines.
     #[arg(short = 'C', long, name = "name", default_value = "gpiocdev-get")]
@@ -76,7 +76,7 @@ impl Opts {
 
 pub fn cmd(opts: &Opts) -> Result<()> {
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::Resolver::resolve(&opts.line, &opts.line_opts, abiv)?;
+    let r = common::Resolver::resolve_lines(&opts.line, &opts.line_opts, abiv)?;
     let mut requests = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut cfg = Config::default();

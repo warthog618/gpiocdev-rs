@@ -5,9 +5,7 @@
 mod editor;
 use self::editor::{CommandWords, Editor};
 
-use super::common::{
-    self, ActiveLowOpts, BiasOpts, ChipInfo, DriveOpts, LineOpts, ParseDurationError, UapiOpts,
-};
+use super::common::{self, ParseDurationError};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Arg, ArgAction, Command, Parser};
 use daemonize::Daemonize;
@@ -41,16 +39,16 @@ pub struct Opts {
     banner: bool,
 
     #[command(flatten)]
-    line_opts: LineOpts,
+    line_opts: common::LineOpts,
 
     #[command(flatten)]
-    active_low_opts: ActiveLowOpts,
+    active_low_opts: common::ActiveLowOpts,
 
     #[command(flatten)]
-    bias_opts: BiasOpts,
+    bias_opts: common::BiasOpts,
 
     #[command(flatten)]
-    drive_opts: DriveOpts,
+    drive_opts: common::DriveOpts,
 
     /// Set the lines then wait for additional set commands for the requested lines.
     ///
@@ -94,7 +92,7 @@ pub struct Opts {
     consumer: String,
 
     #[command(flatten)]
-    uapi_opts: UapiOpts,
+    uapi_opts: common::UapiOpts,
 }
 
 impl Opts {
@@ -143,7 +141,7 @@ struct Setter {
     lines: HashMap<String, Line>,
 
     // The list of chips containing requested lines
-    chips: Vec<ChipInfo>,
+    chips: Vec<common::ChipInfo>,
 
     // The request on each chip
     requests: Vec<Request>,
@@ -163,7 +161,7 @@ impl Setter {
             .map(|(l, _v)| l.to_owned())
             .collect();
         let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-        let r = common::Resolver::resolve(&self.line_ids, &opts.line_opts, abiv)?;
+        let r = common::Resolver::resolve_lines(&self.line_ids, &opts.line_opts, abiv)?;
         self.chips = r.chips;
 
         // find set of lines for each chip
@@ -208,7 +206,7 @@ impl Setter {
             .map(|(l, _v)| l.to_owned())
             .collect();
         let mut rl = Editor::new(line_names, "gpiocdev-set> ")?;
-        let cmd = Command::new("gpiocdev")
+        let mut clcmd = Command::new("gpiocdev")
             .no_binary_name(true)
             .disable_help_flag(true)
             .infer_subcommands(true)
@@ -226,7 +224,6 @@ impl Setter {
             .subcommand(
                 Command::new("set")
                     .about("Update the values of the given requested lines")
-                    .help_template("{name} woot {about}")
                     .arg(
                         Arg::new("line_values")
                             .value_name("line=value")
@@ -258,24 +255,26 @@ impl Setter {
                             .value_parser(parse_line),
                     ),
             )
-            .subcommand(Command::new("exit").about("Exit the program"));
+            .subcommand(Command::new("version").about("Print version"))
+            .subcommand(Command::new("exit").about("Exit the program").alias("quit"));
         loop {
-            let line = rl.readline()?;
-            if !line.is_empty() {
-                match self.parse_command(cmd.clone(), &line) {
-                    Err(err) if err.is::<ExitCmdError>() => return Ok(()),
-                    Err(err) => {
+            match self.parse_command(&mut clcmd, &rl.readline()?) {
+                Ok(am) => {
+                    if let Err(err) = self.do_command(am) {
                         println!("{}", err);
                         // clean in case the error leaves dirty lines.
                         self.clean();
+                        return Ok(());
                     }
-                    Ok(_) => {}
+                }
+                Err(err) => {
+                    println!("{}", err);
                 }
             }
         }
     }
 
-    fn parse_command(&mut self, cmd: Command, line: &str) -> Result<()> {
+    fn parse_command(&self, cmd: &mut Command, line: &str) -> Result<clap::ArgMatches> {
         let mut words = CommandWords::new(line);
         let mut args = Vec::new();
         while let Some(word) = &words.next() {
@@ -287,10 +286,13 @@ impl Setter {
                 args.last().unwrap()
             )));
         }
-        match cmd.try_get_matches_from(args) {
-            Ok(opt) => match opt.subcommand() {
-                Some(("exit", _)) => Err(anyhow!(ExitCmdError {})),
-                Some(("get", am)) => {
+        Ok(cmd.try_get_matches_from_mut(args)?)
+    }
+
+    fn do_command(&mut self, args: clap::ArgMatches) -> Result<()> {
+        if let Some((cmd, am)) = args.subcommand() {
+            match cmd {
+                "get" => {
                     let lines: Vec<String> = am
                         .get_many::<String>("lines")
                         .unwrap_or_default()
@@ -298,7 +300,7 @@ impl Setter {
                         .collect();
                     self.do_get(lines.as_slice())
                 }
-                Some(("set", am)) => {
+                "set" => {
                     let lvs: Vec<(String, LineValue)> = am
                         .get_many::<(String, LineValue)>("line_values")
                         .unwrap()
@@ -306,11 +308,11 @@ impl Setter {
                         .collect();
                     self.do_set(lvs.as_slice())
                 }
-                Some(("sleep", am)) => {
+                "sleep" => {
                     let d: Duration = am.get_one::<Duration>("duration").unwrap().to_owned();
                     self.do_sleep(d)
                 }
-                Some(("toggle", am)) => {
+                "toggle" => {
                     let lines: Vec<String> = am
                         .get_many::<String>("lines")
                         .unwrap_or_default()
@@ -318,10 +320,16 @@ impl Setter {
                         .collect();
                     self.do_toggle(lines.as_slice())
                 }
-                Some((&_, _)) => Ok(()),
-                None => Ok(()),
-            },
-            Err(e) => Err(anyhow!(e)),
+                "exit" => Err(CmdError::Exit().into()),
+                "version" => {
+                    println!("gpiocdev-set {}", clap::crate_version!());
+                    Ok(())
+                }
+                // help returned as parser error by clap
+                _ => Ok(()),
+            }
+        } else {
+            Ok(())
         }
     }
 
@@ -343,7 +351,7 @@ impl Setter {
                         format!("\"{}\"={}", id, line.value)
                     });
                 }
-                None => bail!("not a requested line: '{}'", id),
+                None => bail!(CmdError::NotRequestedLine(id.into())),
             }
         }
         if print_values.is_empty() {
@@ -369,7 +377,7 @@ impl Setter {
                     line.value = value.0;
                     line.dirty = true;
                 }
-                None => bail!("not a requested line: '{}'", id),
+                None => bail!(CmdError::NotRequestedLine(id.into())),
             }
         }
         if self.update()? {
@@ -400,7 +408,7 @@ impl Setter {
                     line.value = line.value.not();
                     line.dirty = true;
                 }
-                None => bail!("not a requested line: '{}'", id),
+                None => bail!(CmdError::NotRequestedLine(id.into())),
             }
         }
         if lines.is_empty() {
@@ -473,15 +481,14 @@ impl Setter {
     }
 }
 
-#[derive(Debug)]
-struct ExitCmdError {}
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum CmdError {
+    #[error("")]
+    Exit(),
 
-impl fmt::Display for ExitCmdError {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
+    #[error("not a requested line: '{0}'")]
+    NotRequestedLine(String),
 }
-impl Error for ExitCmdError {}
 
 fn interactive_help() -> String {
     let mut help = "COMMANDS:\n".to_owned();
@@ -502,6 +509,7 @@ fn interactive_help() -> String {
         ),
         ("sleep <period>", "Sleep for the specified period"),
         ("help", "Print this help"),
+        ("version", "Print version"),
         ("exit", "Exit the program"),
     ];
     for (cmd, desc) in cmds {

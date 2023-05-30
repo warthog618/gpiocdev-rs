@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::common::{self, LineOpts, UapiOpts};
+use super::common::{self, actual_abi_version, chip_from_path, format_chip_name, stringify_attrs};
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use gpiocdev::chip::Chip;
@@ -57,7 +57,7 @@ pub struct Opts {
     pub verbose: bool,
 
     #[command(flatten)]
-    uapi_opts: UapiOpts,
+    uapi_opts: common::UapiOpts,
 
     /// Quote line and consumer names.
     #[arg(long)]
@@ -96,17 +96,13 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 }
 
 fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
-    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    match common::chip_from_path(p, abiv) {
+    let abiv = actual_abi_version(&opts.uapi_opts)?;
+    match chip_from_path(p, abiv) {
         Ok(c) => {
             let kci = c
                 .info()
                 .with_context(|| format!("unable to read info from {}", c.name()))?;
-            println!(
-                "{} - {} lines:",
-                common::string_or_default(&kci.name, "??"),
-                kci.num_lines
-            );
+            println!("{} - {} lines:", format_chip_name(&kci.name), kci.num_lines);
             for offset in 0..kci.num_lines {
                 let li = c.line_info(offset).with_context(|| {
                     format!("unable to read line {} info from {}.", offset, c.name())
@@ -122,7 +118,7 @@ fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
                     "\tline {:>3}:\t{:16}\t{}",
                     li.offset,
                     lname,
-                    common::stringify_attrs(&li, opts.quoted),
+                    stringify_attrs(&li, opts.quoted),
                 );
             }
             return Ok(true);
@@ -135,7 +131,7 @@ fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
 }
 
 fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Result<()> {
-    match common::chip_from_path(p, common::actual_abi_version(&opts.uapi_opts)?) {
+    match chip_from_path(p, actual_abi_version(&opts.uapi_opts)?) {
         Ok(c) => {
             let kci = c
                 .info()
@@ -162,13 +158,13 @@ fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Resul
 }
 
 fn print_first_matching_lines(opts: &Opts) -> Result<()> {
-    let line_opts = LineOpts {
+    let line_opts = common::LineOpts {
         chip: opts.chip.clone(),
         strict: false,
         by_name: opts.by_name,
     };
-    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::Resolver::resolve_unvalidated(&opts.lines, &line_opts, abiv)?;
+    let abiv = actual_abi_version(&opts.uapi_opts)?;
+    let r = common::Resolver::resolve_lines_unvalidated(&opts.lines, &line_opts, abiv)?;
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut offsets: Vec<Offset> = r
             .lines
@@ -178,7 +174,7 @@ fn print_first_matching_lines(opts: &Opts) -> Result<()> {
             .collect();
         offsets.sort_unstable();
         offsets.dedup();
-        let mut c = common::chip_from_path(&ci.path, abiv)?;
+        let mut c = chip_from_path(&ci.path, abiv)?;
         print_chip_line_info(&mut c, &offsets, opts.quoted)?;
     }
     r.validate(&opts.lines, &line_opts)
@@ -204,9 +200,9 @@ fn print_line_info(chip_name: &str, li: &Info, quoted: bool) {
     };
     println!(
         "{} {}\t{:16}\t{}",
-        common::string_or_default(chip_name, "??"),
+        format_chip_name(chip_name),
         li.offset,
         lname,
-        common::stringify_attrs(li, quoted),
+        stringify_attrs(li, quoted),
     );
 }

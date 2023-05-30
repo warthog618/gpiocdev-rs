@@ -21,7 +21,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 chrono = "0.4"
-clap = {version = "4.0", features = ["derive", "env"]}
+clap = {version = "4.0", features = ["derive", "env", "cargo"]}
 daemonize = "0.5"
 gpiocdev = {version = "0.4", path = "../lib", default-features = false}
 libc = "0.2"

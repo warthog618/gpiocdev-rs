@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{
-    all_chip_paths, chip_from_path, chip_path_from_id, CmdFailureError, LineOpts,
-    NonUniqueLineError,
-};
+use super::{Comedy, Error, LineOpts};
 use anyhow::{bail, Context, Result};
 use gpiocdev::line::Offset;
 use gpiocdev::AbiVersion;
@@ -39,20 +36,20 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    pub fn resolve(lines: &[String], opts: &LineOpts, abiv: AbiVersion) -> Result<Resolver> {
-        let r = Self::resolve_unvalidated(lines, opts, abiv)?;
+    pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: AbiVersion) -> Result<Resolver> {
+        let r = Self::resolve_lines_unvalidated(lines, opts, abiv)?;
         r.validate(lines, opts)?;
         Ok(r)
     }
 
-    pub fn resolve_unvalidated(
+    pub fn resolve_lines_unvalidated(
         lines: &[String],
         opts: &LineOpts,
         abiv: AbiVersion,
     ) -> Result<Resolver> {
         let chips = match &opts.chip {
-            Some(chip_id) => vec![chip_path_from_id(chip_id)],
-            None => all_chip_paths()?,
+            Some(chip_id) => vec![super::chip_path_from_id(chip_id)],
+            None => super::all_chip_paths()?,
         };
 
         let mut r = Resolver {
@@ -62,7 +59,7 @@ impl Resolver {
         let mut chip_idx = 0;
         for (idx, path) in chips.iter().enumerate() {
             let found_count = r.lines.len();
-            let chip = chip_from_path(path, abiv)?;
+            let chip = super::chip_from_path(path, abiv)?;
             let kci = chip
                 .info()
                 .with_context(|| format!("unable to read info from {}", chip.name()))?;
@@ -106,7 +103,7 @@ impl Resolver {
                                 break;
                             }
                         } else if opts.strict {
-                            bail!(NonUniqueLineError::new(id));
+                            bail!(Error::NonUniqueLine(id.into()));
                         }
                     }
                 }
@@ -119,34 +116,30 @@ impl Resolver {
         Ok(r)
     }
 
+    // check that requested lines are found and unique
     pub fn validate(&self, lines: &[String], opts: &LineOpts) -> Result<()> {
-        let mut valid = true;
-
+        let mut errs = Comedy::new();
         for (idx, id) in lines.iter().enumerate() {
             if let Some(line) = self.lines.get(id) {
                 for prev in lines.iter().take(idx) {
                     if let Some(found) = self.lines.get(prev) {
                         if line.chip_idx == found.chip_idx && line.offset == found.offset {
-                            eprintln!("lines '{}' and '{}' are the same line", prev, id);
-                            valid = false;
+                            errs.push(Error::DuplicateLine(prev.into(), id.into()));
                         }
                     }
                 }
             } else if !opts.by_name && id.parse::<u32>().is_ok() && opts.chip.is_some() {
-                eprintln!(
-                    "offset {} is out of range on chip '{}'",
-                    id,
-                    opts.chip.as_ref().unwrap()
-                );
-                valid = false;
+                errs.push(Error::OffsetOutOfRange(
+                    id.into(),
+                    opts.chip.as_ref().unwrap().into(),
+                ));
             } else {
-                eprintln!("cannot find line '{}'", id);
-                valid = false;
+                errs.push(Error::NoSuchLine(id.into()));
             }
         }
 
-        if !valid {
-            bail!(CmdFailureError {})
+        if !errs.is_empty() {
+            return Err(errs.into());
         }
         Ok(())
     }

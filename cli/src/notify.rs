@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::common::{self, ChipInfo, LineOpts, TimeFmt, UapiOpts};
+use crate::common::{self, format_time, ChipInfo, TimeFmt};
 use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{InfoChangeEvent, InfoChangeKind};
@@ -19,7 +19,7 @@ pub struct Opts {
     banner: bool,
 
     #[command(flatten)]
-    line_opts: LineOpts,
+    line_opts: common::LineOpts,
 
     /// The lines to watch
     ///
@@ -75,7 +75,7 @@ pub struct Opts {
     quiet: bool,
 
     #[command(flatten)]
-    uapi_opts: UapiOpts,
+    uapi_opts: common::UapiOpts,
 
     /// Quote line and consumer names.
     #[arg(long)]
@@ -109,7 +109,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         TimeFmt::Seconds
     };
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::Resolver::resolve(&opts.lines, &opts.line_opts, abiv)?;
+    let r = common::Resolver::resolve_lines(&opts.lines, &opts.line_opts, abiv)?;
     let mut poll = Poll::new()?;
     let mut chips = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
@@ -202,8 +202,11 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
     } else {
         event.timestamp_ns
     };
-    common::format_time(evtime, timefmt);
-    print!("\t{}\t", event_kind_name(event.kind));
+    print!(
+        "{}\t{}\t",
+        format_time(evtime, timefmt),
+        event_kind_name(event.kind)
+    );
 
     if let Some(lname) = ci.named_lines.get(&event.info.offset) {
         if opts.line_opts.chip.is_some() {
@@ -219,7 +222,7 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
     }
 }
 
-fn consumer(li: &gpiocdev::line::Info) -> &str {
+fn format_consumer(li: &gpiocdev::line::Info) -> &str {
     if li.used {
         if li.consumer.is_empty() {
             "kernel"
@@ -232,7 +235,7 @@ fn consumer(li: &gpiocdev::line::Info) -> &str {
 }
 
 fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo, quoted: bool) {
-    use common::{format_time, stringify_attrs};
+    use common::stringify_attrs;
 
     let mut escaped = false;
 
@@ -242,7 +245,7 @@ fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo, 
                 '%' => print!("%"),
                 'a' => print!("{}", stringify_attrs(&event.info, quoted)),
                 'c' => print!("{}", ci.name),
-                'C' => print!("{}", consumer(&event.info)),
+                'C' => print!("{}", format_consumer(&event.info)),
                 'e' => print!("{}", event_kind_num(event.kind)),
                 'E' => print!("{}", event_kind_name(event.kind)),
                 'l' => print!("{}", ci.line_name(&event.info.offset).unwrap_or("unnamed")),

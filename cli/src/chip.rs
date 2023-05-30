@@ -66,7 +66,12 @@ fn print_chip_info(p: &PathBuf, verbose: bool) -> Result<bool> {
     match Chip::from_path(p) {
         Ok(c) => {
             let ci = c.info()?;
-            println!("{} [{}] ({} lines)", ci.name, ci.label, ci.num_lines);
+            println!(
+                "{} [{}] ({} lines)",
+                common::format_chip_name(&ci.name),
+                ci.label,
+                ci.num_lines
+            );
             return Ok(true);
         }
         Err(e) if verbose => eprintln!("unable to open '{}': {:#}", p.display(), e),

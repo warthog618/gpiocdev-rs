@@ -11,7 +11,6 @@ use gpiocdev::chip::{chips, is_chip, Chip};
 use gpiocdev::line::{Bias, Drive, EdgeDetection};
 use gpiocdev::request::Config;
 use gpiocdev::AbiVersion;
-use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -103,14 +102,6 @@ pub fn parse_duration(s: &str) -> std::result::Result<Duration, ParseDurationErr
         None => s.parse::<u64>().unwrap() * 1000000,
     };
     Ok(Duration::from_nanos(t))
-}
-
-pub fn string_or_default<'a, 'b: 'a>(s: &'a str, def: &'b str) -> &'a str {
-    if s.is_empty() {
-        def
-    } else {
-        s
-    }
 }
 
 // common command line parser options
@@ -352,6 +343,14 @@ pub enum TimeFmt {
     Utc,
 }
 
+pub fn format_chip_name(n: &str) -> &str {
+    if n.is_empty() {
+        "??"
+    } else {
+        n
+    }
+}
+
 pub fn format_time(evtime: u64, timefmt: &TimeFmt) -> String {
     use chrono::{Local, NaiveDateTime, TimeZone, Utc};
 
@@ -372,23 +371,48 @@ pub fn format_time(evtime: u64, timefmt: &TimeFmt) -> String {
     }
 }
 
-#[derive(Debug)]
-struct NonUniqueLineError {
-    id: String,
+#[derive(Debug, thiserror::Error)]
+struct Comedy {
+    errs: Vec<Error>,
 }
+impl Comedy {
+    fn new() -> Comedy {
+        Comedy { errs: Vec::new() }
+    }
 
-impl NonUniqueLineError {
-    pub fn new<S: Into<String>>(name: S) -> NonUniqueLineError {
-        NonUniqueLineError { id: name.into() }
+    fn is_empty(&self) -> bool {
+        self.errs.is_empty()
+    }
+
+    fn push(&mut self, err: Error) {
+        self.errs.push(err)
     }
 }
 
-impl fmt::Display for NonUniqueLineError {
+impl fmt::Display for Comedy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "line '{}' is not unique", self.id)
+        for err in &self.errs {
+            writeln!(f, "{}", err)?;
+        }
+        Ok(())
     }
 }
-impl Error for NonUniqueLineError {}
+
+/// Errors returned by cli functions.
+#[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
+pub enum Error {
+    #[error("lines '{0}' and '{1}' are the same line")]
+    DuplicateLine(String, String),
+
+    #[error("Line name '{0}' is not unique")]
+    NonUniqueLine(String),
+
+    #[error("cannot find line '{0}'")]
+    NoSuchLine(String),
+
+    #[error("offset {0} is out of range on '{1}'")]
+    OffsetOutOfRange(String, String),
+}
 
 #[derive(Debug)]
 pub struct CmdFailureError {}
@@ -398,7 +422,7 @@ impl fmt::Display for CmdFailureError {
         Ok(())
     }
 }
-impl Error for CmdFailureError {}
+impl std::error::Error for CmdFailureError {}
 
 #[cfg(test)]
 mod tests {

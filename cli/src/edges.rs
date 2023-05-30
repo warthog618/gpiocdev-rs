@@ -2,9 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::common::{
-    self, ActiveLowOpts, BiasOpts, ChipInfo, EdgeOpts, LineOpts, TimeFmt, UapiOpts,
-};
+use crate::common::{self, format_time, ChipInfo, TimeFmt};
 use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{EdgeEvent, EdgeKind, Offset};
@@ -30,16 +28,16 @@ pub struct Opts {
     banner: bool,
 
     #[command(flatten)]
-    line_opts: LineOpts,
+    line_opts: common::LineOpts,
 
     #[command(flatten)]
-    active_low_opts: ActiveLowOpts,
+    active_low_opts: common::ActiveLowOpts,
 
     #[command(flatten)]
-    bias_opts: BiasOpts,
+    bias_opts: common::BiasOpts,
 
     #[command(flatten)]
-    edge_opts: EdgeOpts,
+    edge_opts: common::EdgeOpts,
 
     /// The debounce period for the monitored lines
     ///
@@ -96,7 +94,7 @@ pub struct Opts {
     consumer: String,
 
     #[command(flatten)]
-    uapi_opts: UapiOpts,
+    uapi_opts: common::UapiOpts,
 
     /// Quote line names.
     #[arg(long)]
@@ -165,7 +163,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
 
     let timefmt = time_format_from_opts(opts);
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::Resolver::resolve(&opts.lines, &opts.line_opts, abiv)?;
+    let r = common::Resolver::resolve_lines(&opts.lines, &opts.line_opts, abiv)?;
     let mut poll = Poll::new()?;
     let mut reqs = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
@@ -251,8 +249,11 @@ fn print_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) 
     if let Some(format) = &opts.format {
         return print_edge_formatted(event, format, ci);
     }
-    common::format_time(event.timestamp_ns, timefmt);
-    print!("\t{}\t", event_kind_name(event.kind));
+    print!(
+        "{}\t{}\t",
+        format_time(event.timestamp_ns, timefmt),
+        event_kind_name(event.kind)
+    );
     if let Some(lname) = ci.named_lines.get(&event.offset) {
         if opts.line_opts.chip.is_some() {
             print!("{} {} ", ci.name, event.offset);
@@ -282,8 +283,6 @@ fn event_kind_num(kind: EdgeKind) -> u8 {
 }
 
 fn print_edge_formatted(event: &EdgeEvent, format: &str, ci: &ChipInfo) {
-    use common::format_time;
-
     let mut escaped = false;
 
     for chr in format.chars() {
