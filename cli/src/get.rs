@@ -18,7 +18,7 @@ pub struct Opts {
     ///
     /// The lines are identified by name or optionally by offset
     /// if the --chip option is provided.
-    #[arg(name = "line", required = true)]
+    #[arg(value_name = "line", required = true)]
     line: Vec<String>,
 
     #[command(flatten)]
@@ -44,7 +44,7 @@ pub struct Opts {
     /// This provides time for any bias setting to take effect.
     ///
     /// The period is taken as milliseconds unless otherwise specified.
-    #[arg(short = 'p', long, name = "period", value_parser = common::parse_duration)]
+    #[arg(short = 'p', long, value_name = "period", value_parser = common::parse_duration)]
     hold_period: Option<Duration>,
 
     /// Display line values as '0' (inactive) or '1' (active)
@@ -55,7 +55,7 @@ pub struct Opts {
     uapi_opts: common::UapiOpts,
 
     /// The consumer label applied to requested lines.
-    #[arg(short = 'C', long, name = "name", default_value = "gpiocdev-get")]
+    #[arg(short = 'C', long, value_name = "name", default_value = "gpiocdev-get")]
     consumer: String,
 
     /// Quote line names.

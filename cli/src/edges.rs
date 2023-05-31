@@ -10,7 +10,6 @@ use gpiocdev::request::{Config, Request};
 use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
 use std::os::unix::prelude::AsRawFd;
-#[cfg(feature = "uapi_v2")]
 use std::time::Duration;
 
 #[derive(Debug, Parser)]
@@ -20,7 +19,7 @@ pub struct Opts {
     ///
     /// The lines are identified by name or optionally by offset if
     /// the --chip option is specified.
-    #[arg(name = "line", required = true)]
+    #[arg(value_name = "line", required = true)]
     lines: Vec<String>,
 
     /// Display a banner on successful startup
@@ -43,18 +42,24 @@ pub struct Opts {
     ///
     /// The period is taken as milliseconds unless otherwise specified.
     #[cfg(feature = "uapi_v2")]
-    #[arg(short = 'p', long, name = "period", value_parser = common::parse_duration)]
+    #[arg(short = 'p', long, value_name = "period", value_parser = common::parse_duration)]
     debounce_period: Option<Duration>,
+
+    /// Exit if no events are received for the specified period.
+    ///
+    /// The period is taken as milliseconds unless otherwise specified.
+    #[arg(long, value_name = "period", value_parser = common::parse_duration)]
+    idle_timeout: Option<Duration>,
 
     /// Exit after the specified number of events
     ///
     /// If not specified then monitoring will continue indefinitely.
-    #[arg(short, long, name = "num")]
+    #[arg(short, long, value_name = "num")]
     num_events: Option<u32>,
 
     /// Specify the source clock for event timestamps
     #[cfg(feature = "uapi_v2")]
-    #[arg(short = 'E', long, name = "clock")]
+    #[arg(short = 'E', long, value_name = "clock")]
     event_clock: Option<EventClock>,
 
     /// Specify a custom output format
@@ -71,7 +76,7 @@ pub struct Opts {
     #[arg(
         short = 'F',
         long,
-        name = "fmt",
+        value_name = "fmt",
         group = "timefmt",
         verbatim_doc_comment
     )]
@@ -90,7 +95,12 @@ pub struct Opts {
     quiet: bool,
 
     /// The consumer label applied to requested lines.
-    #[arg(short = 'C', long, name = "name", default_value = "gpiocdev-edges")]
+    #[arg(
+        short = 'C',
+        long,
+        value_name = "name",
+        default_value = "gpiocdev-edges"
+    )]
     consumer: String,
 
     #[command(flatten)]
@@ -198,13 +208,16 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         _ = stdout.flush();
     }
     loop {
-        match poll.poll(&mut events, None) {
+        match poll.poll(&mut events, opts.idle_timeout) {
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::Interrupted {
                     bail!(e);
                 }
             }
             Ok(()) => {
+                if events.is_empty() {
+                    return Ok(());
+                }
                 for event in &events {
                     match event.token() {
                         Token(idx) => {

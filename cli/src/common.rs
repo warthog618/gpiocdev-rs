@@ -120,7 +120,7 @@ pub struct LineOpts {
     ///     --chip 0
     ///     --chip gpiochip0
     ///     --chip /dev/gpiochip0
-    #[arg(short, long, name = "chip", verbatim_doc_comment)]
+    #[arg(short, long, value_name = "chip", verbatim_doc_comment)]
     pub chip: Option<String>,
 
     /// Requested line names must be unique or the command will abort
@@ -199,7 +199,7 @@ pub struct BiasOpts {
     /// The bias to be applied to the lines
     ///
     /// By default the bias is left unchanged.
-    #[arg(short, long, name = "bias", value_enum, ignore_case = true)]
+    #[arg(short, long, value_name = "bias", value_enum, ignore_case = true)]
     pub bias: Option<BiasFlags>,
 }
 impl BiasOpts {
@@ -231,7 +231,7 @@ pub struct DriveOpts {
     #[arg(
         short,
         long,
-        name = "drive",
+        value_name = "drive",
         default_value = "push-pull",
         value_enum,
         ignore_case = true
@@ -267,7 +267,7 @@ pub struct EdgeOpts {
     #[arg(
         short,
         long,
-        name = "edges",
+        value_name = "edges",
         value_enum,
         default_value = "both",
         ignore_case = true

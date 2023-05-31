@@ -10,6 +10,7 @@ use libc::timespec;
 use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
 use std::os::unix::prelude::AsRawFd;
+use std::time::Duration;
 
 #[derive(Debug, Parser)]
 #[command(aliases(["n", "watch"]))]
@@ -25,19 +26,25 @@ pub struct Opts {
     ///
     /// The lines are identified by name or optionally by
     /// offset if the --chip option is specified.
-    #[arg(name = "line", required = true)]
+    #[arg(value_name = "line", required = true)]
     lines: Vec<String>,
 
     /// Specify the events to report.
     ///
     /// Default is all events.
-    #[arg(short = 'e', long, name = "event")]
+    #[arg(short = 'e', long, value_name = "event")]
     event: Option<Event>,
+
+    /// Exit if no events are received for the specified period.
+    ///
+    /// The period is taken as milliseconds unless otherwise specified.
+    #[arg(long, value_name = "period", value_parser = common::parse_duration)]
+    idle_timeout: Option<Duration>,
 
     /// Exit after the specified number of events
     ///
     /// If not specified then watching will continue indefinitely.
-    #[arg(short, long, name = "num")]
+    #[arg(short, long, value_name = "num")]
     num_events: Option<u32>,
 
     /// Specify a custom output format
@@ -56,7 +63,7 @@ pub struct Opts {
     #[arg(
         short = 'F',
         long,
-        name = "fmt",
+        value_name = "fmt",
         group = "timefmt",
         verbatim_doc_comment
     )]
@@ -139,13 +146,16 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         _ = stdout.flush();
     }
     loop {
-        match poll.poll(&mut events, None) {
+        match poll.poll(&mut events, opts.idle_timeout) {
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::Interrupted {
                     bail!(e);
                 }
             }
             Ok(()) => {
+                if events.is_empty() {
+                    return Ok(())
+                }
                 for event in &events {
                     match event.token() {
                         Token(idx) => {

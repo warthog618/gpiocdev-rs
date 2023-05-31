@@ -31,7 +31,7 @@ pub struct Opts {
     /// e.g.
     ///     GPIO17=on GPIO22=inactive
     ///     --chip gpiochip0 17=1 22=0
-    #[arg(name = "line=value", required = true, value_parser = parse_line_value, verbatim_doc_comment)]
+    #[arg(value_name = "line=value", required = true, value_parser = parse_line_value, verbatim_doc_comment)]
     line_values: Vec<(String, LineValue)>,
 
     /// Display a banner on successful startup
@@ -60,7 +60,7 @@ pub struct Opts {
     /// The minimum time period to hold lines at the requested values.
     ///
     /// The period is taken as milliseconds unless otherwise specified.
-    #[arg(short = 'p', long, name = "period", value_parser = common::parse_duration)]
+    #[arg(short = 'p', long, value_name = "period", value_parser = common::parse_duration)]
     hold_period: Option<Duration>,
 
     /// Toggle the lines after the specified time periods.
@@ -80,7 +80,7 @@ pub struct Opts {
     ///
     /// A 0s period elsewhere in the sequence is toggled as quickly as possible,
     /// allowing for any specified --hold-period.
-    #[arg(short = 't', long, name = "periods", value_parser = parse_time_sequence, group = "mode", verbatim_doc_comment)]
+    #[arg(short = 't', long, value_name = "periods", value_parser = parse_time_sequence, group = "mode", verbatim_doc_comment)]
     toggle: Option<TimeSequence>,
 
     /// Set line values then detach from the controlling terminal.
@@ -88,7 +88,7 @@ pub struct Opts {
     daemonize: bool,
 
     /// The consumer label applied to requested lines.
-    #[arg(short = 'C', long, name = "name", default_value = "gpiocdev-set")]
+    #[arg(short = 'C', long, value_name = "name", default_value = "gpiocdev-set")]
     consumer: String,
 
     #[command(flatten)]

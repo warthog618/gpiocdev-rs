@@ -18,7 +18,7 @@ pub struct Opts {
     /// if the --chip option is provided.
     ///
     /// If not specified then all lines are returned.
-    #[arg(name = "line")]
+    #[arg(value_name = "line")]
     lines: Vec<String>,
 
     /// Restrict scope to the lines on this chip
@@ -32,7 +32,7 @@ pub struct Opts {
     ///     -c 0
     ///     -c gpiochip0
     ///     -c /dev/gpiochip0
-    #[arg(short, long, name = "chip", verbatim_doc_comment)]
+    #[arg(short, long, value_name = "chip", verbatim_doc_comment)]
     chip: Option<String>,
 
     /// Lines are strictly identified by name
