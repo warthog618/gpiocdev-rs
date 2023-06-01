@@ -2,46 +2,51 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use anyhow::Result;
+use anyhow::anyhow;
 use clap::Parser;
+use super::common::{self, emit_error};
 use gpiocdev::AbiVersion;
 use std::fs;
 
 #[derive(Debug, Parser)]
 #[command(aliases(["p"]))]
 pub struct Opts {
-    #[arg(from_global)]
-    pub verbose: bool,
+    #[command(flatten)]
+    emit: common::EmitOpts,
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
+pub fn cmd(opts: &Opts) -> bool {
     if let Ok(v) = fs::read_to_string("/proc/version") {
         let mut f = v.split_ascii_whitespace();
         if let Some(v) = f.nth(2) {
             println!("Kernel {}", v);
-            if opts.verbose {
+            if opts.emit.verbose {
                 print_unsupported_features(v)
             }
         }
     } else {
         println!("Kernel unknown");
     }
-    print_abi_support();
-    Ok(())
+    print_abi_support(&opts.emit)
 }
 
-fn print_abi_support() {
+fn print_abi_support(opts: &common::EmitOpts) -> bool {
     let versions = [AbiVersion::V1, AbiVersion::V2];
+    let mut success = false;
     for v in versions {
         match gpiocdev::supports_abi_version(v) {
             Err(gpiocdev::Error::NoGpioChips()) => {
                 println!("No available gpiochips");
-                return;
+                return false;
             }
-            Ok(()) => println!("{} is supported.", v),
-            Err(err) => println!("{}", err),
+            Ok(()) => {
+                println!("{} is supported.", v);
+                success = true;
+            }
+            Err(e) => emit_error(opts, &anyhow!(e)),
         }
     }
+    success
 }
 
 fn print_unsupported_features(version: &str) {

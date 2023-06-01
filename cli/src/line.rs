@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::common::{self, actual_abi_version, chip_from_path, format_chip_name, stringify_attrs};
-use anyhow::{bail, Context, Result};
+use super::common::{
+    self, actual_abi_version, chip_from_path, emit_error, format_chip_name, stringify_attrs,
+};
+use anyhow::{Context, Result};
 use clap::Parser;
 use gpiocdev::chip::Chip;
 use gpiocdev::line::{Info, Offset};
-use std::path::Path;
 
 #[derive(Debug, Parser)]
 #[command(aliases(["l", "info"]))]
@@ -53,18 +54,28 @@ pub struct Opts {
     #[arg(short = 's', long)]
     strict: bool,
 
-    #[arg(from_global)]
-    pub verbose: bool,
-
     #[command(flatten)]
     uapi_opts: common::UapiOpts,
 
     /// Quote line and consumer names.
     #[arg(long)]
     quoted: bool,
+
+    #[command(flatten)]
+    emit: common::EmitOpts,
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
+pub fn cmd(opts: &Opts) -> bool {
+    match cmd_inner(opts) {
+        Err(e) => {
+            emit_error(&opts.emit, &e);
+            false
+        }
+        Ok(x) => x,
+    }
+}
+
+fn cmd_inner(opts: &Opts) -> Result<bool> {
     let mut success = true;
 
     if !(opts.lines.is_empty() || opts.strict) {
@@ -76,88 +87,76 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     } else {
         common::all_chip_paths()?
     };
-    if opts.lines.is_empty() {
-        for p in chips {
-            if !print_chip_all_lines(&p, opts)? {
-                success = false;
-            }
-        }
-    } else {
-        let mut counts = vec![0; opts.lines.len()];
-        for p in chips {
-            print_chip_matching_lines(&p, opts, &mut counts)?;
-        }
-        success = counts.iter().all(|n| *n == 1);
-    }
-    if !success {
-        bail!(common::CmdFailureError {});
-    }
-    Ok(())
-}
-
-fn print_chip_all_lines(p: &Path, opts: &Opts) -> Result<bool> {
     let abiv = actual_abi_version(&opts.uapi_opts)?;
-    match chip_from_path(p, abiv) {
-        Ok(c) => {
-            let kci = c
-                .info()
-                .with_context(|| format!("unable to read info from {}", c.name()))?;
-            println!("{} - {} lines:", format_chip_name(&kci.name), kci.num_lines);
-            for offset in 0..kci.num_lines {
-                let li = c.line_info(offset).with_context(|| {
-                    format!("unable to read line {} info from {}.", offset, c.name())
-                })?;
-                let lname = if li.name.is_empty() {
-                    "unnamed".to_string()
-                } else if opts.quoted {
-                    format!("\"{}\"", li.name)
-                } else {
-                    li.name.to_string()
-                };
-                println!(
-                    "\tline {:>3}:\t{:16}\t{}",
-                    li.offset,
-                    lname,
-                    stringify_attrs(&li, opts.quoted),
-                );
-            }
-            return Ok(true);
-        }
-        Err(e) if opts.chip.is_some() => return Err(e),
-        Err(e) if opts.verbose => eprintln!("{:#}", e),
-        Err(_) => {}
-    }
-    Ok(false)
-}
-
-fn print_chip_matching_lines(p: &Path, opts: &Opts, counts: &mut [u32]) -> Result<()> {
-    match chip_from_path(p, actual_abi_version(&opts.uapi_opts)?) {
-        Ok(c) => {
-            let kci = c
-                .info()
-                .with_context(|| format!("unable to read info from {}", c.name()))?;
-            for offset in 0..kci.num_lines {
-                let li = c.line_info(offset).with_context(|| {
-                    format!("unable to read info for line {} from {}", offset, c.name())
-                })?;
-                let oname = format!("{}", offset);
-                for (idx, id) in opts.lines.iter().enumerate() {
-                    if (id == &li.name) || (!opts.by_name && opts.chip.is_some() && id == &oname) {
-                        counts[idx] += 1;
-                        print_line_info(&kci.name, &li, opts.quoted);
+    let mut counts = vec![0; opts.lines.len()];
+    for p in chips {
+        match chip_from_path(&p, abiv) {
+            Ok(c) => {
+                if opts.lines.is_empty() {
+                    if !print_chip_all_lines(&c, opts)? {
+                        success = false;
                     }
+                } else {
+                    print_chip_matching_lines(&c, opts, &mut counts)?;
                 }
             }
-            return Ok(());
+            Err(e) if opts.chip.is_some() => return Err(e),
+            Err(e) if opts.emit.verbose => emit_error(&opts.emit, &e),
+            Err(_) => {}
         }
-        Err(e) if opts.chip.is_some() => return Err(e),
-        Err(e) if opts.verbose => eprintln!("{:#}", e),
-        Err(_) => {}
     }
-    bail!(common::CmdFailureError {});
+    if !opts.lines.is_empty() {
+        success = counts.iter().all(|n| *n == 1);
+    }
+    Ok(success)
 }
 
-fn print_first_matching_lines(opts: &Opts) -> Result<()> {
+fn print_chip_all_lines(c: &Chip, opts: &Opts) -> Result<bool> {
+    let kci = c
+        .info()
+        .with_context(|| format!("unable to read info from {}", c.name()))?;
+    println!("{} - {} lines:", format_chip_name(&kci.name), kci.num_lines);
+    for offset in 0..kci.num_lines {
+        let li = c
+            .line_info(offset)
+            .with_context(|| format!("unable to read line {} info from {}.", offset, c.name()))?;
+        let lname = if li.name.is_empty() {
+            "unnamed".to_string()
+        } else if opts.quoted {
+            format!("\"{}\"", li.name)
+        } else {
+            li.name.to_string()
+        };
+        println!(
+            "\tline {:>3}:\t{:16}\t{}",
+            li.offset,
+            lname,
+            stringify_attrs(&li, opts.quoted),
+        );
+    }
+    Ok(true)
+}
+
+fn print_chip_matching_lines(c: &Chip, opts: &Opts, counts: &mut [u32]) -> Result<bool> {
+    let kci = c
+        .info()
+        .with_context(|| format!("unable to read info from {}", c.name()))?;
+    for offset in 0..kci.num_lines {
+        let li = c.line_info(offset).with_context(|| {
+            format!("unable to read info for line {} from {}", offset, c.name())
+        })?;
+        let oname = format!("{}", offset);
+        for (idx, id) in opts.lines.iter().enumerate() {
+            if (id == &li.name) || (!opts.by_name && opts.chip.is_some() && id == &oname) {
+                counts[idx] += 1;
+                print_line_info(&kci.name, &li, opts.quoted);
+            }
+        }
+    }
+    Ok(true)
+}
+
+fn print_first_matching_lines(opts: &Opts) -> Result<bool> {
     let line_opts = common::LineOpts {
         chip: opts.chip.clone(),
         strict: false,
@@ -174,20 +173,21 @@ fn print_first_matching_lines(opts: &Opts) -> Result<()> {
             .collect();
         offsets.sort_unstable();
         offsets.dedup();
-        let mut c = chip_from_path(&ci.path, abiv)?;
-        print_chip_line_info(&mut c, &offsets, opts.quoted)?;
+        let c = chip_from_path(&ci.path, abiv)?;
+        print_chip_line_info(&c, &offsets, opts.quoted)?;
     }
-    r.validate(&opts.lines, &line_opts)
+    r.validate(&opts.lines, &line_opts)?;
+    Ok(true)
 }
 
-fn print_chip_line_info(chip: &mut Chip, lines: &[Offset], quoted: bool) -> Result<()> {
+fn print_chip_line_info(chip: &Chip, lines: &[Offset], quoted: bool) -> Result<bool> {
     for &offset in lines {
         let li = chip
             .line_info(offset)
             .with_context(|| format!("unable to read line {} info from {}", offset, chip.name()))?;
         print_line_info(&chip.name(), &li, quoted);
     }
-    Ok(())
+    Ok(true)
 }
 
 fn print_line_info(chip_name: &str, li: &Info, quoted: bool) {

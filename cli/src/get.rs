@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::common::{self, ChipOffset};
+use super::common::{self, emit_error, ChipOffset};
 use anyhow::{Context, Result};
 use clap::Parser;
 use gpiocdev::line::{Offset, Value, Values};
@@ -61,6 +61,9 @@ pub struct Opts {
     /// Quote line names.
     #[arg(long)]
     quoted: bool,
+
+    #[command(flatten)]
+    emit: common::EmitOpts,
 }
 
 impl Opts {
@@ -74,7 +77,17 @@ impl Opts {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
+pub fn cmd(opts: &Opts) -> bool {
+    match cmd_inner(opts) {
+        Err(e) => {
+            emit_error(&opts.emit, &e);
+            false
+        }
+        Ok(x) => x,
+    }
+}
+
+fn cmd_inner(opts: &Opts) -> Result<bool> {
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
     let r = common::Resolver::resolve_lines(&opts.line, &opts.line_opts, abiv)?;
     let mut requests = Vec::new();
@@ -131,5 +144,5 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     }
     println!("{}", print_values.join(" "));
 
-    Ok(())
+    Ok(true)
 }

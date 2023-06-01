@@ -155,6 +155,20 @@ impl From<AbiVersionFlags> for gpiocdev::AbiVersion {
 }
 
 #[derive(Debug, Parser)]
+pub struct EmitOpts {
+    #[arg(from_global)]
+    pub verbose: bool,
+}
+
+pub fn emit_error(opts: &EmitOpts, e: &anyhow::Error) {
+    if opts.verbose {
+        eprintln!("{:#}", e);
+    } else {
+        eprintln!("{}", e);
+    }
+}
+
+#[derive(Debug, Parser)]
 pub struct UapiOpts {
     /// The uAPI ABI version to use to perform the operation
     ///
@@ -410,25 +424,15 @@ pub enum Error {
     #[error("lines '{0}' and '{1}' are the same line")]
     DuplicateLine(String, String),
 
-    #[error("Line name '{0}' is not unique")]
+    #[error("line '{0}' is not unique")]
     NonUniqueLine(String),
 
     #[error("cannot find line '{0}'")]
     NoSuchLine(String),
 
-    #[error("offset {0} is out of range on '{1}'")]
+    #[error("offset {0} is out of range on chip '{1}'")]
     OffsetOutOfRange(String, String),
 }
-
-#[derive(Debug)]
-pub struct CmdFailureError {}
-
-impl fmt::Display for CmdFailureError {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
-}
-impl std::error::Error for CmdFailureError {}
 
 #[cfg(test)]
 mod tests {

@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::common::{self, format_time, ChipInfo, TimeFmt};
-use anyhow::{bail, Context, Result};
+use super::common::{self, emit_error, format_time, ChipInfo, TimeFmt};
+use anyhow::{anyhow, Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{InfoChangeEvent, InfoChangeKind};
 use libc::timespec;
@@ -87,6 +87,9 @@ pub struct Opts {
     /// Quote line and consumer names.
     #[arg(long)]
     quoted: bool,
+
+    #[command(flatten)]
+    emit: common::EmitOpts,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -105,9 +108,17 @@ impl From<Event> for InfoChangeKind {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
-    use std::io::Write;
+pub fn cmd(opts: &Opts) -> bool {
+    match cmd_inner(opts) {
+        Err(e) => {
+            emit_error(&opts.emit, &e);
+            false
+        }
+        Ok(x) => x,
+    }
+}
 
+fn cmd_inner(opts: &Opts) -> Result<bool> {
     let timefmt = if opts.localtime {
         TimeFmt::Localtime
     } else if opts.utc {
@@ -139,47 +150,37 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         chips.push(chip);
     }
     let mut count = 0;
-    let mut stdout = std::io::stdout();
     let mut events = Events::with_capacity(r.chips.len());
-    if opts.banner {
-        print_banner(&opts.lines);
-        _ = stdout.flush();
-    }
+    emit_banner(opts);
     loop {
         match poll.poll(&mut events, opts.idle_timeout) {
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::Interrupted {
-                    bail!(e);
+                    emit_error(&opts.emit, &anyhow!(e));
+                    return Ok(false);
                 }
             }
             Ok(()) => {
                 if events.is_empty() {
-                    return Ok(())
+                    return Ok(true);
                 }
                 for event in &events {
-                    match event.token() {
-                        Token(idx) => {
-                            while chips[idx].has_line_info_change_event()? {
-                                let change = chips[idx]
-                                    .read_line_info_change_event()
-                                    .with_context(|| {
-                                        format!("failed to read event from {}", r.chips[idx].name)
-                                    })?;
-                                if let Some(evtype) = opts.event {
-                                    if change.kind != evtype.into() {
-                                        continue;
-                                    }
-                                }
-                                if !opts.quiet {
-                                    print_change(change, &r.chips[idx], opts, &timefmt);
-                                    _ = stdout.flush();
-                                }
-                                if let Some(limit) = opts.num_events {
-                                    count += 1;
-                                    if count >= limit {
-                                        return Ok(());
-                                    }
-                                }
+                    let idx: usize = event.token().into();
+                    while chips[idx].has_line_info_change_event()? {
+                        let change =
+                            chips[idx].read_line_info_change_event().with_context(|| {
+                                format!("failed to read event from {}", r.chips[idx].name)
+                            })?;
+                        if let Some(evtype) = opts.event {
+                            if change.kind != evtype.into() {
+                                continue;
+                            }
+                        }
+                        emit_change(change, &r.chips[idx], opts, &timefmt);
+                        if let Some(limit) = opts.num_events {
+                            count += 1;
+                            if count >= limit {
+                                return Ok(true);
                             }
                         }
                     }
@@ -189,7 +190,16 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     }
 }
 
+fn emit_banner(opts: &Opts) {
+    if !opts.banner {
+        return;
+    }
+    print_banner(&opts.lines)
+}
+
 fn print_banner(lines: &[String]) {
+    use std::io::Write;
+
     if lines.len() > 1 {
         print!("Watching lines ");
 
@@ -201,9 +211,19 @@ fn print_banner(lines: &[String]) {
     } else {
         println!("Watching line '{}'...", lines[0]);
     }
+    _ = std::io::stdout().flush();
+}
+
+fn emit_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
+    if opts.quiet {
+        return;
+    }
+    print_change(event, ci, opts, timefmt);
 }
 
 fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
+    use std::io::Write;
+
     if let Some(format) = &opts.format {
         return print_change_formatted(&event, format, ci, opts.quoted);
     }
@@ -230,6 +250,7 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
     } else {
         println!("{} {}", ci.name, event.info.offset);
     }
+    _ = std::io::stdout().flush();
 }
 
 fn format_consumer(li: &gpiocdev::line::Info) -> &str {

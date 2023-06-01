@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::common::{self, format_time, ChipInfo, TimeFmt};
+use super::common::{self, emit_error, format_time, ChipInfo, TimeFmt};
 use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{EdgeEvent, EdgeKind, Offset};
@@ -77,21 +77,21 @@ pub struct Opts {
         short = 'F',
         long,
         value_name = "fmt",
-        group = "timefmt",
+        group = "emit",
         verbatim_doc_comment
     )]
     format: Option<String>,
 
     /// Format event timestamps as local time
-    #[arg(long, group = "timefmt")]
+    #[arg(long, group = "emit")]
     localtime: bool,
 
     /// Format event timestamps as UTC
-    #[arg(long, group = "timefmt")]
+    #[arg(long, group = "emit")]
     utc: bool,
 
     /// Don't generate any output
-    #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
+    #[arg(short = 'q', long, group = "emit", alias = "silent")]
     quiet: bool,
 
     /// The consumer label applied to requested lines.
@@ -109,6 +109,9 @@ pub struct Opts {
     /// Quote line names.
     #[arg(long)]
     quoted: bool,
+
+    #[command(flatten)]
+    emit: common::EmitOpts,
 }
 
 impl Opts {
@@ -168,9 +171,17 @@ fn time_format_from_opts(opts: &Opts) -> TimeFmt {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
-    use std::io::Write;
+pub fn cmd(opts: &Opts) -> bool {
+    match cmd_inner(opts) {
+        Err(e) => {
+            emit_error(&opts.emit, &e);
+            false
+        }
+        Ok(x) => x,
+    }
+}
 
+fn cmd_inner(opts: &Opts) -> Result<bool> {
     let timefmt = time_format_from_opts(opts);
     let abiv = common::actual_abi_version(&opts.uapi_opts)?;
     let r = common::Resolver::resolve_lines(&opts.lines, &opts.line_opts, abiv)?;
@@ -201,12 +212,8 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         reqs.push(req);
     }
     let mut count = 0;
-    let mut stdout = std::io::stdout();
     let mut events = Events::with_capacity(r.chips.len());
-    if opts.banner {
-        print_banner(&opts.lines);
-        _ = stdout.flush();
-    }
+    emit_banner(opts);
     loop {
         match poll.poll(&mut events, opts.idle_timeout) {
             Err(e) => {
@@ -216,25 +223,19 @@ pub fn cmd(opts: &Opts) -> Result<()> {
             }
             Ok(()) => {
                 if events.is_empty() {
-                    return Ok(());
+                    return Ok(true);
                 }
                 for event in &events {
-                    match event.token() {
-                        Token(idx) => {
-                            while reqs[idx].has_edge_event()? {
-                                if !opts.quiet {
-                                    let edge = reqs[idx].read_edge_event().with_context(|| {
-                                        format!("failed to read event from {}", r.chips[idx].name)
-                                    })?;
-                                    print_edge(&edge, &r.chips[idx], opts, &timefmt);
-                                    _ = stdout.flush();
-                                }
-                                if let Some(limit) = opts.num_events {
-                                    count += 1;
-                                    if count >= limit {
-                                        return Ok(());
-                                    }
-                                }
+                    let idx: usize = event.token().into();
+                    while reqs[idx].has_edge_event()? {
+                        let edge = reqs[idx].read_edge_event().with_context(|| {
+                            format!("failed to read event from {}", r.chips[idx].name)
+                        })?;
+                        emit_edge(&edge, &r.chips[idx], opts, &timefmt);
+                        if let Some(limit) = opts.num_events {
+                            count += 1;
+                            if count >= limit {
+                                return Ok(true);
                             }
                         }
                     }
@@ -244,7 +245,16 @@ pub fn cmd(opts: &Opts) -> Result<()> {
     }
 }
 
+fn emit_banner(opts: &Opts) {
+    if !opts.banner {
+        return;
+    }
+    print_banner(&opts.lines)
+}
+
 fn print_banner(lines: &[String]) {
+    use std::io::Write;
+
     if lines.len() > 1 {
         print!("Monitoring lines ");
 
@@ -256,9 +266,19 @@ fn print_banner(lines: &[String]) {
     } else {
         println!("Monitoring line '{}'...", lines[0]);
     }
+    _ = std::io::stdout().flush();
+}
+
+fn emit_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
+    if opts.quiet {
+        return;
+    }
+    print_edge(event, ci, opts, timefmt);
 }
 
 fn print_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
+    use std::io::Write;
+
     if let Some(format) = &opts.format {
         return print_edge_formatted(event, format, ci);
     }
@@ -279,6 +299,7 @@ fn print_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) 
     } else {
         println!("{} {}", ci.name, event.offset);
     }
+    _ = std::io::stdout().flush();
 }
 
 fn event_kind_name(kind: EdgeKind) -> &'static str {

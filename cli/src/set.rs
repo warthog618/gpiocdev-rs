@@ -5,7 +5,7 @@
 mod editor;
 use self::editor::{CommandWords, Editor};
 
-use super::common::{self, ParseDurationError};
+use super::common::{self, emit_error, ParseDurationError};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Arg, ArgAction, Command, Parser};
 use daemonize::Daemonize;
@@ -93,6 +93,9 @@ pub struct Opts {
 
     #[command(flatten)]
     uapi_opts: common::UapiOpts,
+
+    #[command(flatten)]
+    emit: common::EmitOpts,
 }
 
 impl Opts {
@@ -104,7 +107,17 @@ impl Opts {
     }
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
+pub fn cmd(opts: &Opts) -> bool {
+    match cmd_inner(opts) {
+        Err(e) => {
+            emit_error(&opts.emit, &e);
+            false
+        }
+        Ok(x) => x,
+    }
+}
+
+fn cmd_inner(opts: &Opts) -> Result<bool> {
     let mut setter = Setter {
         hold_period: opts.hold_period,
         ..Default::default()
@@ -129,7 +142,7 @@ pub fn cmd(opts: &Opts) -> Result<()> {
         return setter.interact(opts);
     }
     setter.wait();
-    Ok(())
+    Ok(true)
 }
 
 #[derive(Default)]
@@ -199,7 +212,7 @@ impl Setter {
         Ok(())
     }
 
-    fn interact(&mut self, opts: &Opts) -> Result<()> {
+    fn interact(&mut self, opts: &Opts) -> Result<bool> {
         let line_names = opts
             .line_values
             .iter()
@@ -264,7 +277,7 @@ impl Setter {
                         println!("{}", err);
                         // clean in case the error leaves dirty lines.
                         self.clean();
-                        return Ok(());
+                        return Ok(true);
                     }
                 }
                 Err(err) => {
@@ -427,10 +440,10 @@ impl Setter {
         }
     }
 
-    fn toggle(&mut self, ts: &TimeSequence) -> Result<()> {
+    fn toggle(&mut self, ts: &TimeSequence) -> Result<bool> {
         if ts.0.len() == 1 && ts.0[0].is_zero() {
             self.hold();
-            return Ok(());
+            return Ok(true);
         }
         let mut count = 0;
         let hold_period = self.hold_period.unwrap_or(Duration::ZERO);
@@ -438,7 +451,7 @@ impl Setter {
             thread::sleep(cmp::max(ts.0[count], hold_period));
             count += 1;
             if count == ts.0.len() - 1 && ts.0[count].is_zero() {
-                return Ok(());
+                return Ok(true);
             }
             if count == ts.0.len() {
                 count = 0;

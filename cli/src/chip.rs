@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::common;
-use anyhow::{bail, Result};
+use super::common::{self, emit_error};
+use anyhow::Result;
 use clap::Parser;
-use gpiocdev::chip::Chip;
-use std::path::PathBuf;
+use gpiocdev::chip::Info;
+use std::path::Path;
 
 #[derive(Debug, Parser)]
 #[command(aliases(["c", "detect"]))]
@@ -20,62 +20,65 @@ pub struct Opts {
     ///     0
     ///     gpiochip0
     ///     /dev/gpiochip0
-    #[arg(name = "chip", verbatim_doc_comment)]
+    #[arg(value_name = "chip", verbatim_doc_comment)]
     chips: Vec<String>,
 
-    #[arg(from_global)]
-    pub verbose: bool,
+    #[command(flatten)]
+    emit: common::EmitOpts,
+}
+
+pub fn cmd(opts: &Opts) -> bool {
+    let mut info = Vec::new();
+    if opts.chips.is_empty() {
+        match &common::all_chip_paths() {
+            Ok(pp) => {
+                for p in pp {
+                    info.push(chip_info(p));
+                }
+            }
+            Err(e) => {
+                emit_error(&opts.emit, e);
+                return false;
+            }
+        }
+    } else {
+        for id in &opts.chips {
+            info.push(chip_info_from_id(id));
+        }
+    };
+    emit_chip_info(&info, &opts.emit)
 }
 
 // report error and fail overall operation if id does not correspond to a gpiochip.
-fn chip_lookup_from_id(id: &str, success: &mut bool) -> Option<PathBuf> {
-    match common::chip_lookup_from_id(id) {
-        Ok(p) => return Some(p),
-        Err(e) => {
-            eprintln!("{}", e);
-            *success = false;
-        }
-    }
-    None
+fn chip_info_from_id(id: &str) -> Result<Info> {
+    chip_info(&common::chip_lookup_from_id(id)?)
 }
 
-pub fn cmd(opts: &Opts) -> Result<()> {
+fn chip_info(p: &Path) -> Result<Info> {
+    Ok(common::chip_from_path(p, gpiocdev::AbiVersion::V2)?.info()?)
+}
+
+fn emit_chip_info(info: &Vec<Result<Info>>, opts: &common::EmitOpts) -> bool {
+    print_chip_info(info, opts)
+}
+
+fn print_chip_info(info: &Vec<Result<Info>>, opts: &common::EmitOpts) -> bool {
     let mut success = true;
-
-    let chips = if opts.chips.is_empty() {
-        common::all_chip_paths()?
-    } else {
-        opts.chips
-            .iter()
-            .filter_map(|id| chip_lookup_from_id(id, &mut success))
-            .collect()
-    };
-
-    for p in chips {
-        if !print_chip_info(&p, opts.verbose)? {
-            success = false;
+    for i in info {
+        match i {
+            Ok(ci) => {
+                println!(
+                    "{} [{}] ({} lines)",
+                    common::format_chip_name(&ci.name),
+                    ci.label,
+                    ci.num_lines
+                );
+            }
+            Err(e) => {
+                emit_error(opts, e);
+                success = false;
+            }
         }
     }
-    if !success {
-        bail!(common::CmdFailureError {});
-    }
-    Ok(())
-}
-
-fn print_chip_info(p: &PathBuf, verbose: bool) -> Result<bool> {
-    match Chip::from_path(p) {
-        Ok(c) => {
-            let ci = c.info()?;
-            println!(
-                "{} [{}] ({} lines)",
-                common::format_chip_name(&ci.name),
-                ci.label,
-                ci.num_lines
-            );
-            return Ok(true);
-        }
-        Err(e) if verbose => eprintln!("unable to open '{}': {:#}", p.display(), e),
-        Err(_) => eprintln!("unable to open '{}'", p.display()),
-    }
-    Ok(false)
+    success
 }

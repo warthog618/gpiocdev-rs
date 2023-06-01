@@ -28,12 +28,11 @@ fn main() -> ExitCode {
                 Command::Notify(cfg) => notify::cmd(&cfg),
                 Command::Platform(cfg) => platform::cmd(&cfg),
             };
-            match res {
-                Ok(()) => return ExitCode::SUCCESS,
-                Err(e) if e.is::<common::CmdFailureError>() => return ExitCode::FAILURE,
-                Err(e) if opt.verbose => eprintln!("{:#}", e),
-                Err(e) => eprintln!("{}", e),
-            }
+            return if res {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            };
         }
         Err(e) => eprintln!("{}", e),
     }
