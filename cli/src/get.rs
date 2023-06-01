@@ -58,10 +58,6 @@ pub struct Opts {
     #[arg(short = 'C', long, value_name = "name", default_value = "gpiocdev-get")]
     consumer: String,
 
-    /// Quote line names.
-    #[arg(long)]
-    quoted: bool,
-
     #[command(flatten)]
     emit: common::EmitOpts,
 }
@@ -136,7 +132,7 @@ fn cmd_inner(opts: &Opts) -> Result<bool> {
         print_values.push(if opts.numeric {
             let v: u8 = (*value).into();
             format!("{}", v)
-        } else if opts.quoted {
+        } else if opts.emit.quoted {
             format!("\"{}\"={}", id, value)
         } else {
             format!("{}={}", id, value)

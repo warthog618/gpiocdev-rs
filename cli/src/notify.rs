@@ -64,29 +64,25 @@ pub struct Opts {
         short = 'F',
         long,
         value_name = "fmt",
-        group = "timefmt",
+        group = "emit",
         verbatim_doc_comment
     )]
     format: Option<String>,
 
     /// Format event timestamps as local time
-    #[arg(long, group = "timefmt")]
+    #[arg(long, group = "emit")]
     localtime: bool,
 
     /// Format event timestamps as UTC.
-    #[arg(long, group = "timefmt")]
+    #[arg(long, group = "emit")]
     utc: bool,
 
     /// Don't generate any output
-    #[arg(short = 'q', long, group = "timefmt", alias = "silent")]
+    #[arg(short = 'q', long, group = "emit", alias = "silent")]
     quiet: bool,
 
     #[command(flatten)]
     uapi_opts: common::UapiOpts,
-
-    /// Quote line and consumer names.
-    #[arg(long)]
-    quoted: bool,
 
     #[command(flatten)]
     emit: common::EmitOpts,
@@ -225,7 +221,7 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
     use std::io::Write;
 
     if let Some(format) = &opts.format {
-        return print_change_formatted(&event, format, ci, opts.quoted);
+        return print_change_formatted(&event, format, ci, opts.emit.quoted);
     }
     let evtime = if opts.utc || opts.localtime {
         monotonic_to_realtime(event.timestamp_ns)
@@ -238,11 +234,11 @@ fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &Ti
         event_kind_name(event.kind)
     );
 
-    if let Some(lname) = ci.named_lines.get(&event.info.offset) {
+    if let Some(lname) = ci.line_name(&event.info.offset) {
         if opts.line_opts.chip.is_some() {
             print!("{} {} ", ci.name, event.info.offset);
         }
-        if opts.quoted {
+        if opts.emit.quoted {
             println!("\"{}\"", lname);
         } else {
             println!("{}", lname);

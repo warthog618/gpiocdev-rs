@@ -106,10 +106,6 @@ pub struct Opts {
     #[command(flatten)]
     uapi_opts: common::UapiOpts,
 
-    /// Quote line names.
-    #[arg(long)]
-    quoted: bool,
-
     #[command(flatten)]
     emit: common::EmitOpts,
 }
@@ -287,11 +283,11 @@ fn print_edge(event: &EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) 
         format_time(event.timestamp_ns, timefmt),
         event_kind_name(event.kind)
     );
-    if let Some(lname) = ci.named_lines.get(&event.offset) {
+    if let Some(lname) = ci.line_name(&event.offset) {
         if opts.line_opts.chip.is_some() {
             print!("{} {} ", ci.name, event.offset);
         }
-        if opts.quoted {
+        if opts.emit.quoted {
             println!("\"{}\"", lname);
         } else {
             println!("{}", lname);

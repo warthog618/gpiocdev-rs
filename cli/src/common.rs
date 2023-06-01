@@ -158,6 +158,10 @@ impl From<AbiVersionFlags> for gpiocdev::AbiVersion {
 pub struct EmitOpts {
     #[arg(from_global)]
     pub verbose: bool,
+
+    /// Quote line and consumer names.
+    #[arg(long)]
+    pub quoted: bool,
 }
 
 pub fn emit_error(opts: &EmitOpts, e: &anyhow::Error) {
@@ -426,6 +430,9 @@ pub enum Error {
 
     #[error("line '{0}' is not unique")]
     NonUniqueLine(String),
+
+    #[error("line '{0}' is repeated")]
+    RepeatedLine(String),
 
     #[error("cannot find line '{0}'")]
     NoSuchLine(String),

@@ -4,10 +4,11 @@
 
 use super::{Comedy, Error, LineOpts};
 use anyhow::{bail, Context, Result};
-use gpiocdev::line::Offset;
+use gpiocdev::chip::Chip;
+use gpiocdev::line::{Info, Offset};
 use gpiocdev::AbiVersion;
 use nohash_hasher::IntMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -21,7 +22,8 @@ pub struct ChipOffset {
 pub struct ChipInfo {
     pub path: PathBuf,
     pub name: String,
-    pub named_lines: IntMap<Offset, String>,
+    pub num_lines: usize,
+    named_lines: IntMap<Offset, String>,
 }
 
 impl ChipInfo {
@@ -30,35 +32,69 @@ impl ChipInfo {
     }
 }
 
+#[derive(Debug)]
+pub struct LineInfo {
+    pub chip: usize,
+    pub info: Info,
+}
+
+#[derive(Debug)]
 pub struct Resolver {
+    /// The first match from id to (chip,offset)
     pub lines: HashMap<String, ChipOffset>,
+    /// The info for lines in chip order
+    pub info: Vec<LineInfo>,
+    // The info for the relevant chips.
+    // In strict mode this will be all chips.
+    // Otherwise it is the set of chips scanned to locate the lines.
     pub chips: Vec<ChipInfo>,
 }
 
 impl Resolver {
+    /// Basic mode to find the (chip,offset) for the lines.
+    ///
+    /// Does not populate info.
     pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: AbiVersion) -> Result<Resolver> {
-        let r = Self::resolve_lines_unvalidated(lines, opts, abiv)?;
-        r.validate(lines, opts)?;
-        Ok(r)
-    }
-
-    pub fn resolve_lines_unvalidated(
-        lines: &[String],
-        opts: &LineOpts,
-        abiv: AbiVersion,
-    ) -> Result<Resolver> {
         let chips = match &opts.chip {
             Some(chip_id) => vec![super::chip_path_from_id(chip_id)],
             None => super::all_chip_paths()?,
         };
+        let r = Self::resolve_lines_unvalidated(
+            lines,
+            &chips,
+            abiv,
+            opts.strict,
+            opts.strict, // generally, strict means exhaustive
+            opts.by_name,
+            false,
+        )?;
+        r.validate(lines, &opts.chip, opts.by_name)?;
+        Ok(r)
+    }
 
+    /// Core version which can also return the info for lines
+    pub fn resolve_lines_unvalidated(
+        lines: &[String],
+        chips: &[PathBuf],
+        abiv: AbiVersion,
+        strict: bool,
+        exhaustive: bool,
+        by_name: bool,
+        with_info: bool,
+    ) -> Result<Resolver> {
+        let mut lines = lines.to_vec();
+        lines.sort_unstable();
+        lines.dedup();
         let mut r = Resolver {
             lines: HashMap::new(),
+            info: Vec::new(),
             chips: Vec::new(),
         };
         let mut chip_idx = 0;
+        let done = |r: &Resolver| !exhaustive && !lines.is_empty() && r.lines.len() == lines.len();
+
         for (idx, path) in chips.iter().enumerate() {
-            let found_count = r.lines.len();
+            let mut chip_used = false;
             let chip = super::chip_from_path(path, abiv)?;
             let kci = chip
                 .info()
@@ -66,20 +102,31 @@ impl Resolver {
             let mut ci = ChipInfo {
                 path: chip.path().to_owned(),
                 name: kci.name,
+                num_lines: kci.num_lines as usize,
                 named_lines: IntMap::default(),
             };
-            let mut used_lines = IntMap::default();
 
             // first match line by offset - but only when id by offset is possible
-            if idx == 0 && opts.chip.is_some() && !opts.by_name {
-                for id in lines {
+            let mut offsets = VecDeque::new();
+            if idx == 0 && chips.len() == 1 && !by_name {
+                for id in &lines {
                     if let Ok(offset) = id.parse::<u32>() {
                         if offset < kci.num_lines {
-                            used_lines.insert(offset, id.to_owned());
                             r.lines
                                 .insert(id.to_owned(), ChipOffset { chip_idx, offset });
+                            if with_info {
+                                offsets.push_back(offset);
+                                chip_used = true;
+                            }
                         }
                     }
+                }
+                if done(&r) {
+                    if with_info {
+                        r.get_offset_info(&chip, &offsets)?;
+                    }
+                    r.chips.push(ci);
+                    break;
                 }
             }
             // match by name
@@ -91,34 +138,86 @@ impl Resolver {
                         chip.name()
                     )
                 })?;
-                for id in lines {
+                let mut save_info = lines.is_empty();
+                // save info for id by offset
+                if !offsets.is_empty() && offsets[0] == offset {
+                    save_info = true;
+                    offsets.pop_front();
+                }
+                for id in &lines {
                     if id.as_str() == li.name.as_str() {
+                        save_info = true;
                         if !r.lines.contains_key(id) {
-                            used_lines.insert(offset, id.to_owned());
+                            chip_used = true;
                             r.lines
                                 .insert(id.to_owned(), ChipOffset { chip_idx, offset });
-                            ci.named_lines.insert(offset, id.to_owned());
 
-                            if !opts.strict && r.lines.len() == lines.len() {
+                            ci.named_lines.insert(offset, id.to_owned());
+                            if done(&r) {
                                 break;
                             }
-                        } else if opts.strict {
+                        } else if strict {
                             bail!(Error::NonUniqueLine(id.into()));
                         }
                     }
                 }
+                if with_info && save_info {
+                    r.info.push(LineInfo {
+                        chip: idx,
+                        info: li,
+                    });
+                    chip_used = true;
+                }
             }
-            if found_count != r.lines.len() {
+            // might still have some offsets that need info, so fill those in
+            r.get_offset_info(&chip, &offsets)?;
+
+            if chip_used {
                 r.chips.push(ci);
                 chip_idx += 1;
+            }
+            if done(&r) {
+                break;
             }
         }
         Ok(r)
     }
 
+    fn get_offset_info(&mut self, chip: &Chip, offsets: &VecDeque<Offset>) -> Result<()> {
+        for offset in offsets {
+            let li = chip.line_info(*offset).with_context(|| {
+                format!(
+                    "unable to read info for line {} from {}",
+                    offset,
+                    chip.name()
+                )
+            })?;
+            self.info.push(LineInfo {
+                chip: 0,
+                info: li.clone(),
+            });
+        }
+        Ok(())
+    }
     // check that requested lines are found and unique
-    pub fn validate(&self, lines: &[String], opts: &LineOpts) -> Result<()> {
+    pub fn validate(&self, lines: &[String], chip: &Option<String>, by_name: bool) -> Result<()> {
+        let mut lines = lines.to_vec();
         let mut errs = Comedy::new();
+        lines.sort_unstable();
+        let mut lids : HashMap<&String, usize> = HashMap::new();
+        for line in &lines {
+            if let Some(lid) = lids.get_mut(line) {
+                *lid += 1
+            } else {
+                lids.insert(line, 1);
+            }
+        }
+        for (id, count) in lids {
+            if count > 1 {
+                errs.push(Error::RepeatedLine(id.into()));
+            }
+        }
+        lines.dedup();
         for (idx, id) in lines.iter().enumerate() {
             if let Some(line) = self.lines.get(id) {
                 for prev in lines.iter().take(idx) {
@@ -128,10 +227,10 @@ impl Resolver {
                         }
                     }
                 }
-            } else if !opts.by_name && id.parse::<u32>().is_ok() && opts.chip.is_some() {
+            } else if !by_name && id.parse::<u32>().is_ok() && chip.is_some() {
                 errs.push(Error::OffsetOutOfRange(
                     id.into(),
-                    opts.chip.as_ref().unwrap().into(),
+                    chip.as_ref().unwrap().into(),
                 ));
             } else {
                 errs.push(Error::NoSuchLine(id.into()));
