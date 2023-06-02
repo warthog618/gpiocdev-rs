@@ -41,7 +41,7 @@ mod chip {
     fn info_change_events(abiv: gpiocdev::AbiVersion) {
         use futures::stream::StreamExt;
         use gpiocdev::line::InfoChangeKind;
-        use gpiocdev::r#async::async_io::AsyncChip;
+        use gpiocdev::async_io::AsyncChip;
 
         let s = gpiosim::Simpleton::new(4);
         let c = new_chip(s.dev_path(), abiv);
@@ -83,7 +83,7 @@ mod chip {
     }
 
     fn read_line_info_change_event(abiv: gpiocdev::AbiVersion) {
-        use gpiocdev::r#async::async_io::AsyncChip;
+        use gpiocdev::async_io::AsyncChip;
         use std::time::Duration;
 
         let s = gpiosim::Simpleton::new(4);
@@ -166,7 +166,7 @@ mod request {
     use async_std::future;
     use futures::StreamExt;
     use gpiocdev::line::EdgeKind;
-    use gpiocdev::r#async::async_io::AsyncRequest;
+    use gpiocdev::async_io::AsyncRequest;
     use gpiocdev::request::Request;
     use std::time::Duration;
 

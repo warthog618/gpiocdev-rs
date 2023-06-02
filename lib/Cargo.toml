@@ -36,8 +36,8 @@ gpiosim = "0.3"
 tokio = {version = "1.21", features = ["macros", "rt", "time"]}
 
 [features]
-async_io = ["async-io", "futures"]
-async_tokio = ["tokio-stream", "tokio/net", "futures"]
+async-io = ["dep:async-io", "futures"]
+tokio = ["tokio-stream", "tokio/net", "futures"]
 default = ["uapi_v2"]
 serde = ["dep:serde", "serde_derive"]
 uapi_v1 = ["gpiocdev-uapi/uapi_v1"]
@@ -45,19 +45,19 @@ uapi_v2 = ["gpiocdev-uapi/uapi_v2"]
 
 [[example]]
 name = "tokio_watcher"
-required-features = ["async_tokio"]
+required-features = ["tokio"]
 
 [[example]]
 name = "tokio_ticking_watcher"
-required-features = ["async_tokio"]
+required-features = ["tokio"]
 
 [[example]]
 name = "async_io_watcher"
-required-features = ["async_io"]
+required-features = ["async-io"]
 
 [[example]]
 name = "async_std_watcher"
-required-features = ["async_io"]
+required-features = ["async-io"]
 
 [package.metadata.docs.rs]
 all-features = true

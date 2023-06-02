@@ -76,9 +76,13 @@ pub mod chip;
 /// Types specific to lines.
 pub mod line;
 
-/// Wrappers for various async reactors.
-#[cfg(any(feature = "async_tokio", feature = "async_io"))]
-pub mod r#async;
+/// Wrappers around the Tokio reactor.
+#[cfg(feature = "tokio")]
+pub mod tokio;
+
+/// Wrappers around the async-io reactor.
+#[cfg(feature = "async-io")]
+pub mod async_io;
 
 /// An iterator over all the GPIO lines visible to the caller.
 pub fn lines() -> Result<LineIterator> {

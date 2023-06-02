@@ -4,7 +4,7 @@
 
 use anyhow::Context;
 use gpiocdev::line::{EdgeDetection, Values};
-use gpiocdev::r#async::async_io::AsyncRequest;
+use gpiocdev::async_io::AsyncRequest;
 use gpiocdev::request::Request;
 use std::result::Result;
 

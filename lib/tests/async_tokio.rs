@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-#[cfg(feature = "async_tokio")]
+#[cfg(feature = "tokio")]
 mod chip {
     use gpiocdev::chip::Chip;
     use gpiocdev::request::Request;
@@ -40,7 +40,7 @@ mod chip {
 
     async fn info_change_events(abiv: gpiocdev::AbiVersion) {
         use gpiocdev::line::InfoChangeKind;
-        use gpiocdev::r#async::tokio::AsyncChip;
+        use gpiocdev::tokio::AsyncChip;
         use tokio_stream::StreamExt;
 
         let s = gpiosim::Simpleton::new(4);
@@ -81,7 +81,7 @@ mod chip {
     }
 
     async fn read_line_info_change_event(abiv: gpiocdev::AbiVersion) {
-        use gpiocdev::r#async::tokio::AsyncChip;
+        use gpiocdev::tokio::AsyncChip;
         use std::time::Duration;
 
         let s = gpiosim::Simpleton::new(4);
@@ -156,10 +156,10 @@ mod chip {
     }
 }
 
-#[cfg(feature = "async_tokio")]
+#[cfg(feature = "tokio")]
 mod request {
     use gpiocdev::line::EdgeKind;
-    use gpiocdev::r#async::tokio::AsyncRequest;
+    use gpiocdev::tokio::AsyncRequest;
     use gpiocdev::request::Request;
     use tokio::time::{self, Duration};
     use tokio_stream::StreamExt;

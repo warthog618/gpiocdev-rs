@@ -18,7 +18,7 @@ use tokio_stream::Stream;
 ///  ```no_run
 /// # use gpiocdev::Result;
 /// use gpiocdev::chip::Chip;
-/// use gpiocdev::r#async::tokio::AsyncChip;
+/// use gpiocdev::tokio::AsyncChip;
 ///
 /// # async fn docfn() -> Result<()> {
 /// let chip = Chip::from_path("/dev/gpiochip0")?;
@@ -41,7 +41,7 @@ impl AsyncChip {
     /// ```no_run
     /// # use gpiocdev::Result;
     /// # use gpiocdev::chip::Chip;
-    /// use gpiocdev::r#async::tokio::AsyncChip;
+    /// use gpiocdev::tokio::AsyncChip;
     ///
     /// # async fn docfn() -> Result<()> {
     /// let chip = Chip::from_path("/dev/gpiochip0")?;
@@ -70,7 +70,7 @@ impl AsyncChip {
     /// ```no_run
     /// # use gpiocdev::Result;
     /// # use gpiocdev::chip::Chip;
-    /// use gpiocdev::r#async::tokio::AsyncChip;
+    /// use gpiocdev::tokio::AsyncChip;
     /// use tokio_stream::StreamExt;
     ///
     /// # async fn docfn() -> Result<()> {
@@ -122,7 +122,7 @@ impl<'a> Stream for InfoChangeStream<'a> {
 /// ```no_run
 /// # use gpiocdev::Result;
 /// use gpiocdev::request::Request;
-/// use gpiocdev::r#async::tokio::AsyncRequest;
+/// use gpiocdev::tokio::AsyncRequest;
 ///
 /// # async fn docfn() -> Result<()> {
 /// let req = Request::builder()
@@ -150,7 +150,7 @@ impl AsyncRequest {
     /// ```no_run
     /// # use gpiocdev::Result;
     /// use gpiocdev::request::Request;
-    /// use gpiocdev::r#async::tokio::AsyncRequest;
+    /// use gpiocdev::tokio::AsyncRequest;
     ///
     /// # async fn docfn() -> Result<()> {
     /// let req = Request::builder()
@@ -185,7 +185,7 @@ impl AsyncRequest {
     /// ```no_run
     /// # use gpiocdev::Result;
     /// use gpiocdev::request::Request;
-    /// use gpiocdev::r#async::tokio::AsyncRequest;
+    /// use gpiocdev::tokio::AsyncRequest;
     ///
     /// # async fn docfn() -> Result<()> {
     /// let req = Request::builder()
@@ -223,7 +223,7 @@ impl AsyncRequest {
     /// ```no_run
     /// # use gpiocdev::Result;
     /// use gpiocdev::request::Request;
-    /// use gpiocdev::r#async::tokio::AsyncRequest;
+    /// use gpiocdev::tokio::AsyncRequest;
     /// use tokio_stream::StreamExt;
     ///
     /// # async fn docfn() -> Result<()> {
@@ -254,7 +254,7 @@ impl AsyncRequest {
     /// ```no_run
     /// # use gpiocdev::Result;
     /// use gpiocdev::request::Request;
-    /// use gpiocdev::r#async::tokio::AsyncRequest;
+    /// use gpiocdev::tokio::AsyncRequest;
     /// use tokio_stream::StreamExt;
     ///
     /// # async fn docfn() -> Result<()> {
