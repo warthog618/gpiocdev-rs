@@ -273,7 +273,7 @@ impl Setter {
         loop {
             match self.parse_command(&mut clcmd, &rl.readline()?) {
                 Ok(am) => {
-                    if let Err(err) = self.do_command(am) {
+                    if let Err(err) = self.do_command(am, opts) {
                         println!("{}", err);
                         // clean in case the error leaves dirty lines.
                         self.clean();
@@ -302,7 +302,7 @@ impl Setter {
         Ok(cmd.try_get_matches_from_mut(args)?)
     }
 
-    fn do_command(&mut self, args: clap::ArgMatches) -> Result<()> {
+    fn do_command(&mut self, args: clap::ArgMatches, opts: &Opts) -> Result<()> {
         if let Some((cmd, am)) = args.subcommand() {
             match cmd {
                 "get" => {
@@ -311,7 +311,7 @@ impl Setter {
                         .unwrap_or_default()
                         .cloned()
                         .collect();
-                    self.do_get(lines.as_slice())
+                    self.do_get(lines.as_slice(), opts)
                 }
                 "set" => {
                     let lvs: Vec<(String, LineValue)> = am
@@ -353,15 +353,15 @@ impl Setter {
         }
     }
 
-    fn do_get(&mut self, lines: &[String]) -> Result<()> {
+    fn do_get(&mut self, lines: &[String], opts: &Opts) -> Result<()> {
         let mut print_values = Vec::new();
         for id in lines {
             match self.lines.get(id) {
                 Some(line) => {
-                    print_values.push(if !id.contains(' ') {
-                        format!("{}={}", id, line.value)
-                    } else {
+                    print_values.push(if opts.emit.quoted || id.contains(' ') {
                         format!("\"{}\"={}", id, line.value)
+                    } else {
+                        format!("{}={}", id, line.value)
                     });
                 }
                 None => bail!(CmdError::NotRequestedLine(id.into())),
@@ -371,10 +371,10 @@ impl Setter {
             // no lines specified, so return all lines
             for id in &self.line_ids {
                 let value = self.lines.get(id).unwrap().value;
-                print_values.push(if !id.contains(' ') {
-                    format!("{}={}", id, value)
-                } else {
+                print_values.push(if opts.emit.quoted || id.contains(' ') {
                     format!("\"{}\"={}", id, value)
+                } else {
+                    format!("{}={}", id, value)
                 });
             }
         }
