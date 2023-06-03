@@ -4,8 +4,7 @@
 
 #[cfg(feature = "async_tokio")]
 mod chip {
-    use gpiocdev::chip::Chip;
-    use gpiocdev::request::Request;
+    use gpiocdev::{Chip, Request};
     use std::path::Path;
 
     #[cfg(feature = "uapi_v1")]
@@ -40,7 +39,7 @@ mod chip {
 
     async fn info_change_events(abiv: gpiocdev::AbiVersion) {
         use gpiocdev::line::InfoChangeKind;
-        use gpiocdev::r#async::tokio::AsyncChip;
+        use gpiocdev::tokio::AsyncChip;
         use tokio_stream::StreamExt;
 
         let s = gpiosim::Simpleton::new(4);
@@ -81,7 +80,7 @@ mod chip {
     }
 
     async fn read_line_info_change_event(abiv: gpiocdev::AbiVersion) {
-        use gpiocdev::r#async::tokio::AsyncChip;
+        use gpiocdev::tokio::AsyncChip;
         use std::time::Duration;
 
         let s = gpiosim::Simpleton::new(4);
@@ -145,13 +144,13 @@ mod chip {
     }
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn new_chip(path: &Path, abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
+    fn new_chip(path: &Path, abiv: gpiocdev::AbiVersion) -> gpiocdev::Chip {
         let mut c = Chip::from_path(path).unwrap();
         c.using_abi_version(abiv);
         c
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    fn new_chip(path: &Path, _abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
+    fn new_chip(path: &Path, _abiv: gpiocdev::AbiVersion) -> gpiocdev::Chip {
         Chip::from_path(path).unwrap()
     }
 }
@@ -159,8 +158,8 @@ mod chip {
 #[cfg(feature = "async_tokio")]
 mod request {
     use gpiocdev::line::EdgeKind;
-    use gpiocdev::r#async::tokio::AsyncRequest;
-    use gpiocdev::request::Request;
+    use gpiocdev::tokio::AsyncRequest;
+    use gpiocdev::Request;
     use tokio::time::{self, Duration};
     use tokio_stream::StreamExt;
 

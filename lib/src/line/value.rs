@@ -177,7 +177,7 @@ impl Values {
     /// Construct a `Values` collection for a set of line offsets.
     ///
     /// Typically used to create a values template to be populated via a call to
-    /// [`crate::request::Request::values()`].
+    /// [`crate::Request::values()`].
     ///
     /// All lines are set to inactive.
     pub fn from_offsets(offsets: &[Offset]) -> Values {

@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use anyhow::Context;
-use gpiocdev::r#async::tokio::AsyncRequest;
+use gpiocdev::tokio::AsyncRequest;
 use gpiocdev::line::{EdgeDetection, Values};
-use gpiocdev::request::Request;
+use gpiocdev::Request;
 use std::result::Result;
 
 #[tokio::main(flavor = "current_thread")]

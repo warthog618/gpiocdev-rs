@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use futures::StreamExt;
-use gpiocdev::{line::EdgeDetection, r#async::tokio::AsyncRequest, request::Request};
+use gpiocdev::{line::EdgeDetection, tokio::AsyncRequest, Request};
 use std::time::Instant;
 
 #[tokio::main(flavor = "current_thread")]

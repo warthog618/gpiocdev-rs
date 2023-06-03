@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::line::EdgeEvent;
-use crate::request::Request;
-use crate::Result;
+use crate::{Request, Result};
 use std::cmp::max;
 use std::time::Duration;
 

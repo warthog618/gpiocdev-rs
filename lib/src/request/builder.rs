@@ -30,8 +30,7 @@ use std::time::Duration;
 /// # Examples
 /// Request and read a basic input line:
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::request::Request;
+/// # use gpiocdev::{Request, Result};
 /// # fn main() -> Result<()> {
 /// let l3 = Request::builder()
 ///     .on_chip("/dev/gpiochip0")
@@ -45,8 +44,7 @@ use std::time::Duration;
 /// Several lines in one request:
 ///
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::request::Request;
+/// # use gpiocdev::{Request, Result};
 /// # use gpiocdev::line::Values;
 /// # fn main() -> Result<()> {
 /// let offsets = &[3,5];
@@ -188,8 +186,7 @@ impl Builder {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
-    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Values;
     /// # fn main() -> Result<()> {
     /// let req = Request::builder()
@@ -391,8 +388,7 @@ impl Builder {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
-    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Value;
     /// # fn main() -> Result<()> {
     /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
@@ -419,8 +415,7 @@ impl Builder {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
-    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::EdgeDetection;
     /// # fn main() -> Result<()> {
     /// let buttons = gpiocdev::find_named_lines(&["BUTTON0","BUTTON1"], true)?;

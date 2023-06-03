@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use gpiocdev::line::Value;
-use gpiocdev::request::Request;
+use gpiocdev::Request;
 use std::result::Result;
 use std::thread;
 use std::time::Duration;

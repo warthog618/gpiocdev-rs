@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use gpiocdev::line::Bias;
-use gpiocdev::request::Request;
+use gpiocdev::Request;
 use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

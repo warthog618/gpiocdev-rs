@@ -104,8 +104,7 @@ impl Request {
     /// # Examples
     ///
     /// ```no_run
-    /// # use gpiocdev::Result;
-    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Values;
     /// # fn main() -> Result<()> {
     /// let req = Request::builder()
@@ -126,9 +125,9 @@ impl Request {
     /// # Examples
     ///
     /// ```no_run
-    /// # use gpiocdev::Result;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Value;
-    /// # use gpiocdev::request::{Config, Request};
+    /// # use gpiocdev::request::Config;
     /// # fn main() -> Result<()> {
     /// let mut cfg = Config::default();
     /// cfg.with_line(5).as_output(Value::Active);
@@ -150,8 +149,7 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
-    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Values;
     /// # fn main() -> Result<()> {
     /// let req = Request::builder()
@@ -213,8 +211,7 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
-    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Values;
     /// # fn main() -> Result<()> {
     /// let req = Request::builder()
@@ -242,10 +239,8 @@ impl Request {
     /// Set the values for a subset of the requested lines.
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
-    /// # use gpiocdev::line::Value::{Active, Inactive};
-    /// # use gpiocdev::line::Values;
-    /// # use gpiocdev::request::Request;
+    /// # use gpiocdev::{Request, Result};
+    /// # use gpiocdev::line::{Value::{Active, Inactive}, Values};
     /// # fn main() -> Result<()> {
     /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")
@@ -301,9 +296,9 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Value;
-    /// # use gpiocdev::request::{Config, Request};
+    /// # use gpiocdev::request::Config;
     /// # fn main() -> Result<()> {
     /// let mut cfg = Config::default();
     /// cfg.with_line(5).as_output(Value::Active);
@@ -433,9 +428,8 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
+    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::{EdgeDetection, Value};
-    /// # use gpiocdev::request::Request;
     /// # fn main() -> Result<()> {
     /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")

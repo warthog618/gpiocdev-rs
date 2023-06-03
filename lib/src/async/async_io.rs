@@ -17,7 +17,7 @@ use std::pin::Pin;
 ///  ```no_run
 /// # use gpiocdev::Result;
 /// use gpiocdev::chip::Chip;
-/// use gpiocdev::r#async::async_io::AsyncChip;
+/// use gpiocdev::async_io::AsyncChip;
 ///
 /// # async fn docfn() -> Result<()> {
 /// let chip = Chip::from_path("/dev/gpiochip0")?;
@@ -40,7 +40,7 @@ impl AsyncChip {
     /// ```no_run
     /// # use gpiocdev::Result;
     /// # use gpiocdev::chip::Chip;
-    /// use gpiocdev::r#async::async_io::AsyncChip;
+    /// use gpiocdev::async_io::AsyncChip;
     ///
     /// # async fn docfn() -> Result<()> {
     /// let chip = Chip::from_path("/dev/gpiochip0")?;
@@ -65,7 +65,7 @@ impl AsyncChip {
     /// ```no_run
     /// # use gpiocdev::Result;
     /// # use gpiocdev::chip::Chip;
-    /// use gpiocdev::r#async::async_io::AsyncChip;
+    /// use gpiocdev::async_io::AsyncChip;
     /// use futures::StreamExt;
     ///
     /// # async fn docfn() -> Result<()> {
@@ -112,8 +112,8 @@ impl<'a> Stream for InfoChangeStream<'a> {
 /// # Example
 /// ```no_run
 /// # use gpiocdev::Result;
-/// use gpiocdev::request::Request;
-/// use gpiocdev::r#async::async_io::AsyncRequest;
+/// use gpiocdev::Request;
+/// use gpiocdev::async_io::AsyncRequest;
 ///
 /// # async fn docfn() -> Result<()> {
 /// let req = Request::builder()
@@ -140,8 +140,8 @@ impl AsyncRequest {
     /// # Example
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::request::Request;
-    /// use gpiocdev::r#async::async_io::AsyncRequest;
+    /// use gpiocdev::Request;
+    /// use gpiocdev::async_io::AsyncRequest;
     ///
     /// # async fn docfn() -> Result<()> {
     /// let req = Request::builder()
@@ -171,8 +171,8 @@ impl AsyncRequest {
     /// # Example
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::request::Request;
-    /// use gpiocdev::r#async::async_io::AsyncRequest;
+    /// use gpiocdev::Request;
+    /// use gpiocdev::async_io::AsyncRequest;
     ///
     /// # async fn docfn() -> Result<()> {
     /// let req = Request::builder()
@@ -205,8 +205,8 @@ impl AsyncRequest {
     /// # Example
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::request::Request;
-    /// use gpiocdev::r#async::async_io::AsyncRequest;
+    /// use gpiocdev::Request;
+    /// use gpiocdev::async_io::AsyncRequest;
     /// use futures::StreamExt;
     ///
     /// # async fn docfn() -> Result<()> {
@@ -236,8 +236,8 @@ impl AsyncRequest {
     /// # Example
     /// ```no_run
     /// # use gpiocdev::Result;
-    /// use gpiocdev::request::Request;
-    /// use gpiocdev::r#async::async_io::AsyncRequest;
+    /// use gpiocdev::Request;
+    /// use gpiocdev::async_io::AsyncRequest;
     /// use futures::StreamExt;
     ///
     /// # async fn docfn() -> Result<()> {

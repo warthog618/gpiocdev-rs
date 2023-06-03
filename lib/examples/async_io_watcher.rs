@@ -4,8 +4,8 @@
 
 use anyhow::Context;
 use gpiocdev::line::{EdgeDetection, Values};
-use gpiocdev::r#async::async_io::AsyncRequest;
-use gpiocdev::request::Request;
+use gpiocdev::async_io::AsyncRequest;
+use gpiocdev::Request;
 use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
