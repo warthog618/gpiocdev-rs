@@ -36,10 +36,10 @@ gpiosim = "0.3"
 tokio = {version = "1.21", features = ["macros", "rt", "time"]}
 
 [features]
-async_io = ["async-io", "futures"]
-async_tokio = ["tokio-stream", "tokio/net", "futures"]
+async_io = ["dep:async-io", "dep:futures"]
+async_tokio = ["dep:tokio-stream", "tokio/net", "dep:futures"]
 default = ["uapi_v2"]
-serde = ["dep:serde", "serde_derive"]
+serde = ["dep:serde", "dep:serde_derive"]
 uapi_v1 = ["gpiocdev-uapi/uapi_v1"]
 uapi_v2 = ["gpiocdev-uapi/uapi_v2"]
 
