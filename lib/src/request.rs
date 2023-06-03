@@ -12,7 +12,9 @@ mod edge_event_buffer;
 pub use self::edge_event_buffer::EdgeEventBuffer;
 
 use crate::line::{self, EdgeEvent, Offset, Value, Values};
-use crate::{AbiVersion, Error, Result, UapiCall};
+#[cfg(feature = "uapi_v1")]
+use crate::AbiVersion;
+use crate::{Error, Result, UapiCall};
 #[cfg(not(feature = "uapi_v2"))]
 use gpiocdev_uapi::v1 as uapi;
 #[cfg(feature = "uapi_v1")]
