@@ -567,7 +567,7 @@ impl Config {
             if *flg == base_flags {
                 continue;
             }
-            let mut attr = cfg.attr_mut(num_attrs);
+            let attr = cfg.attr_mut(num_attrs);
             attr.mask = *mask;
             attr.attr.set_flags(*flg);
             num_attrs += 1;
@@ -575,7 +575,7 @@ impl Config {
 
         // outputs values, if any
         if !values.bits.is_empty() {
-            let mut attr = cfg.attr_mut(num_attrs);
+            let attr = cfg.attr_mut(num_attrs);
             attr.mask = values.mask;
             attr.attr.set_values(values.bits);
             num_attrs += 1;
@@ -583,7 +583,7 @@ impl Config {
 
         // debounced
         for (dp, mask) in debounced.iter() {
-            let mut attr = cfg.attr_mut(num_attrs);
+            let attr = cfg.attr_mut(num_attrs);
             attr.mask = *mask;
             attr.attr.set_debounce_period_us(*dp);
             num_attrs += 1;

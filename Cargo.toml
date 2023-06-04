@@ -8,3 +8,5 @@ members = [
   "cli",
   "uapi",
 ]
+
+resolver = "2"
