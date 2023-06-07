@@ -42,12 +42,12 @@ Support for asynchronous wrappers around these are provided through features for
 
 |Reactor|Feature|Module|
 |---|---|---|
-|tokio|async_tokio|gpiocdev::async::tokio|
-|async-io|async_io|gpiocdev::async::async_io|
+|tokio|async_tokio|gpiocdev::tokio|
+|async-io|async_io|gpiocdev::async_io|
 
 Additionally, Chips and Requests also expose their underlying file descriptor, which may be used directly with an async reactor.  An example of this is the **gpiocdev-cli** [edges](https://github.com/warthog618/gpiocdev-rs/blob/master/cli/src/edges.rs) command, which can asynchronously wait on multiple lines spread across multiple chips using the [mio](https://crates.io/crates/mio) reactor.
 
-With respect to the synchronous uAPI functions, those can generally be considered non-blocking unless the GPIO line is provided by an expander connected to the host processor via a bus such as I2C or SPI.  In such cases calls to synchronous functions should be made from a separate thread so as not to stall the reactor.  The uAPI does not provide a definitive indication as to whether lines are hosted locally or on an expander, so it is up to the application to determine if that may be the case.  Even if the uAPI did provide an indicator, determining the approach most appropriate to interwork the reactor thread with the uAPI thread(s), and possibly other threads, is best left to the application.
+With respect to the synchronous uAPI functions, those can generally be considered non-blocking unless the GPIO line is provided by an expander connected to the host processor via a bus such as I2C or SPI.  In such cases, and depending on the application requirements, calls to synchronous functions may need to be made from a separate thread so as not to stall the reactor.  The uAPI does not provide a definitive indication as to whether lines are hosted locally or on an expander, so it is up to the application to determine if that may be the case.  Even if the uAPI did provide an indicator, determining the approach most appropriate to interwork the reactor thread with the uAPI thread(s), and possibly other threads, is best left to the application.
 
 ## Example Usage
 
@@ -157,7 +157,7 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
     let value = req.value(23)?;
 ```
 
-A good starting point to learn more is the [gpiocdev::request::Builder](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Builder.html).
+A good starting point to learn more is the [Builder](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Builder.html).
 
 ## License
 
