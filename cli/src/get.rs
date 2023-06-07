@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::common::{self, emit_error, ChipOffset};
+use super::common::{self, emit_error};
 use anyhow::{Context, Result};
 use clap::Parser;
 use gpiocdev::line::{Offset, Value, Values};
@@ -110,25 +110,29 @@ fn cmd_inner(opts: &Opts) -> Result<bool> {
     if let Some(period) = opts.hold_period {
         thread::sleep(period);
     }
-    let mut line_values: HashMap<ChipOffset, Value> = HashMap::new();
+    let mut line_values: HashMap<String, Value> = HashMap::new();
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut values = Values::default();
         requests[idx]
             .values(&mut values)
             .with_context(|| format!("failed to read values from {}", ci.name))?;
-        for (offset, value) in values.iter() {
-            line_values.insert(
-                ChipOffset {
-                    chip_idx: idx,
-                    offset: *offset,
-                },
-                *value,
-            );
+        for line in r.lines.iter().filter(|l| l.1.chip_idx == idx) {
+            line_values.insert(line.0.into(), values.get(line.1.offset).unwrap());
         }
     }
+    emit_values(opts, &line_values);
+
+    Ok(true)
+}
+
+fn emit_values(opts: &Opts, values: &HashMap<String, Value>) {
+    print_values(opts, values);
+}
+
+fn print_values(opts: &Opts, values: &HashMap<String, Value>) {
     let mut print_values = Vec::new();
     for id in &opts.line {
-        let value = line_values.get(r.lines.get(id).unwrap()).unwrap();
+        let value = values.get(id).unwrap();
         print_values.push(if opts.numeric {
             let v: u8 = (*value).into();
             format!("{}", v)
@@ -139,6 +143,4 @@ fn cmd_inner(opts: &Opts) -> Result<bool> {
         })
     }
     println!("{}", print_values.join(" "));
-
-    Ok(true)
 }
