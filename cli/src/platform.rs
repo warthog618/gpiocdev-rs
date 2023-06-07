@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use super::common::{self, emit_error};
 use anyhow::anyhow;
 use clap::Parser;
-use super::common::{self, emit_error};
+use core::fmt;
 use gpiocdev::AbiVersion;
 use std::fs;
 
@@ -16,51 +17,62 @@ pub struct Opts {
 }
 
 pub fn cmd(opts: &Opts) -> bool {
+    let mut p = Platform {
+        ..Default::default()
+    };
+    let versions = [AbiVersion::V1, AbiVersion::V2];
+    for v in versions {
+        if gpiocdev::supports_abi_version(v).is_ok() {
+            p.abi_versions.push(v);
+        }
+    }
     if let Ok(v) = fs::read_to_string("/proc/version") {
         let mut f = v.split_ascii_whitespace();
         if let Some(v) = f.nth(2) {
-            println!("Kernel {}", v);
-            if opts.emit.verbose {
-                print_unsupported_features(v)
+            p.kernel.version = v.into();
+        }
+        if let Some((major, minor)) = parse_version(&v) {
+            if p.abi_versions.contains(&AbiVersion::V1) && (major < 5 || (major == 5 && minor < 5))
+            {
+                p.kernel.unsupported_features.push(Features::Bias);
+            }
+            if p.abi_versions.contains(&AbiVersion::V2) {
+                if major == 5 && minor == 10 {
+                    p.kernel.unsupported_features.push(Features::Realtime);
+                }
+                if major == 5 && minor > 10 && minor < 19 {
+                    p.kernel.unsupported_features.push(Features::Hte);
+                }
             }
         }
     } else {
-        println!("Kernel unknown");
+        p.kernel.version = "unknown".into();
     }
-    print_abi_support(&opts.emit)
+    emit_platform(&p, &opts.emit)
 }
 
-fn print_abi_support(opts: &common::EmitOpts) -> bool {
-    let versions = [AbiVersion::V1, AbiVersion::V2];
-    let mut success = false;
-    for v in versions {
-        match gpiocdev::supports_abi_version(v) {
-            Err(gpiocdev::Error::NoGpioChips()) => {
-                println!("No available gpiochips");
-                return false;
-            }
-            Ok(()) => {
-                println!("{} is supported.", v);
-                success = true;
-            }
-            Err(e) => emit_error(opts, &anyhow!(e)),
-        }
-    }
-    success
+fn emit_platform(p: &Platform, opts: &common::EmitOpts) -> bool {
+    print_platform(p, opts)
 }
 
-fn print_unsupported_features(version: &str) {
-    if let Some((major, minor)) = parse_version(version) {
-        if major >= 6 || (major == 5 && minor >= 19) {
+fn print_platform(p: &Platform, opts: &common::EmitOpts) -> bool {
+    println!("Kernel {}", p.kernel.version);
+    if p.abi_versions.is_empty() {
+        emit_error(opts, &anyhow!(gpiocdev::detect_abi_version().unwrap_err()));
+        return false;
+    }
+    for v in &p.abi_versions {
+        println!("{} is supported.", v);
+    }
+    if opts.verbose {
+        if p.kernel.unsupported_features.is_empty() {
             println!("Kernel supports all uAPI features.");
-        } else if major == 5 && minor > 10 && minor < 19 {
-            println!("Kernel does not support event_clock hte (added in 5.19).");
-        } else if major == 5 && minor == 10 {
-            println!("Kernel does not support event_clock realtime (added in 5.11) or hte (added in 5.19).");
-        } else if major < 5 || (major == 5 && minor < 5) {
-            println!("Kernel does not support bias or reconfigure (added in 5.5).");
+        }
+        for f in &p.kernel.unsupported_features {
+            println!("Kernel does not support {}", f);
         }
     }
+    true
 }
 
 fn parse_version(version: &str) -> Option<(u32, u32)> {
@@ -68,4 +80,32 @@ fn parse_version(version: &str) -> Option<(u32, u32)> {
     let major = f.next()?.parse().ok()?;
     let minor = f.next()?.parse().ok()?;
     Some((major, minor))
+}
+
+enum Features {
+    Bias,
+    Realtime,
+    Hte,
+}
+
+impl fmt::Display for Features {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let msg = match self {
+            Features::Bias => "bias or reconfigure (added in 5.5)",
+            Features::Realtime => "event_clock realtime (added in 5.11)",
+            Features::Hte => "event_clock hte (added in 5.19)",
+        };
+        write!(f, "{}", msg)
+    }
+}
+
+#[derive(Default)]
+struct Kernel {
+    version: String,
+    unsupported_features: Vec<Features>,
+}
+#[derive(Default)]
+struct Platform {
+    kernel: Kernel,
+    abi_versions: Vec<AbiVersion>,
 }
