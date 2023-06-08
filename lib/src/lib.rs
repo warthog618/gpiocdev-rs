@@ -105,8 +105,7 @@ pub fn lines() -> Result<LineIterator> {
 /// # Examples
 /// The found line can be used to request the line:
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::Request;
+/// # use gpiocdev::{Request, Result};
 /// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
 /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
@@ -120,8 +119,7 @@ pub fn lines() -> Result<LineIterator> {
 ///
 /// Using the chip and offset from the found line to request the line:
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::Request;
+/// # use gpiocdev::{Request, Result};
 /// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
 /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
@@ -153,8 +151,7 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 /// # Examples
 /// Adding the found lines to the request directly:
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::Request;
+/// # use gpiocdev::{Request, Result};
 /// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
 /// let sensors = gpiocdev::find_named_lines(&["SENSOR0", "SENSOR1"], true)?;
@@ -171,8 +168,7 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 /// Using the individual found lines to request the lines with different
 /// configuration for each line:
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::Request;
+/// # use gpiocdev::{Request, Result};
 /// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
 /// let lines = gpiocdev::find_named_lines(&["SENSOR0", "LED0"], true)?;
@@ -219,8 +215,7 @@ pub fn find_named_lines<'a>(
 ///
 /// The discovered line can be used to request the line:
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::Request;
+/// # use gpiocdev::{Request, Result};
 /// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
 /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
@@ -253,8 +248,7 @@ impl From<line::Offset> for FoundLine {
 ///
 /// Used by [`find_named_line`] and [`find_named_lines`] to find lines based on line name.
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::Request;
+/// # use gpiocdev::{Request, Result};
 /// # use gpiocdev::line::Value;
 /// # fn main() -> Result<()> {
 /// // replicating find_named_line...
