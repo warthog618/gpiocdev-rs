@@ -163,7 +163,7 @@ impl Resolver {
                 }
                 if with_info && save_info {
                     r.info.push(LineInfo {
-                        chip: idx,
+                        chip: chip_idx,
                         info: li,
                     });
                     chip_used = true;
