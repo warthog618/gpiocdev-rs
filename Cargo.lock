@@ -610,7 +610,6 @@ version = "0.3.3"
 dependencies = [
  "bitflags 2.3.1",
  "bitmaps",
- "errno",
  "libc",
  "nix",
  "thiserror",

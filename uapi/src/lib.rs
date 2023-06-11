@@ -7,7 +7,7 @@
 pub(crate) mod common;
 
 pub use common::{
-    has_event, read_event, wait_event, Error, Name, Result, ValidationError, NAME_LEN_MAX,
+    has_event, read_event, wait_event, Errno, Error, Name, Result, ValidationError, NAME_LEN_MAX,
     NUM_LINES_MAX,
 };
 

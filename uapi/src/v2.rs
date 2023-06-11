@@ -165,7 +165,7 @@ pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(errno::errno())),
+        _ => Err(Error::from_errno()),
     }
 }
 
@@ -189,7 +189,7 @@ pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(errno::errno())),
+        _ => Err(Error::from_errno()),
     }
 }
 
@@ -442,7 +442,7 @@ pub fn set_line_config(lfd: RawFd, lc: LineConfig) -> Result<()> {
             &lc,
         ) {
             0 => Ok(()),
-            _ => Err(Error::from(errno::errno())),
+            _ => Err(Error::from_errno()),
         }
     }
 }
@@ -502,7 +502,7 @@ pub fn get_line(cfd: RawFd, lr: LineRequest) -> Result<File> {
             &lr,
         ) {
             0 => Ok(File::from_raw_fd(lr.fd)),
-            _ => Err(Error::from(errno::errno())),
+            _ => Err(Error::from_errno()),
         }
     }
 }
@@ -601,7 +601,7 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         )
     } {
         0 => li.validate().map(|_| li).map_err(Error::from),
-        _ => Err(Error::from(errno::errno())),
+        _ => Err(Error::from_errno()),
     }
 }
 
@@ -632,7 +632,7 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         )
     } {
         0 => li.validate().map(|_| li).map_err(Error::from),
-        _ => Err(Error::from(errno::errno())),
+        _ => Err(Error::from_errno()),
     }
 }
 

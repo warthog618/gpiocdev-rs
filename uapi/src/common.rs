@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use errno::{self, Errno};
 use libc::{self, c_long, pollfd, sigset_t, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
 use std::mem::{self, MaybeUninit};
@@ -21,7 +20,7 @@ pub fn read_event(fd: RawFd, buf: &mut [u8]) -> Result<usize> {
     unsafe {
         let bufptr: *mut libc::c_void = std::ptr::addr_of_mut!(*buf) as *mut libc::c_void;
         match libc::read(fd, bufptr, buf.len()) {
-            -1 => Err(Error::from(errno::errno())),
+            -1 => Err(Error::from_errno()),
             x => Ok(x.try_into().unwrap()),
         }
     }
@@ -45,7 +44,7 @@ pub fn wait_event(fd: RawFd, d: Duration) -> Result<bool> {
             std::ptr::addr_of!(timeout),
             ptr::null() as *const sigset_t,
         ) {
-            -1 => Err(Error::from(errno::errno())),
+            -1 => Err(Error::from_errno()),
             0 => Ok(false),
             _ => Ok(true),
         }
@@ -88,7 +87,7 @@ pub fn get_chip_info(cfd: RawFd) -> Result<ChipInfo> {
             chip.as_mut_ptr(),
         ) {
             0 => Ok(chip.assume_init()),
-            _ => Err(Error::from(errno::errno())),
+            _ => Err(Error::from_errno()),
         }
     }
 }
@@ -112,7 +111,27 @@ pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
         )
     } {
         0 => Ok(()),
-        _ => Err(Error::from(errno::errno())),
+        _ => Err(Error::from_errno()),
+    }
+}
+
+#[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
+pub struct Errno(pub i32);
+
+impl Errno {
+    pub fn description(&self) -> String {
+        std::io::Error::from_raw_os_error(self.0).to_string()
+    }
+}
+
+impl From<&std::io::Error> for Errno {
+    fn from(e: &std::io::Error) -> Self {
+        Errno(e.raw_os_error().unwrap_or(0))
+    }
+}
+impl std::fmt::Display for Errno {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.description())
     }
 }
 
@@ -131,7 +150,7 @@ pub type ValidationResult = std::result::Result<(), ValidationError>;
 pub enum Error {
     /// An error returned from an underlying system call.
     #[error(transparent)]
-    Os(#[from] Errno),
+    Os(Errno),
 
     #[error(transparent)]
     UnderRead(#[from] UnderReadError),
@@ -139,6 +158,12 @@ pub enum Error {
     /// An error validating an data structure retuned from the kernel
     #[error(transparent)]
     Validation(#[from] ValidationError),
+}
+
+impl Error {
+    pub fn from_errno() -> Error {
+        Error::Os(Errno(unsafe { *libc::__errno_location() }))
+    }
 }
 
 /// A failure to read sufficient bytes to construct an object.
