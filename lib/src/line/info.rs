@@ -27,18 +27,22 @@ pub struct Info {
     /// GPIO chip.
     ///
     /// May be empty.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "String::is_empty"))]
     pub name: String,
 
     /// A functional name for the consumer of this GPIO line as set
     /// by whatever is using it.
     ///
     /// May be empty if not set by the user or the line is unused.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "String::is_empty"))]
     pub consumer: String,
 
     /// When true the line is used and not available for request.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_false"))]
     pub used: bool,
 
     /// When true the line active state corresponds to a physical low.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_false"))]
     pub active_low: bool,
 
     /// The direction of the line.
@@ -73,6 +77,11 @@ pub struct Info {
     /// None or a zero value means no debounce.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub debounce_period: Option<Duration>,
+}
+
+#[cfg(feature = "serde")]
+fn is_false(b: &bool) -> bool {
+    !b
 }
 
 #[cfg(feature = "uapi_v1")]

@@ -2,13 +2,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::common::{self, emit_error, format_time, ChipInfo, TimeFmt};
-use anyhow::{anyhow, Context, Result};
+use super::common::{self, emit_error, format_error, format_time, ChipInfo, EmitOpts, TimeFmt};
+use anyhow::anyhow;
 use clap::{Parser, ValueEnum};
 use gpiocdev::line::{InfoChangeEvent, InfoChangeKind};
 use libc::timespec;
 use mio::unix::SourceFd;
 use mio::{Events, Interest, Poll, Token};
+#[cfg(feature = "serde")]
+use serde_derive::Serialize;
 use std::os::unix::prelude::AsRawFd;
 use std::time::Duration;
 
@@ -33,7 +35,7 @@ pub struct Opts {
     ///
     /// Default is all events.
     #[arg(short = 'e', long, value_name = "event")]
-    event: Option<Event>,
+    event: Option<EventKind>,
 
     /// Exit if no events are received for the specified period.
     ///
@@ -64,21 +66,21 @@ pub struct Opts {
         short = 'F',
         long,
         value_name = "fmt",
-        group = "emit",
+        groups = ["emit", "timefmt"],
         verbatim_doc_comment
     )]
     format: Option<String>,
 
     /// Format event timestamps as local time
-    #[arg(long, group = "emit")]
+    #[arg(long, group = "timefmt")]
     localtime: bool,
 
     /// Format event timestamps as UTC.
-    #[arg(long, group = "emit")]
+    #[arg(long, group = "timefmt")]
     utc: bool,
 
     /// Don't generate any output
-    #[arg(short = 'q', long, group = "emit", alias = "silent")]
+    #[arg(short = 'q', long, groups = ["emit", "timefmt"], alias = "silent")]
     quiet: bool,
 
     #[command(flatten)]
@@ -88,46 +90,70 @@ pub struct Opts {
     emit: common::EmitOpts,
 }
 
+impl Opts {
+    fn timefmt(&self) -> TimeFmt {
+        if self.localtime {
+            TimeFmt::Localtime
+        } else if self.utc {
+            TimeFmt::Utc
+        } else {
+            TimeFmt::Seconds
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum Event {
+pub enum EventKind {
     Requested,
     Released,
     Reconfigured,
 }
-impl From<Event> for InfoChangeKind {
-    fn from(c: Event) -> Self {
+impl From<EventKind> for InfoChangeKind {
+    fn from(c: EventKind) -> Self {
         match c {
-            Event::Requested => InfoChangeKind::Requested,
-            Event::Released => InfoChangeKind::Released,
-            Event::Reconfigured => InfoChangeKind::Reconfigured,
+            EventKind::Requested => InfoChangeKind::Requested,
+            EventKind::Released => InfoChangeKind::Released,
+            EventKind::Reconfigured => InfoChangeKind::Reconfigured,
         }
     }
 }
 
 pub fn cmd(opts: &Opts) -> bool {
-    match cmd_inner(opts) {
-        Err(e) => {
-            emit_error(&opts.emit, &e);
-            false
-        }
-        Ok(x) => x,
-    }
+    let res = do_cmd(opts);
+    res.emit();
+    res.errors.is_empty()
 }
 
-fn cmd_inner(opts: &Opts) -> Result<bool> {
-    let timefmt = if opts.localtime {
-        TimeFmt::Localtime
-    } else if opts.utc {
-        TimeFmt::Utc
-    } else {
-        TimeFmt::Seconds
+fn do_cmd(opts: &Opts) -> CmdResults {
+    use std::io::Write;
+
+    let mut res = CmdResults {
+        opts: opts.emit,
+        ..Default::default()
     };
-    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::Resolver::resolve_lines(&opts.lines, &opts.line_opts, abiv)?;
-    let mut poll = Poll::new()?;
+    let r = common::Resolver::resolve_lines(&opts.lines, &opts.line_opts, &opts.uapi_opts);
+    if !r.errors.is_empty() {
+        for e in r.errors {
+            res.push_error(&e);
+        }
+        return res;
+    }
+    let mut poll = match Poll::new() {
+        Ok(p) => p,
+        Err(e) => {
+            res.push_error(&anyhow!(e).context("failed to create poll"));
+            return res;
+        }
+    };
     let mut chips = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
-        let chip = common::chip_from_path(&ci.path, abiv)?;
+        let chip = match common::chip_from_path(&ci.path, r.abiv) {
+            Ok(c) => c,
+            Err(e) => {
+                res.push_error(&anyhow!(e).context(format!("failed to open  {}", ci.name)));
+                break;
+            }
+        };
 
         for offset in r
             .lines
@@ -135,54 +161,99 @@ fn cmd_inner(opts: &Opts) -> Result<bool> {
             .filter(|co| co.chip_idx == idx)
             .map(|co| co.offset)
         {
-            chip.watch_line_info(offset)
-                .with_context(|| format!("failed to watch line {} on {}", offset, ci.name))?;
+            if let Err(e) = chip.watch_line_info(offset) {
+                res.push_error(
+                    &anyhow!(e).context(format!("failed to watch line {} on {}", offset, ci.name)),
+                );
+            }
         }
-        poll.registry().register(
+        if let Err(e) = poll.registry().register(
             &mut SourceFd(&chip.as_raw_fd()),
             Token(idx),
             Interest::READABLE,
-        )?;
+        ) {
+            res.push_error(&anyhow!(e).context(format!("failed register {} with poll", ci.name)));
+            return res;
+        }
         chips.push(chip);
+    }
+    if !res.errors.is_empty() {
+        return res;
     }
     let mut count = 0;
     let mut events = Events::with_capacity(r.chips.len());
+    let timefmt = opts.timefmt();
     emit_banner(opts);
     loop {
         match poll.poll(&mut events, opts.idle_timeout) {
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::Interrupted {
-                    emit_error(&opts.emit, &anyhow!(e));
-                    return Ok(false);
+                    res.push_error(&anyhow!(e));
+                    return res;
                 }
             }
             Ok(()) => {
                 if events.is_empty() {
-                    return Ok(true);
+                    return res;
                 }
                 for event in &events {
                     let idx: usize = event.token().into();
-                    while chips[idx].has_line_info_change_event()? {
-                        let change =
-                            chips[idx].read_line_info_change_event().with_context(|| {
-                                format!("failed to read event from {}", r.chips[idx].name)
-                            })?;
-                        if let Some(evtype) = opts.event {
-                            if change.kind != evtype.into() {
-                                continue;
+                    while chips[idx].has_line_info_change_event().unwrap_or(false) {
+                        match chips[idx].read_line_info_change_event() {
+                            Ok(change) => {
+                                if let Some(evtype) = opts.event {
+                                    if change.kind != evtype.into() {
+                                        continue;
+                                    }
+                                }
+                                emit_change(change, &r.chips[idx], opts, &timefmt);
+                                if let Some(limit) = opts.num_events {
+                                    count += 1;
+                                    if count >= limit {
+                                        return res;
+                                    }
+                                }
                             }
-                        }
-                        emit_change(change, &r.chips[idx], opts, &timefmt);
-                        if let Some(limit) = opts.num_events {
-                            count += 1;
-                            if count >= limit {
-                                return Ok(true);
+                            Err(e) => {
+                                emit_error(
+                                    &opts.emit,
+                                    &anyhow!(e).context(format!(
+                                        "failed to read event from {}",
+                                        r.chips[idx].name
+                                    )),
+                                );
                             }
-                        }
+                        };
                     }
                 }
+                _ = std::io::stdout().flush();
             }
         }
+    }
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+struct CmdResults {
+    #[cfg_attr(feature = "serde", serde(skip))]
+    opts: EmitOpts,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    errors: Vec<String>,
+}
+impl CmdResults {
+    fn emit(&self) {
+        #[cfg(feature = "json")]
+        if self.opts.json {
+            println!("{}", serde_json::to_string(self).unwrap());
+            return;
+        }
+        for e in &self.errors {
+            eprintln!("{}", e);
+        }
+    }
+
+    fn push_error(&mut self, e: &anyhow::Error) {
+        self.errors.push(format_error(&self.opts, e))
     }
 }
 
@@ -210,43 +281,61 @@ fn print_banner(lines: &[String]) {
     _ = std::io::stdout().flush();
 }
 
-fn emit_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
+fn emit_change(change: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
     if opts.quiet {
         return;
     }
-    print_change(event, ci, opts, timefmt);
+    let timestamp = format_time(change.timestamp_ns, timefmt);
+    let event = Event {
+        #[cfg(feature = "json")]
+        chip: ci.name.clone(),
+        change,
+        timestamp,
+    };
+
+    #[cfg(feature = "json")]
+    if opts.emit.json {
+        println!("{}", serde_json::to_string(&event).unwrap());
+        return;
+    }
+    if let Some(format) = &opts.format {
+        print_change_formatted(&event.change, format, ci, opts.emit.quoted);
+    } else {
+        event.print(ci, opts);
+    }
 }
 
-fn print_change(event: InfoChangeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
-    use std::io::Write;
+#[cfg_attr(feature = "serde", derive(Serialize))]
+struct Event {
+    #[cfg(feature = "json")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "String::is_empty"))]
+    chip: String,
+    #[cfg_attr(feature = "serde", serde(flatten))]
+    change: InfoChangeEvent,
+    timestamp: String,
+}
 
-    if let Some(format) = &opts.format {
-        return print_change_formatted(&event, format, ci, opts.emit.quoted);
-    }
-    let evtime = if opts.utc || opts.localtime {
-        monotonic_to_realtime(event.timestamp_ns)
-    } else {
-        event.timestamp_ns
-    };
-    print!(
-        "{}\t{}\t",
-        format_time(evtime, timefmt),
-        event_kind_name(event.kind)
-    );
+impl Event {
+    fn print(&self, ci: &ChipInfo, opts: &Opts) {
+        print!(
+            "{}\t{}\t",
+            self.timestamp,
+            event_kind_name(self.change.kind)
+        );
 
-    if let Some(lname) = ci.line_name(&event.info.offset) {
-        if opts.line_opts.chip.is_some() {
-            print!("{} {} ", ci.name, event.info.offset);
-        }
-        if opts.emit.quoted {
-            println!("\"{}\"", lname);
+        if let Some(lname) = ci.line_name(&self.change.info.offset) {
+            if opts.line_opts.chip.is_some() {
+                print!("{} {} ", ci.name, self.change.info.offset);
+            }
+            if opts.emit.quoted {
+                println!("\"{}\"", lname);
+            } else {
+                println!("{}", lname);
+            }
         } else {
-            println!("{}", lname);
+            println!("{} {}", ci.name, self.change.info.offset);
         }
-    } else {
-        println!("{} {}", ci.name, event.info.offset);
     }
-    _ = std::io::stdout().flush();
 }
 
 fn format_consumer(li: &gpiocdev::line::Info) -> &str {

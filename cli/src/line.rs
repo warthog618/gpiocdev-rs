@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use super::common::{
-    self, actual_abi_version, emit_error, format_chip_name, stringify_attrs, EmitOpts, Resolver,
+    self, emit_error, format_chip_name, stringify_attrs, EmitOpts, LineOpts, Resolver,
 };
-use anyhow::Result;
 use clap::Parser;
 use gpiocdev::line::Info;
+#[cfg(feature = "serde")]
+use serde_derive::Serialize;
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Default, Parser)]
 #[command(aliases(["l", "info"]))]
 pub struct Opts {
     /// Only get information for the specified lines
@@ -61,48 +62,102 @@ pub struct Opts {
 }
 
 pub fn cmd(opts: &Opts) -> bool {
-    match cmd_inner(opts) {
-        Err(e) => {
-            emit_error(&opts.emit, &e);
-            false
-        }
-        Ok(x) => x,
-    }
-}
-
-fn cmd_inner(opts: &Opts) -> Result<bool> {
-    let chips = if let Some(id) = &opts.chip {
-        vec![common::chip_lookup_from_id(id)?]
-    } else {
-        common::all_chip_paths()?
+    let line_opts = LineOpts {
+        chip: opts.chip.clone(),
+        strict: false, // to continue on multi-match
+        by_name: opts.by_name,
     };
-    let r = common::Resolver::resolve_lines_unvalidated(
-        &opts.lines,
-        &chips,
-        actual_abi_version(&opts.uapi_opts)?,
-        false,
-        opts.strict, // --strict means exhaustive for `line`
-        opts.by_name,
-        true,
-    )?;
-    //println!("{:#?}", r);
-    emit_line_info(&opts.emit, &opts.lines, &r)?;
-    r.validate(&opts.lines, &opts.chip, opts.by_name)?;
-    Ok(opts.lines.is_empty()
-        || (opts.lines.len() == r.lines.len()) && (opts.lines.len() == r.info.len()))
+    let res = Cmd {
+        opts,
+        r: common::Resolver::resolve_lines_with_info(
+            &opts.lines,
+            &line_opts,
+            &opts.uapi_opts,
+            opts.strict, // --strict means exhaustive for `line`
+            true,
+        ),
+    };
+    res.emit();
+    res.is_success()
 }
 
-fn emit_line_info(opts: &EmitOpts, lines: &[String], r: &Resolver) -> Result<()> {
-    if lines.is_empty() {
-        for idx in 0..r.chips.len() {
-            print_chip_lines(r, idx, opts);
+#[cfg_attr(feature = "serde", derive(Serialize))]
+struct Cmd<'a> {
+    #[cfg_attr(feature = "serde", serde(skip))]
+    opts: &'a Opts,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    r: Resolver,
+}
+
+impl<'a> Cmd<'a> {
+    fn is_success(&self) -> bool {
+        self.r.errors.is_empty()
+            && (self.opts.lines.is_empty()
+                || (self.opts.lines.len() == self.r.lines.len())
+                    && (self.opts.lines.len() == self.r.info.len()))
+    }
+
+    fn emit(&self) {
+        #[cfg(feature = "json")]
+        if self.opts.emit.json {
+            self.emit_json();
+            return;
         }
-    } else {
-        for info in &r.info {
-            print_line_info(&r.chips[info.chip].name, &info.info, opts.quoted)
+        self.print();
+    }
+
+    #[cfg(feature = "json")]
+    fn emit_json(&self) {
+        let mut res = CmdResults {
+            ..Default::default()
+        };
+        for i in &self.r.info {
+            res.lines.push(LineInfo {
+                chip: &self.r.chips[i.chip].name,
+                info: &i.info,
+            });
+        }
+        for e in &self.r.errors {
+            res.errors.push(common::format_error(&self.opts.emit, e))
+        }
+        println!("{}", serde_json::to_string(&res).unwrap());
+    }
+
+    fn print(&self) {
+        if self.opts.lines.is_empty() {
+            for idx in 0..self.r.chips.len() {
+                print_chip_lines(&self.r, idx, &self.opts.emit);
+            }
+        } else {
+            for info in &self.r.info {
+                print_line_info(
+                    &self.r.chips[info.chip].name,
+                    &info.info,
+                    self.opts.emit.quoted,
+                )
+            }
+        }
+        for e in &self.r.errors {
+            emit_error(&self.opts.emit, e);
         }
     }
-    Ok(())
+}
+
+#[cfg(feature = "serde")]
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+struct CmdResults<'a> {
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    lines: Vec<LineInfo<'a>>,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    errors: Vec<String>,
+}
+#[cfg(feature = "serde")]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+struct LineInfo<'a> {
+    chip: &'a str,
+    #[cfg_attr(feature = "serde", serde(flatten))]
+    info: &'a Info,
 }
 
 fn print_chip_lines(r: &Resolver, idx: usize, opts: &EmitOpts) {

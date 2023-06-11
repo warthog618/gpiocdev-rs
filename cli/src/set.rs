@@ -5,7 +5,7 @@
 mod editor;
 use self::editor::{CommandWords, Editor};
 
-use super::common::{self, emit_error, ParseDurationError};
+use super::common::{self, emit_error, EmitOpts, ParseDurationError};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Arg, ArgAction, Command, Parser};
 use daemonize::Daemonize;
@@ -54,7 +54,7 @@ pub struct Opts {
     ///
     /// Use the "help" command at the interactive prompt to get help for
     /// the supported commands.
-    #[arg(short, long, groups = ["mode", "terminal"])]
+    #[arg(short, long, groups = ["mode", "terminal", "emit"])]
     interactive: bool,
 
     /// The minimum time period to hold lines at the requested values.
@@ -108,7 +108,7 @@ impl Opts {
 }
 
 pub fn cmd(opts: &Opts) -> bool {
-    match cmd_inner(opts) {
+    match do_cmd(opts) {
         Err(e) => {
             emit_error(&opts.emit, &e);
             false
@@ -117,12 +117,14 @@ pub fn cmd(opts: &Opts) -> bool {
     }
 }
 
-fn cmd_inner(opts: &Opts) -> Result<bool> {
+fn do_cmd(opts: &Opts) -> Result<bool> {
     let mut setter = Setter {
         hold_period: opts.hold_period,
         ..Default::default()
     };
-    setter.request(opts)?;
+    if !setter.request(opts)? {
+        return Ok(false);
+    }
     if opts.banner {
         let line_ids: Vec<String> = opts
             .line_values
@@ -143,6 +145,12 @@ fn cmd_inner(opts: &Opts) -> Result<bool> {
     }
     setter.wait();
     Ok(true)
+}
+
+fn emit_errors(opts: &EmitOpts, errs: &[anyhow::Error]) {
+    for e in errs {
+        emit_error(opts, e);
+    }
 }
 
 #[derive(Default)]
@@ -167,14 +175,17 @@ struct Setter {
 }
 
 impl Setter {
-    fn request(&mut self, opts: &Opts) -> Result<()> {
+    fn request(&mut self, opts: &Opts) -> Result<bool> {
         self.line_ids = opts
             .line_values
             .iter()
             .map(|(l, _v)| l.to_owned())
             .collect();
-        let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-        let r = common::Resolver::resolve_lines(&self.line_ids, &opts.line_opts, abiv)?;
+        let r = common::Resolver::resolve_lines(&self.line_ids, &opts.line_opts, &opts.uapi_opts);
+        if !r.errors.is_empty() {
+            emit_errors(&opts.emit, &r.errors);
+            return Ok(false);
+        }
         self.chips = r.chips;
 
         // find set of lines for each chip
@@ -203,13 +214,13 @@ impl Setter {
             let mut bld = Request::from_config(cfg);
             bld.on_chip(&ci.path).with_consumer(&opts.consumer);
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-            bld.using_abi_version(abiv);
+            bld.using_abi_version(r.abiv);
             let req = bld
                 .request()
                 .with_context(|| format!("failed to request and set lines on {}", ci.name))?;
             self.requests.push(req);
         }
-        Ok(())
+        Ok(true)
     }
 
     fn interact(&mut self, opts: &Opts) -> Result<bool> {
@@ -358,11 +369,7 @@ impl Setter {
         for id in lines {
             match self.lines.get(id) {
                 Some(line) => {
-                    print_values.push(if opts.emit.quoted || id.contains(' ') {
-                        format!("\"{}\"={}", id, line.value)
-                    } else {
-                        format!("{}={}", id, line.value)
-                    });
+                    print_values.push(format_line_value(&opts.emit, id, line.value));
                 }
                 None => bail!(CmdError::NotRequestedLine(id.into())),
             }
@@ -371,11 +378,7 @@ impl Setter {
             // no lines specified, so return all lines
             for id in &self.line_ids {
                 let value = self.lines.get(id).unwrap().value;
-                print_values.push(if opts.emit.quoted || id.contains(' ') {
-                    format!("\"{}\"={}", id, value)
-                } else {
-                    format!("{}={}", id, value)
-                });
+                print_values.push(format_line_value(&opts.emit, id, value));
             }
         }
         println!("{}", print_values.join(" "));
@@ -558,6 +561,14 @@ struct Line {
     offset: Offset,
     value: Value,
     dirty: bool,
+}
+
+fn format_line_value(opts: &EmitOpts, id: &str, value: Value) -> String {
+    if opts.quoted || id.contains(' ') {
+        format!("\"{}\"={}", id, value)
+    } else {
+        format!("{}={}", id, value)
+    }
 }
 
 // strips quotes surrounding the whole string.

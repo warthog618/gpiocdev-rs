@@ -64,6 +64,8 @@ compile_error!("Either feature \"uapi_v1\" or \"uapi_v2\" must be enabled for th
 use chrono::{DateTime, TimeZone, Utc};
 #[cfg(any(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi as uapi;
+#[cfg(feature = "serde")]
+use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::Range;
@@ -381,8 +383,13 @@ pub use request::Request;
 ///
 /// * `V2` is the current ABI and is used by default.
 /// * `V1` is more restrictive than V2, so some information and features are
-/// unavailable, but the ABI itself is more widely available.
+/// unavailable.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(rename_all = "camelCase")
+)]
 pub enum AbiVersion {
     /// GPIO uAPI v1
     V1,
@@ -519,12 +526,14 @@ impl fmt::Display for UapiCall {
 
 /// Components that may not support a particular ABI version.
 #[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum AbiSupportKind {
     /// The library does not have the feature enabled for the requested ABI version.
     Build,
 
     /// The kernel running on the platform does not support the requested ABI version.
+    #[default]
     Kernel,
 }
 

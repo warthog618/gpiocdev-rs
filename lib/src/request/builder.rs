@@ -376,7 +376,7 @@ impl Builder {
     }
 
     /// Set the clock source for edge events on the selected lines.
-    pub fn with_event_clock(&mut self, event_clock: EventClock) -> &mut Self {
+    pub fn with_event_clock<E: Into<Option<EventClock>>>(&mut self, event_clock: E) -> &mut Self {
         self.cfg.with_event_clock(event_clock);
         self
     }
@@ -851,6 +851,9 @@ mod tests {
 
         b.with_edge_detection(BothEdges);
         assert_eq!(b.cfg.base.edge_detection, Some(BothEdges));
+
+        b.with_edge_detection(None);
+        assert_eq!(b.cfg.base.edge_detection, None);
     }
 
     #[test]
@@ -866,6 +869,9 @@ mod tests {
 
         b.with_event_clock(Hte);
         assert_eq!(b.cfg.base.event_clock, Some(Hte));
+
+        b.with_event_clock(None);
+        assert_eq!(b.cfg.base.event_clock, None);
     }
 
     #[test]

@@ -11,7 +11,6 @@ use gpiocdev::chip::{chips, is_chip, Chip};
 use gpiocdev::line::{Bias, Drive, EdgeDetection};
 use gpiocdev::request::Config;
 use gpiocdev::AbiVersion;
-use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -154,10 +153,15 @@ impl From<AbiVersionFlags> for gpiocdev::AbiVersion {
     }
 }
 
-#[derive(Debug, Parser)]
+#[derive(Clone, Copy, Debug, Default, Parser)]
 pub struct EmitOpts {
     #[arg(from_global)]
     pub verbose: bool,
+
+    /// Emit output in JSON format
+    #[cfg(feature = "json")]
+    #[arg(long, group = "emit")]
+    pub json: bool,
 
     /// Quote line and consumer names.
     #[arg(long)]
@@ -165,14 +169,24 @@ pub struct EmitOpts {
 }
 
 pub fn emit_error(opts: &EmitOpts, e: &anyhow::Error) {
+    let e_str = format_error(opts, e);
+    #[cfg(feature = "json")]
+    if opts.json {
+        println!("{{\"error\":\"{}\"}}", e_str);
+        return;
+    }
+    eprintln!("{}", e_str);
+}
+
+pub fn format_error(opts: &EmitOpts, e: &anyhow::Error) -> String {
     if opts.verbose {
-        eprintln!("{:#}", e);
+        format!("{:#}", e)
     } else {
-        eprintln!("{}", e);
+        format!("{}", e)
     }
 }
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Default, Parser)]
 pub struct UapiOpts {
     /// The uAPI ABI version to use to perform the operation
     ///
@@ -392,33 +406,6 @@ pub fn format_time(evtime: u64, timefmt: &TimeFmt) -> String {
                 Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(ts_sec, ts_nsec).unwrap());
             format!("{}", t.format("%FT%T%.9fZ"))
         }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-struct Comedy {
-    errs: Vec<Error>,
-}
-impl Comedy {
-    fn new() -> Comedy {
-        Comedy { errs: Vec::new() }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.errs.is_empty()
-    }
-
-    fn push(&mut self, err: Error) {
-        self.errs.push(err)
-    }
-}
-
-impl fmt::Display for Comedy {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for err in &self.errs {
-            writeln!(f, "{}", err)?;
-        }
-        Ok(())
     }
 }
 

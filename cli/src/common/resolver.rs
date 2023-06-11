@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{Comedy, Error, LineOpts};
-use anyhow::{bail, Context, Result};
+use super::{actual_abi_version, Error, LineOpts, UapiOpts};
+use anyhow::anyhow;
 use gpiocdev::chip::Chip;
 use gpiocdev::line::{Info, Offset};
 use gpiocdev::AbiVersion;
@@ -11,7 +11,7 @@ use nohash_hasher::IntMap;
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ChipOffset {
     // This is the idx into the Vec<ChipInfo>, not a system gpiochip#.
     pub chip_idx: usize,
@@ -38,7 +38,7 @@ pub struct LineInfo {
     pub info: Info,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Resolver {
     /// The first match from id to (chip,offset)
     pub lines: HashMap<String, ChipOffset>,
@@ -48,57 +48,85 @@ pub struct Resolver {
     // In strict mode this will be all chips.
     // Otherwise it is the set of chips scanned to locate the lines.
     pub chips: Vec<ChipInfo>,
+    // errors detected during resolution
+    pub errors: Vec<anyhow::Error>,
+    // ABI version being used
+    pub abiv: AbiVersion,
 }
 
 impl Resolver {
     /// Basic mode to find the (chip,offset) for the lines.
     ///
     /// Does not populate info.
-    pub fn resolve_lines(lines: &[String], opts: &LineOpts, abiv: AbiVersion) -> Result<Resolver> {
-        let chips = match &opts.chip {
-            Some(chip_id) => vec![super::chip_path_from_id(chip_id)],
-            None => super::all_chip_paths()?,
-        };
-        let r = Self::resolve_lines_unvalidated(
+    pub fn resolve_lines(lines: &[String], line_opts: &LineOpts, uapi_opts: &UapiOpts) -> Resolver {
+        Self::resolve_lines_with_info(
             lines,
-            &chips,
-            abiv,
-            opts.strict,
-            opts.strict, // generally, strict means exhaustive
-            opts.by_name,
+            line_opts,
+            uapi_opts,
+            line_opts.strict, // generally, strict means exhaustive too
             false,
-        )?;
-        r.validate(lines, &opts.chip, opts.by_name)?;
-        Ok(r)
+        )
     }
 
     /// Core version which can also return the info for lines
-    pub fn resolve_lines_unvalidated(
+    pub fn resolve_lines_with_info(
         lines: &[String],
-        chips: &[PathBuf],
-        abiv: AbiVersion,
-        strict: bool,
+        line_opts: &LineOpts,
+        uapi_opts: &UapiOpts,
         exhaustive: bool,
-        by_name: bool,
         with_info: bool,
-    ) -> Result<Resolver> {
-        let mut lines = lines.to_vec();
-        lines.sort_unstable();
-        lines.dedup();
+    ) -> Resolver {
         let mut r = Resolver {
-            lines: HashMap::new(),
-            info: Vec::new(),
-            chips: Vec::new(),
+            ..Default::default()
         };
+        let chips = match &line_opts.chip {
+            Some(chip_id) => match super::chip_lookup_from_id(chip_id) {
+                Ok(p) => vec![p],
+                Err(e) => {
+                    r.errors.push(e);
+                    return r;
+                }
+            },
+            None => match super::all_chip_paths() {
+                Ok(c) => c,
+                Err(e) => {
+                    r.errors.push(e);
+                    return r;
+                }
+            },
+        };
+        match actual_abi_version(uapi_opts) {
+            Ok(abiv) => r.abiv = abiv,
+            Err(e) => {
+                r.errors.push(e);
+                return r;
+            }
+        }
+        let mut uniq_lines = lines.to_vec();
+        uniq_lines.sort_unstable();
+        uniq_lines.dedup();
         let mut chip_idx = 0;
-        let done = |r: &Resolver| !exhaustive && !lines.is_empty() && r.lines.len() == lines.len();
+        let done =
+            |r: &Resolver| !exhaustive && !uniq_lines.is_empty() && r.lines.len() == lines.len();
 
         for (idx, path) in chips.iter().enumerate() {
             let mut chip_used = false;
-            let chip = super::chip_from_path(path, abiv)?;
-            let kci = chip
-                .info()
-                .with_context(|| format!("unable to read info from {}", chip.name()))?;
+            let chip = match super::chip_from_path(path, r.abiv) {
+                Ok(c) => c,
+                Err(e) => {
+                    r.errors.push(e);
+                    continue;
+                }
+            };
+            let kci = match chip.info() {
+                Ok(ci) => ci,
+                Err(e) => {
+                    r.errors.push(
+                        anyhow!(e).context(format!("unable to read info from {}", chip.name())),
+                    );
+                    continue;
+                }
+            };
             let mut ci = ChipInfo {
                 path: chip.path().to_owned(),
                 name: kci.name,
@@ -108,8 +136,8 @@ impl Resolver {
 
             // first match line by offset - but only when id by offset is possible
             let mut offsets = VecDeque::new();
-            if idx == 0 && chips.len() == 1 && !by_name {
-                for id in &lines {
+            if idx == 0 && chips.len() == 1 && !line_opts.by_name {
+                for id in &uniq_lines {
                     if let Ok(offset) = id.parse::<u32>() {
                         if offset < kci.num_lines {
                             r.lines
@@ -123,7 +151,7 @@ impl Resolver {
                 }
                 if done(&r) {
                     if with_info {
-                        r.get_offset_info(&chip, &offsets)?;
+                        r.get_offset_info(&chip, &offsets);
                     }
                     r.chips.push(ci);
                     break;
@@ -131,20 +159,25 @@ impl Resolver {
             }
             // match by name
             for offset in 0..kci.num_lines {
-                let li = chip.line_info(offset).with_context(|| {
-                    format!(
-                        "unable to read info for line {} from {}",
-                        offset,
-                        chip.name()
-                    )
-                })?;
-                let mut save_info = lines.is_empty();
+                let li = match chip.line_info(offset) {
+                    Ok(li) => li,
+                    Err(e) => {
+                        r.errors.push(anyhow!(e).context(format!(
+                            "unable to read info for line {} from {}",
+                            offset,
+                            chip.name()
+                        )));
+                        // give up on the chip
+                        break;
+                    }
+                };
+                let mut save_info = uniq_lines.is_empty();
                 // save info for id by offset
                 if !offsets.is_empty() && offsets[0] == offset {
                     save_info = true;
                     offsets.pop_front();
                 }
-                for id in &lines {
+                for id in &uniq_lines {
                     if id.as_str() == li.name.as_str() {
                         save_info = true;
                         if !r.lines.contains_key(id) {
@@ -156,8 +189,9 @@ impl Resolver {
                             if done(&r) {
                                 break;
                             }
-                        } else if strict {
-                            bail!(Error::NonUniqueLine(id.into()));
+                        } else if line_opts.strict {
+                            r.push_error(Error::NonUniqueLine(id.into()));
+                            return r;
                         }
                     }
                 }
@@ -170,7 +204,7 @@ impl Resolver {
                 }
             }
             // might still have some offsets that need info, so fill those in
-            r.get_offset_info(&chip, &offsets)?;
+            r.get_offset_info(&chip, &offsets);
 
             if chip_used {
                 r.chips.push(ci);
@@ -180,31 +214,35 @@ impl Resolver {
                 break;
             }
         }
-        Ok(r)
+        r.validate(lines, &line_opts.chip, line_opts.by_name);
+        r
     }
 
-    fn get_offset_info(&mut self, chip: &Chip, offsets: &VecDeque<Offset>) -> Result<()> {
+    fn get_offset_info(&mut self, chip: &Chip, offsets: &VecDeque<Offset>) {
         for offset in offsets {
-            let li = chip.line_info(*offset).with_context(|| {
-                format!(
-                    "unable to read info for line {} from {}",
-                    offset,
-                    chip.name()
-                )
-            })?;
-            self.info.push(LineInfo {
-                chip: 0,
-                info: li.clone(),
-            });
+            match chip.line_info(*offset) {
+                Ok(li) => {
+                    self.info.push(LineInfo {
+                        chip: 0,
+                        info: li.clone(),
+                    });
+                }
+                Err(e) => {
+                    self.errors.push(anyhow!(e).context(format!(
+                        "unable to read info for line {} from {}",
+                        offset,
+                        chip.name()
+                    )));
+                }
+            };
         }
-        Ok(())
     }
+
     // check that requested lines are found and unique
-    pub fn validate(&self, lines: &[String], chip: &Option<String>, by_name: bool) -> Result<()> {
+    fn validate(&mut self, lines: &[String], chip: &Option<String>, by_name: bool) {
         let mut lines = lines.to_vec();
-        let mut errs = Comedy::new();
         lines.sort_unstable();
-        let mut lids : HashMap<&String, usize> = HashMap::new();
+        let mut lids: HashMap<&String, usize> = HashMap::new();
         for line in &lines {
             if let Some(lid) = lids.get_mut(line) {
                 *lid += 1
@@ -214,32 +252,31 @@ impl Resolver {
         }
         for (id, count) in lids {
             if count > 1 {
-                errs.push(Error::RepeatedLine(id.into()));
+                self.push_error(Error::RepeatedLine(id.into()));
             }
         }
         lines.dedup();
         for (idx, id) in lines.iter().enumerate() {
-            if let Some(line) = self.lines.get(id) {
+            if let Some(&line) = self.lines.get(id) {
                 for prev in lines.iter().take(idx) {
                     if let Some(found) = self.lines.get(prev) {
                         if line.chip_idx == found.chip_idx && line.offset == found.offset {
-                            errs.push(Error::DuplicateLine(prev.into(), id.into()));
+                            self.push_error(Error::DuplicateLine(prev.into(), id.into()));
                         }
                     }
                 }
             } else if !by_name && id.parse::<u32>().is_ok() && chip.is_some() {
-                errs.push(Error::OffsetOutOfRange(
+                self.push_error(Error::OffsetOutOfRange(
                     id.into(),
                     chip.as_ref().unwrap().into(),
                 ));
             } else {
-                errs.push(Error::NoSuchLine(id.into()));
+                self.push_error(Error::NoSuchLine(id.into()));
             }
         }
+    }
 
-        if !errs.is_empty() {
-            return Err(errs.into());
-        }
-        Ok(())
+    fn push_error(&mut self, e: Error) {
+        self.errors.push(anyhow!(e))
     }
 }

@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::common::{self, emit_error};
+use super::common::{self, format_error, EmitOpts};
 use anyhow::Result;
 use clap::Parser;
 use gpiocdev::chip::Info;
+#[cfg(feature = "serde")]
+use serde_derive::Serialize;
 use std::path::Path;
 
 #[derive(Debug, Parser)]
@@ -28,25 +30,28 @@ pub struct Opts {
 }
 
 pub fn cmd(opts: &Opts) -> bool {
-    let mut info = Vec::new();
+    let mut res = CmdResults {
+        opts: opts.emit,
+        ..Default::default()
+    };
     if opts.chips.is_empty() {
         match &common::all_chip_paths() {
             Ok(pp) => {
                 for p in pp {
-                    info.push(chip_info(p));
+                    res.push(chip_info(p));
                 }
             }
             Err(e) => {
-                emit_error(&opts.emit, e);
-                return false;
+                res.push_error(e);
             }
         }
     } else {
         for id in &opts.chips {
-            info.push(chip_info_from_id(id));
+            res.push(chip_info_from_id(id));
         }
     };
-    emit_chip_info(&info, &opts.emit)
+    res.emit();
+    res.errors.is_empty()
 }
 
 // report error and fail overall operation if id does not correspond to a gpiochip.
@@ -58,27 +63,48 @@ fn chip_info(p: &Path) -> Result<Info> {
     Ok(common::chip_from_path(p, gpiocdev::AbiVersion::V2)?.info()?)
 }
 
-fn emit_chip_info(info: &Vec<Result<Info>>, opts: &common::EmitOpts) -> bool {
-    print_chip_info(info, opts)
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+struct CmdResults {
+    #[cfg_attr(feature = "serde", serde(skip))]
+    opts: EmitOpts,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    chips: Vec<Info>,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    errors: Vec<String>,
 }
 
-fn print_chip_info(info: &Vec<Result<Info>>, opts: &common::EmitOpts) -> bool {
-    let mut success = true;
-    for i in info {
-        match i {
-            Ok(ci) => {
-                println!(
-                    "{} [{}] ({} lines)",
-                    common::format_chip_name(&ci.name),
-                    ci.label,
-                    ci.num_lines
-                );
-            }
-            Err(e) => {
-                emit_error(opts, e);
-                success = false;
-            }
+impl CmdResults {
+    fn push(&mut self, r: Result<Info>) {
+        match r {
+            Ok(i) => self.chips.push(i),
+            Err(e) => self.push_error(&e),
         }
     }
-    success
+    fn push_error(&mut self, e: &anyhow::Error) {
+        self.errors.push(format_error(&self.opts, e));
+    }
+
+    fn emit(&self) {
+        #[cfg(feature = "json")]
+        if self.opts.json {
+            println!("{}", serde_json::to_string(&self).unwrap());
+            return;
+        }
+        self.print()
+    }
+
+    fn print(&self) {
+        for ci in &self.chips {
+            println!(
+                "{} [{}] ({} lines)",
+                common::format_chip_name(&ci.name),
+                ci.label,
+                ci.num_lines
+            );
+        }
+        for e in &self.errors {
+            eprintln!("{}", e);
+        }
+    }
 }

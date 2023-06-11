@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::common::{self, emit_error};
-use anyhow::{Context, Result};
+use super::common::{self, format_error, EmitOpts};
+use anyhow::anyhow;
 use clap::Parser;
 use gpiocdev::line::{Offset, Value, Values};
 use gpiocdev::request::{Config, Request};
-use std::collections::HashMap;
+#[cfg(feature = "serde")]
+use serde_derive::Serialize;
 use std::thread;
 use std::time::Duration;
 
@@ -48,7 +49,7 @@ pub struct Opts {
     hold_period: Option<Duration>,
 
     /// Display line values as '0' (inactive) or '1' (active)
-    #[arg(long)]
+    #[arg(long, group = "emit")]
     pub numeric: bool,
 
     #[command(flatten)]
@@ -74,18 +75,19 @@ impl Opts {
 }
 
 pub fn cmd(opts: &Opts) -> bool {
-    match cmd_inner(opts) {
-        Err(e) => {
-            emit_error(&opts.emit, &e);
-            false
-        }
-        Ok(x) => x,
-    }
+    let res = do_cmd(opts);
+    res.emit(opts);
+    res.errors.is_empty()
 }
 
-fn cmd_inner(opts: &Opts) -> Result<bool> {
-    let abiv = common::actual_abi_version(&opts.uapi_opts)?;
-    let r = common::Resolver::resolve_lines(&opts.line, &opts.line_opts, abiv)?;
+fn do_cmd(opts: &Opts) -> CmdResult {
+    let mut res = CmdResult {
+        ..Default::default()
+    };
+    let r = common::Resolver::resolve_lines(&opts.line, &opts.line_opts, &opts.uapi_opts);
+    for e in &r.errors {
+        res.push_error(&opts.emit, e);
+    }
     let mut requests = Vec::new();
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut cfg = Config::default();
@@ -101,46 +103,113 @@ fn cmd_inner(opts: &Opts) -> Result<bool> {
         let mut bld = Request::from_config(cfg);
         bld.on_chip(&ci.path).with_consumer(&opts.consumer);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        bld.using_abi_version(abiv);
-        let req = bld
-            .request()
-            .with_context(|| format!("failed to request lines {:?} from {}", offsets, ci.name))?;
-        requests.push(req);
+        bld.using_abi_version(r.abiv);
+        match bld.request() {
+            Ok(req) => {
+                requests.push(req);
+            }
+            Err(e) => {
+                res.push_error(
+                    &opts.emit,
+                    &anyhow!(e).context(format!(
+                        "failed to request lines {:?} from {}",
+                        offsets, ci.name
+                    )),
+                );
+            }
+        }
     }
     if let Some(period) = opts.hold_period {
         thread::sleep(period);
     }
-    let mut line_values: HashMap<String, Value> = HashMap::new();
     for (idx, ci) in r.chips.iter().enumerate() {
         let mut values = Values::default();
-        requests[idx]
-            .values(&mut values)
-            .with_context(|| format!("failed to read values from {}", ci.name))?;
-        for line in r.lines.iter().filter(|l| l.1.chip_idx == idx) {
-            line_values.insert(line.0.into(), values.get(line.1.offset).unwrap());
+        match requests[idx].values(&mut values) {
+            Ok(()) => {
+                for line in r.lines.iter().filter(|l| l.1.chip_idx == idx) {
+                    res.values.push(LineValue {
+                        id: line.0.to_string(),
+                        value: values.get(line.1.offset).unwrap(),
+                    });
+                }
+            }
+            Err(e) => {
+                res.push_error(
+                    &opts.emit,
+                    &anyhow!(e).context(format!("failed to read values from {}", ci.name)),
+                );
+            }
         }
     }
-    emit_values(opts, &line_values);
-
-    Ok(true)
+    res
 }
 
-fn emit_values(opts: &Opts, values: &HashMap<String, Value>) {
-    print_values(opts, values);
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+struct CmdResult {
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    values: Vec<LineValue>,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    errors: Vec<String>,
 }
-
-fn print_values(opts: &Opts, values: &HashMap<String, Value>) {
-    let mut print_values = Vec::new();
-    for id in &opts.line {
-        let value = values.get(id).unwrap();
-        print_values.push(if opts.numeric {
-            let v: u8 = (*value).into();
-            format!("{}", v)
-        } else if opts.emit.quoted {
-            format!("\"{}\"={}", id, value)
-        } else {
-            format!("{}={}", id, value)
-        })
+impl CmdResult {
+    fn emit(&self, opts: &Opts) {
+        #[cfg(feature = "json")]
+        if opts.emit.json {
+            println!("{}", serde_json::to_string(self).unwrap());
+            return;
+        }
+        self.print(opts);
     }
-    println!("{}", print_values.join(" "));
+
+    fn push_error(&mut self, opts: &EmitOpts, e: &anyhow::Error) {
+        self.errors.push(format_error(opts, e))
+    }
+
+    fn print(&self, opts: &Opts) {
+        let mut print_values = Vec::new();
+        let mut seen_lines = Vec::new();
+        for id in &opts.line {
+            if seen_lines.contains(id) {
+                continue;
+            }
+            seen_lines.push(id.clone());
+            for lv in &self.values {
+                if &lv.id == id {
+                    print_values.push(if opts.numeric {
+                        let v: u8 = lv.value.into();
+                        format!("{}", v)
+                    } else if opts.emit.quoted {
+                        format!("\"{}\"={}", lv.id, lv.value)
+                    } else {
+                        format!("{}={}", lv.id, lv.value)
+                    });
+                    break;
+                }
+            }
+        }
+        if !print_values.is_empty() {
+            println!("{}", print_values.join(" "));
+        }
+        for e in &self.errors {
+            eprintln!("{}", e);
+        }
+    }
+}
+
+struct LineValue {
+    id: String,
+    value: Value,
+}
+#[cfg(feature = "serde")]
+impl serde::Serialize for LineValue {
+    fn serialize<S>(&self, serializer: S) -> anyhow::Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut s = serializer.serialize_map(Some(1))?;
+        s.serialize_entry(&self.id, &self.value)?;
+        s.end()
+    }
 }

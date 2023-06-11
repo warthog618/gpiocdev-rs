@@ -247,9 +247,10 @@ impl Config {
     }
 
     /// Set the clock source for edge events on the selected lines.
-    pub fn with_event_clock(&mut self, event_clock: EventClock) -> &mut Self {
+    pub fn with_event_clock<E: Into<Option<EventClock>>>(&mut self, event_clock: E) -> &mut Self {
+        let event_clock = event_clock.into();
         for cfg in self.selected_iter() {
-            cfg.event_clock = Some(event_clock);
+            cfg.event_clock = event_clock;
             // clock setting does NOT imply anything about edge detection or direction
             // so leave other settings alone.
         }
@@ -817,6 +818,8 @@ mod tests {
         assert_eq!(cfg.base.edge_detection, Some(FallingEdge));
         cfg.with_edge_detection(BothEdges);
         assert_eq!(cfg.base.edge_detection, Some(BothEdges));
+        cfg.with_edge_detection(None);
+        assert_eq!(cfg.base.edge_detection, None);
     }
 
     #[test]
@@ -827,6 +830,8 @@ mod tests {
         assert_eq!(cfg.base.event_clock, Some(Realtime));
         cfg.with_event_clock(Monotonic);
         assert_eq!(cfg.base.event_clock, Some(Monotonic));
+        cfg.with_event_clock(None);
+        assert_eq!(cfg.base.event_clock, None);
     }
 
     #[test]

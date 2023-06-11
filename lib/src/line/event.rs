@@ -16,11 +16,7 @@ use serde_derive::{Deserialize, Serialize};
 ///
 /// ABI v1 does not provide the seqno nor line_seqno fields.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(rename_all = "camelCase")
-)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct EdgeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     ///
@@ -41,10 +37,15 @@ pub struct EdgeEvent {
 
     /// The sequence number for this event in the sequence of events for all
     /// the lines in this line request.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "is_zero"))]
     pub seqno: u32,
 
     /// The sequence number for this event in the sequence of events on this
     /// particular line.
+    #[cfg_attr(
+        feature = "serde",
+        serde(rename = "lineSeqno", skip_serializing_if = "is_zero")
+    )]
     pub line_seqno: u32,
 }
 #[cfg(feature = "uapi_v1")]
@@ -73,6 +74,11 @@ impl From<&v2::LineEdgeEvent> for EdgeEvent {
     }
 }
 
+#[cfg(feature = "serde")]
+fn is_zero(u: &u32) -> bool {
+    *u == 0
+}
+
 /// The cause of an [`EdgeEvent`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -97,6 +103,7 @@ impl From<uapi::LineEdgeEventKind> for EdgeKind {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct InfoChangeEvent {
     /// The updated line info.
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub info: Info,
 
     /// The best estimate of time of event occurrence.
