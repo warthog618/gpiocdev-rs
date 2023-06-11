@@ -7,7 +7,6 @@
 // Assumptions:
 //  - kernel supports uAPI versions corresponding to selected build features
 
-use errno::Errno;
 use gpiocdev::chip::ErrorKind;
 use gpiocdev::Error::GpioChip as ChipError;
 use gpiosim::{Bank, Sim};
@@ -69,7 +68,7 @@ fn is_chip_nonexistent() {
     let path = PathBuf::from("/dev/gpiochip_nonexistent");
     assert_eq!(
         gpiocdev::chip::is_chip(path),
-        Err(gpiocdev::Error::OsError(Errno(2)))
+        Err(gpiocdev::Error::Os(gpiocdev_uapi::Errno(2)))
     );
 }
 
@@ -172,7 +171,7 @@ mod chip {
         let path = PathBuf::from("/dev/gpiochip_nonexistent");
         assert_eq!(
             Chip::from_path(path).unwrap_err(),
-            gpiocdev::Error::OsError(Errno(2))
+            gpiocdev::Error::Os(gpiocdev_uapi::Errno(2))
         );
     }
 
@@ -281,9 +280,9 @@ mod chip {
         let res = c.line_info(11);
         assert_eq!(
             res,
-            Err(gpiocdev::Error::UapiError(
+            Err(gpiocdev::Error::Uapi(
                 gpiocdev::UapiCall::GetLineInfo,
-                gpiocdev_uapi::Error::Os(Errno(22))
+                gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
             ))
         );
 
@@ -502,9 +501,9 @@ mod chip {
 
         assert_eq!(
             c.watch_line_info(5),
-            Err(gpiocdev::Error::UapiError(
+            Err(gpiocdev::Error::Uapi(
                 gpiocdev::UapiCall::WatchLineInfo,
-                gpiocdev_uapi::Error::Os(Errno(22))
+                gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
             ))
         );
 
@@ -540,9 +539,9 @@ mod chip {
 
         assert_eq!(
             c.unwatch_line_info(5),
-            Err(gpiocdev::Error::UapiError(
+            Err(gpiocdev::Error::Uapi(
                 gpiocdev::UapiCall::UnwatchLineInfo,
-                gpiocdev_uapi::Error::Os(Errno(22))
+                gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
             ))
         );
 

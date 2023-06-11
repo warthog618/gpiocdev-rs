@@ -121,11 +121,12 @@ impl Builder {
         }
         match self.to_uapi()? {
             UapiRequest::Handle(hr) => v1::get_line_handle(chip.fd, hr)
-                .map_err(|e| Error::UapiError(UapiCall::GetLineHandle, e)),
-            UapiRequest::Event(er) => v1::get_line_event(chip.fd, er)
-                .map_err(|e| Error::UapiError(UapiCall::GetLineEvent, e)),
+                .map_err(|e| Error::Uapi(UapiCall::GetLineHandle, e)),
+            UapiRequest::Event(er) => {
+                v1::get_line_event(chip.fd, er).map_err(|e| Error::Uapi(UapiCall::GetLineEvent, e))
+            }
             UapiRequest::Line(lr) => {
-                v2::get_line(chip.fd, lr).map_err(|e| Error::UapiError(UapiCall::GetLine, e))
+                v2::get_line(chip.fd, lr).map_err(|e| Error::Uapi(UapiCall::GetLine, e))
             }
         }
     }
@@ -133,16 +134,17 @@ impl Builder {
     fn do_request(&self, chip: &Chip) -> Result<File> {
         match self.to_uapi()? {
             UapiRequest::Handle(hr) => v1::get_line_handle(chip.fd, hr)
-                .map_err(|e| Error::UapiError(UapiCall::GetLineHandle, e)),
-            UapiRequest::Event(er) => v1::get_line_event(chip.fd, er)
-                .map_err(|e| Error::UapiError(UapiCall::GetLineEvent, e)),
+                .map_err(|e| Error::Uapi(UapiCall::GetLineHandle, e)),
+            UapiRequest::Event(er) => {
+                v1::get_line_event(chip.fd, er).map_err(|e| Error::Uapi(UapiCall::GetLineEvent, e))
+            }
         }
     }
     #[cfg(not(feature = "uapi_v1"))]
     fn do_request(&self, chip: &Chip) -> Result<File> {
         match self.to_uapi()? {
             UapiRequest::Line(lr) => {
-                v2::get_line(chip.fd, lr).map_err(|e| Error::UapiError(UapiCall::GetLine, e))
+                v2::get_line(chip.fd, lr).map_err(|e| Error::Uapi(UapiCall::GetLine, e))
             }
         }
     }

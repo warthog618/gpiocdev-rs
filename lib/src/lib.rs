@@ -62,7 +62,6 @@
 compile_error!("Either feature \"uapi_v1\" or \"uapi_v2\" must be enabled for this crate.");
 
 use chrono::{DateTime, TimeZone, Utc};
-use errno::Errno;
 #[cfg(any(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi as uapi;
 use std::collections::HashMap;
@@ -449,11 +448,11 @@ pub enum Error {
 
     /// An error returned from an underlying os call.
     #[error(transparent)]
-    OsError(#[from] Errno),
+    Os(uapi::Errno),
 
     /// An error returned from an underlying uAPI call.
     #[error("uAPI {0} returned: {1}")]
-    UapiError(UapiCall, #[source] uapi::Error),
+    Uapi(UapiCall, #[source] uapi::Error),
 
     /// The response to a uAPI command contained unexpected content.
     #[error("{0}")]
@@ -468,8 +467,10 @@ pub enum Error {
     NoAbiSupport(),
 }
 
-fn errno_from_ioerr(e: std::io::Error) -> Errno {
-    Errno(e.raw_os_error().unwrap_or(0))
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Error::Os(uapi::Errno::from(&e))
+    }
 }
 
 /// Identifiers for the underlying uAPI calls.

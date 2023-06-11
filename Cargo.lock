@@ -574,7 +574,6 @@ dependencies = [
  "async-std",
  "bitmaps",
  "chrono",
- "errno",
  "futures",
  "gpiocdev-uapi",
  "gpiosim",

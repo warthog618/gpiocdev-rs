@@ -187,7 +187,7 @@ impl Request {
     fn do_values_v1(&self, values: &mut Values) -> Result<()> {
         let mut vals = v1::LineValues::default();
         v1::get_line_values(self.fd, &mut vals)
-            .map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))?;
+            .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))?;
         if values.is_empty() {
             values.overlay_from_v1(&self.offsets, &vals);
             return Ok(());
@@ -204,7 +204,7 @@ impl Request {
         let mut vals = values.to_v2(&self.offsets);
         v2::get_line_values(self.fd, &mut vals)
             .map(|_| values.overlay_from_v2(&self.offsets, &vals))
-            .map_err(|e| Error::UapiError(UapiCall::GetLineValues, e))
+            .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))
     }
 
     /// Get the value for one line in the request.
@@ -279,7 +279,7 @@ impl Request {
             ));
         }
         v1::set_line_values(self.fd, &values.to_v1(&self.offsets))
-            .map_err(|e| Error::UapiError(UapiCall::SetLineValues, e))
+            .map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
     #[cfg(feature = "uapi_v2")]
     fn do_set_values_v2(&self, values: &Values) -> Result<()> {
@@ -289,7 +289,7 @@ impl Request {
                 "no requested lines in set values.".to_string(),
             ));
         }
-        v2::set_line_values(self.fd, lv).map_err(|e| Error::UapiError(UapiCall::SetLineValues, e))
+        v2::set_line_values(self.fd, lv).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
 
     /// Set the value for one line in the request.
@@ -383,10 +383,10 @@ impl Request {
                     ));
                 }
                 v1::set_line_config(self.fd, cfg.to_v1()?)
-                    .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
+                    .map_err(|e| Error::Uapi(UapiCall::SetLineConfig, e))
             }
             AbiVersion::V2 => v2::set_line_config(self.fd, cfg.to_v2()?)
-                .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e)),
+                .map_err(|e| Error::Uapi(UapiCall::SetLineConfig, e)),
         }
     }
     #[cfg(not(feature = "uapi_v2"))]
@@ -411,12 +411,12 @@ impl Request {
             ));
         }
         v1::set_line_config(self.fd, cfg.to_v1()?)
-            .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
+            .map_err(|e| Error::Uapi(UapiCall::SetLineConfig, e))
     }
     #[cfg(not(feature = "uapi_v1"))]
     fn do_reconfigure(&self, cfg: &Config) -> Result<()> {
         v2::set_line_config(self.fd, cfg.to_v2()?)
-            .map_err(|e| Error::UapiError(UapiCall::SetLineConfig, e))
+            .map_err(|e| Error::Uapi(UapiCall::SetLineConfig, e))
     }
 
     /// An iterator for events from the request.
@@ -454,7 +454,7 @@ impl Request {
     ///
     /// [`read_edge_event`]: #method.read_edge_event
     pub fn has_edge_event(&self) -> Result<bool> {
-        gpiocdev_uapi::has_event(self.fd).map_err(|e| Error::UapiError(UapiCall::HasEvent, e))
+        gpiocdev_uapi::has_event(self.fd).map_err(|e| Error::Uapi(UapiCall::HasEvent, e))
     }
 
     /// Wait for an edge event to be available.
@@ -463,8 +463,7 @@ impl Request {
     ///
     /// [`read_edge_event`]: #method.read_edge_event
     pub fn wait_edge_event(&self, timeout: Duration) -> Result<bool> {
-        gpiocdev_uapi::wait_event(self.fd, timeout)
-            .map_err(|e| Error::UapiError(UapiCall::WaitEvent, e))
+        gpiocdev_uapi::wait_event(self.fd, timeout).map_err(|e| Error::Uapi(UapiCall::WaitEvent, e))
     }
 
     /// Read a single edge event from the request.
@@ -520,8 +519,7 @@ impl Request {
     ///
     /// [`edge_event_size`]: #method.edge_event_size
     pub fn read_edge_events_into_slice(&self, buf: &mut [u8]) -> Result<usize> {
-        gpiocdev_uapi::read_event(self.fd, buf)
-            .map_err(|e| Error::UapiError(UapiCall::ReadEvent, e))
+        gpiocdev_uapi::read_event(self.fd, buf).map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))
     }
 
     /// Read an edge event from a `[u8]` slice.
@@ -545,7 +543,7 @@ impl Request {
             AbiVersion::V1 => {
                 let mut ee = EdgeEvent::from(
                     v1::LineEdgeEvent::from_slice(buf)
-                        .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
+                        .map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
                 );
                 // populate offset for v1
                 ee.offset = self.offsets[0];
@@ -553,15 +551,14 @@ impl Request {
             }
             AbiVersion::V2 => EdgeEvent::from(
                 uapi::LineEdgeEvent::from_slice(buf)
-                    .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
+                    .map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
             ),
         })
     }
     #[cfg(not(feature = "uapi_v2"))]
     fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
         let mut ee = EdgeEvent::from(
-            v1::LineEdgeEvent::from_slice(buf)
-                .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
+            v1::LineEdgeEvent::from_slice(buf).map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
         );
         // populate offset for v1
         ee.offset = self.offsets[0]; // there can be only one
@@ -570,8 +567,7 @@ impl Request {
     #[cfg(not(feature = "uapi_v1"))]
     fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
         Ok(EdgeEvent::from(
-            v2::LineEdgeEvent::from_slice(buf)
-                .map_err(|e| Error::UapiError(UapiCall::LEEFromBuf, e))?,
+            v2::LineEdgeEvent::from_slice(buf).map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
         ))
     }
 

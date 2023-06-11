@@ -14,7 +14,6 @@ mod builder {
     use std::collections::HashMap;
 
     use super::*;
-    use errno::Errno;
     use gpiocdev::chip::{Chip, ErrorKind};
     use gpiocdev::line::{Bias, Direction, Drive, Info};
     use gpiocdev::Error::GpioChip as ChipError;
@@ -282,9 +281,9 @@ mod builder {
             let res = builder.with_event_clock(EventClock::Hte).request();
             assert_eq!(
                 res.unwrap_err(),
-                gpiocdev::Error::UapiError(
+                gpiocdev::Error::Uapi(
                     gpiocdev::UapiCall::GetLine,
-                    gpiocdev_uapi::Error::Os(errno::Errno(95))
+                    gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(95))
                 )
             );
         }
@@ -665,17 +664,17 @@ mod builder {
         if abiv == AbiVersion::V2 {
             assert_eq!(
                 res,
-                gpiocdev::Error::UapiError(
+                gpiocdev::Error::Uapi(
                     gpiocdev::UapiCall::GetLine,
-                    gpiocdev_uapi::Error::Os(Errno(22))
+                    gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
                 )
             );
         } else {
             assert_eq!(
                 res,
-                gpiocdev::Error::UapiError(
+                gpiocdev::Error::Uapi(
                     gpiocdev::UapiCall::GetLineHandle,
-                    gpiocdev_uapi::Error::Os(Errno(22))
+                    gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
                 )
             );
             let res = builder
@@ -684,9 +683,9 @@ mod builder {
                 .unwrap_err();
             assert_eq!(
                 res,
-                gpiocdev::Error::UapiError(
+                gpiocdev::Error::Uapi(
                     gpiocdev::UapiCall::GetLineEvent,
-                    gpiocdev_uapi::Error::Os(Errno(22))
+                    gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
                 )
             );
         }
@@ -713,7 +712,10 @@ mod builder {
             .with_line(5)
             .as_input()
             .request();
-        assert_eq!(res.unwrap_err(), gpiocdev::Error::from(Errno(2)));
+        assert_eq!(
+            res.unwrap_err(),
+            gpiocdev::Error::Os(gpiocdev_uapi::Errno(2))
+        );
     }
 
     #[test]
