@@ -51,7 +51,7 @@ impl AsyncChip {
     /// ```
     pub async fn read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
         loop {
-            let mut guard = self.0.readable().await.map_err(crate::errno_from_ioerr)?;
+            let mut guard = self.0.readable().await?;
             let chip = self.0.get_ref();
             if chip.has_line_info_change_event()? {
                 let res = chip.read_line_info_change_event();
@@ -105,7 +105,7 @@ impl<'a> Stream for InfoChangeStream<'a> {
     type Item = Result<InfoChangeEvent>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let mut guard = ready!(self.chip.0.poll_read_ready(cx)).map_err(crate::errno_from_ioerr)?;
+        let mut guard = ready!(self.chip.0.poll_read_ready(cx))?;
         let res = Poll::Ready(Some(self.chip.as_ref().read_line_info_change_event()));
         if !self.chip.as_ref().has_line_info_change_event()? {
             guard.clear_ready();
@@ -165,7 +165,7 @@ impl AsyncRequest {
     /// ```
     pub async fn read_edge_event(&self) -> Result<EdgeEvent> {
         loop {
-            let mut guard = self.0.readable().await.map_err(crate::errno_from_ioerr)?;
+            let mut guard = self.0.readable().await?;
             let req = self.0.get_ref();
             if req.has_edge_event()? {
                 let res = req.read_edge_event();
@@ -201,7 +201,7 @@ impl AsyncRequest {
     /// ```
     pub async fn read_edge_events_into_slice(&self, buf: &mut [u8]) -> Result<usize> {
         loop {
-            let mut guard = self.0.readable().await.map_err(crate::errno_from_ioerr)?;
+            let mut guard = self.0.readable().await?;
             let req = self.0.get_ref();
             if req.has_edge_event()? {
                 let res = req.read_edge_events_into_slice(buf);
@@ -301,7 +301,7 @@ impl<'a> Stream for EdgeEventStream<'a> {
             return Poll::Ready(Some(self.events.read_event()));
         }
         // ... else go to the fd to check for new events
-        let mut guard = ready!(self.req.0.poll_read_ready(cx)).map_err(crate::errno_from_ioerr)?;
+        let mut guard = ready!(self.req.0.poll_read_ready(cx))?;
         let res = Poll::Ready(Some(self.events.read_event()));
         if !self.req.0.get_ref().has_edge_event()? {
             guard.clear_ready();

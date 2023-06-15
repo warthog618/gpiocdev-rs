@@ -51,7 +51,7 @@ impl AsyncChip {
     /// ```
     pub async fn read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
         loop {
-            self.0.readable().await.map_err(crate::errno_from_ioerr)?;
+            self.0.readable().await?;
             let chip = self.0.get_ref();
             if chip.has_line_info_change_event()? {
                 return chip.read_line_info_change_event();
@@ -102,7 +102,7 @@ impl<'a> Stream for InfoChangeStream<'a> {
     type Item = Result<InfoChangeEvent>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        ready!(self.chip.0.poll_readable(cx)).map_err(crate::errno_from_ioerr)?;
+        ready!(self.chip.0.poll_readable(cx))?;
         Poll::Ready(Some(self.chip.as_ref().read_line_info_change_event()))
     }
 }
@@ -158,7 +158,7 @@ impl AsyncRequest {
     /// ```
     pub async fn read_edge_event(&self) -> Result<EdgeEvent> {
         loop {
-            self.0.readable().await.map_err(crate::errno_from_ioerr)?;
+            self.0.readable().await?;
             let req = self.0.get_ref();
             if req.has_edge_event()? {
                 return req.read_edge_event();
@@ -190,7 +190,7 @@ impl AsyncRequest {
     /// ```
     pub async fn read_edge_events_into_slice(&self, buf: &mut [u8]) -> Result<usize> {
         loop {
-            self.0.readable().await.map_err(crate::errno_from_ioerr)?;
+            self.0.readable().await?;
             let req = self.0.get_ref();
             if req.has_edge_event()? {
                 return req.read_edge_events_into_slice(buf);
@@ -284,7 +284,7 @@ impl<'a> Stream for EdgeEventStream<'a> {
         if self.events.has_event()? {
             return Poll::Ready(Some(self.events.read_event()));
         }
-        ready!(self.req.0.poll_readable(cx)).map_err(crate::errno_from_ioerr)?;
+        ready!(self.req.0.poll_readable(cx))?;
         Poll::Ready(Some(self.events.read_event()))
     }
 }
