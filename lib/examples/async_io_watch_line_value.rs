@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Example of asynchronously watching for edges on a single line using async_io.
+
 use anyhow::Context;
-use gpiocdev::line::{EdgeDetection, Values};
 use gpiocdev::async_io::AsyncRequest;
+use gpiocdev::line::{EdgeDetection, Values};
 use gpiocdev::Request;
 use std::result::Result;
 
@@ -12,16 +14,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let req = AsyncRequest::new(
         Request::builder()
             .on_chip("/dev/gpiochip0")
-            .with_consumer("async-io watcher")
+            .with_consumer("async-io-watch-line-value")
             .with_line(23)
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
             .context("Failed to request line")?,
     );
-    let mut values = Values::from_offsets(&[23]);
     async_io::block_on(async {
         while let Ok(event) = req.read_edge_event().await {
-            println!("{:?} {:?}", event, req.as_ref().values(&mut values));
+            println!("{:?}", event);
         }
     });
     Ok(())

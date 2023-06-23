@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Basic example of pulsing a single line.
+
 use gpiocdev::line::Value;
 use gpiocdev::Request;
 use std::result::Result;
@@ -12,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request the line and set its value
     let req = Request::builder()
         .on_chip("/dev/gpiochip0")
-        .with_consumer("set_one")
+        .with_consumer("pulse-line-value")
         .with_line(22)
         .as_output(Value::Active)
         .request()?;

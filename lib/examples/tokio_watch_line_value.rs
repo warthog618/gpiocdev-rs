@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Example of asynchronously watching for edge events on a single line using tokio.
+
 use anyhow::Context;
-use gpiocdev::tokio::AsyncRequest;
 use gpiocdev::line::{EdgeDetection, Values};
+use gpiocdev::tokio::AsyncRequest;
 use gpiocdev::Request;
 use std::result::Result;
 

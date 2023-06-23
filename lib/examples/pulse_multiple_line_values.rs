@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Basic example of pulsing a multiple lines.
+
 use gpiocdev::line::{Value, Values};
 use gpiocdev::Request;
 use std::result::Result;
@@ -12,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request multiple output lines
     let req = Request::builder()
         .on_chip("/dev/gpiochip0")
-        .with_consumer("set_many")
+        .with_consumer("pulse-multiple-line-values")
         .with_lines(&[17, 22])
         .as_output(Value::Active)
         .request()?;

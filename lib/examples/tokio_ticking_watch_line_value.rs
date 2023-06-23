@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Example of asynchronously watching for edges on a single line using tokio
+// while performing another async task.
+
 use futures::StreamExt;
 use gpiocdev::{line::EdgeDetection, tokio::AsyncRequest, Request};
 use std::time::Instant;
@@ -11,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let gpio22 = gpiocdev::find_named_line("GPIO22").unwrap();
     let req = Request::builder()
         .with_found_line(&gpio22)
-        .with_consumer("tokio ticking watcher")
+        .with_consumer("tokio-ticking-watch-line-value")
         .with_edge_detection(EdgeDetection::BothEdges)
         .request()?;
 

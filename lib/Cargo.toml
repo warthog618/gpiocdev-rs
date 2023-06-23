@@ -43,19 +43,19 @@ uapi_v1 = ["gpiocdev-uapi/uapi_v1"]
 uapi_v2 = ["gpiocdev-uapi/uapi_v2"]
 
 [[example]]
-name = "tokio_watcher"
+name = "tokio_watch_line_value"
 required-features = ["async_tokio"]
 
 [[example]]
-name = "tokio_ticking_watcher"
+name = "tokio_ticking_watch_line_value"
 required-features = ["async_tokio"]
 
 [[example]]
-name = "async_io_watcher"
+name = "async_io_watch_line_value"
 required-features = ["async_io"]
 
 [[example]]
-name = "async_std_watcher"
+name = "async_std_watch_line_value"
 required-features = ["async_io"]
 
 [package.metadata.docs.rs]

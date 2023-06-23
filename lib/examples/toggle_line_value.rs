@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Basic example of toggling a single line.
+
 use anyhow::Context;
 use gpiocdev::line::Value;
 use gpiocdev::Request;
@@ -10,20 +12,22 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let offset = 22;
     let mut value = Value::Active;
 
     let req = Request::builder()
         .on_chip("/dev/gpiochip0")
-        .with_consumer("blinker")
-        .with_line(22)
+        .with_consumer("toggle-line-values")
+        .with_line(offset)
         .as_output(value)
         .request()
         .context("Failed to request line")?;
 
     loop {
+        println!("{}={:?}", offset, value);
         thread::sleep(Duration::from_millis(500));
         value = value.not();
-        println!("{:?}", value);
-        req.set_value(22, value).context("Failed to toggle value")?;
+        req.set_value(offset, value)
+            .context("Failed to set value")?;
     }
 }
