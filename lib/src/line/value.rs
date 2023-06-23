@@ -147,6 +147,14 @@ impl Values {
         self
     }
 
+    /// Toggle all values.
+    pub fn not(&mut self) -> &mut Self {
+        for (_, v) in &mut self.0.iter_mut() {
+            *v = v.not();
+        }
+        self
+    }
+
     /// Toggle the value of a line.
     ///
     /// If not already set then sets the line active.
@@ -181,11 +189,7 @@ impl Values {
     ///
     /// All lines are set to inactive.
     pub fn from_offsets(offsets: &[Offset]) -> Values {
-        let mut values = Values::default();
-        for offset in offsets {
-            values.set(*offset, Value::Inactive);
-        }
-        values
+        offsets.iter().collect()
     }
 
     /// An iterator to visit all values.
@@ -197,6 +201,24 @@ impl Values {
     #[cfg(feature = "uapi_v1")]
     pub(crate) fn contains_key(&self, offset: &Offset) -> bool {
         self.0.contains_key(offset)
+    }
+}
+impl<'a> FromIterator<&'a Offset> for Values {
+    fn from_iter<I: IntoIterator<Item = &'a Offset>>(iter: I) -> Self {
+        let mut values = Values::default();
+        for offset in iter {
+            values.set(*offset, Value::Inactive);
+        }
+        values
+    }
+}
+impl FromIterator<(Offset, Value)> for Values {
+    fn from_iter<I: IntoIterator<Item = (Offset, Value)>>(iter: I) -> Self {
+        let mut values = Values::default();
+        for (offset, value) in iter {
+            values.set(offset, value);
+        }
+        values
     }
 }
 
@@ -409,6 +431,42 @@ mod tests {
             vv.toggle(3);
             assert_eq!(vv.get(1), Some(Value::Inactive));
             assert_eq!(vv.get(2), Some(Value::Active));
+            assert_eq!(vv.get(3), Some(Value::Active));
+        }
+
+        #[test]
+        fn not() {
+            let mut vv: Values = [(1, Value::Active), (2, Value::Inactive), (3, Value::Active)]
+                .into_iter()
+                .collect();
+            assert_eq!(vv.get(1), Some(Value::Active));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Active));
+            vv.not();
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Active));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+            vv.not();
+            assert_eq!(vv.get(1), Some(Value::Active));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Active));
+        }
+
+        #[test]
+        fn from_offset_iterator() {
+            let vv: Values = [1, 2, 3].iter().collect();
+            assert_eq!(vv.get(1), Some(Value::Inactive));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
+            assert_eq!(vv.get(3), Some(Value::Inactive));
+        }
+
+        #[test]
+        fn from_line_value_iterator() {
+            let vv: Values = [(1, Value::Active), (2, Value::Inactive), (3, Value::Active)]
+                .into_iter()
+                .collect();
+            assert_eq!(vv.get(1), Some(Value::Active));
+            assert_eq!(vv.get(2), Some(Value::Inactive));
             assert_eq!(vv.get(3), Some(Value::Active));
         }
 

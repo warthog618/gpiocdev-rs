@@ -48,6 +48,11 @@ mod builder {
         }
 
         #[test]
+        fn request_output_lines() {
+            super::request_output_lines(V1)
+        }
+
+        #[test]
         fn request_mixed_config() {
             super::request_mixed_config(V1)
         }
@@ -154,6 +159,11 @@ mod builder {
         #[test]
         fn request_found_lines() {
             super::request_found_lines(V2)
+        }
+
+        #[test]
+        fn request_output_lines() {
+            super::request_output_lines(V2)
         }
 
         #[test]
@@ -469,7 +479,7 @@ mod builder {
 
         drop(req);
 
-        // -- multi-line output
+        // -- multi-line input
         let offsets = &[2, 7];
         let mut builder = Request::builder();
         builder.on_chip(s.dev_path()).with_lines(offsets).as_input();
@@ -489,7 +499,7 @@ mod builder {
 
         drop(req);
 
-        // -- multi-line input
+        // -- multi-line output
         builder.as_output(Value::Active);
         let req = builder.request().unwrap();
         for offset in offsets {
@@ -628,6 +638,43 @@ mod builder {
                 .unwrap_err(),
             gpiocdev::Error::InvalidArgument("Multiple chips requested.".to_string())
         );
+    }
+
+    #[allow(unused_variables)]
+    fn request_output_lines(abiv: AbiVersion) {
+        use gpiosim::Level;
+
+        let s = Simpleton::new(8);
+
+        let vv: Values = [(3, Value::Active), (1, Value::Inactive), (5, Value::Active)]
+            .into_iter()
+            .collect();
+
+        let mut builder = Request::builder();
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        builder.using_abi_version(abiv);
+        let req = builder
+            .on_chip(s.dev_path())
+            .with_output_lines(&vv)
+            .request()
+            .unwrap();
+        let c = Chip::from_path(s.dev_path()).unwrap();
+        let linfo = c.line_info(1).unwrap();
+        assert!(linfo.used);
+        assert_eq!(linfo.direction, Direction::Output);
+        assert_eq!(s.get_level(1).unwrap(), Level::Low);
+        let linfo = c.line_info(3).unwrap();
+        assert!(linfo.used);
+        assert_eq!(linfo.direction, Direction::Output);
+        assert_eq!(s.get_level(3).unwrap(), Level::High);
+        let linfo = c.line_info(5).unwrap();
+        assert!(linfo.used);
+        assert_eq!(linfo.direction, Direction::Output);
+        assert_eq!(s.get_level(5).unwrap(), Level::High);
+        drop(req);
+        assert!(!c.line_info(1).unwrap().used);
+        assert!(!c.line_info(3).unwrap().used);
+        assert!(!c.line_info(5).unwrap().used);
     }
 
     fn request_mixed_config(abiv: AbiVersion) {

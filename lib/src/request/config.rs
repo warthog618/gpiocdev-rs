@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::line::{
-    self, Bias, Direction, Drive, EdgeDetection, EventClock, Offset, Offsets, Value,
+    self, Bias, Direction, Drive, EdgeDetection, EventClock, Offset, Offsets, Value, Values,
 };
 use crate::{AbiVersion, Error, Result};
 #[cfg(feature = "uapi_v2")]
@@ -353,6 +353,26 @@ impl Config {
     pub fn without_lines(&mut self, offsets: &[Offset]) -> &mut Self {
         for offset in offsets {
             self.remove_line(offset);
+        }
+        self
+    }
+
+    /// Add a set of output lines, with values, to the config.
+    ///
+    /// Note that all configuration mutators applied subsequently only
+    /// apply to this subset of lines.
+    ///
+    /// Passing empty values re-selects the base config for subsequent mutations.
+    pub fn with_output_lines(&mut self, values: &Values) -> &mut Self {
+        self.selected.clear();
+        for (offset, value) in values.iter() {
+            self.select_line(offset);
+            let cfg = self.lcfg.get_mut(offset).unwrap();
+            cfg.direction = Some(Direction::Output);
+            cfg.value = Some(*value);
+            // set input specific options back to default
+            cfg.edge_detection = None;
+            cfg.debounce_period = None;
         }
         self
     }
@@ -1029,6 +1049,25 @@ mod tests {
         assert!(cfg.lcfg.contains_key(&3));
         assert!(cfg.lcfg.contains_key(&5));
         assert!(cfg.lcfg.contains_key(&7));
+    }
+
+    #[test]
+    fn with_output_lines() {
+        let mut cfg = Config::default();
+        let vv: Values = [(3, Value::Active), (5, Value::Inactive)]
+            .into_iter()
+            .collect();
+        cfg.with_output_lines(&vv);
+        assert_eq!(sorted(&cfg.offsets), &[3, 5]);
+        assert_eq!(sorted(&cfg.selected), &[3, 5]);
+        assert_eq!(cfg.lcfg.len(), 2);
+        assert!(cfg.lcfg.contains_key(&3));
+        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Output));
+        assert_eq!(cfg.lcfg.get(&3).unwrap().value, Some(Value::Active));
+
+        assert!(cfg.lcfg.contains_key(&5));
+        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Output));
+        assert_eq!(cfg.lcfg.get(&5).unwrap().value, Some(Value::Inactive));
     }
 
     #[test]

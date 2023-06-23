@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 use crate::chip::Chip;
-use crate::line::{self, Bias, Direction, Drive, EdgeDetection, EventClock, Offset, Value};
+use crate::line::{self, Bias, Direction, Drive, EdgeDetection, EventClock, Offset, Value, Values};
 use crate::request::{Config, Request};
 #[cfg(feature = "uapi_v1")]
 use crate::AbiVersion;
@@ -459,6 +459,14 @@ impl Builder {
         self
     }
 
+    /// Add a set of output lines, with values, to the selected lines.
+    ///
+    /// This is a short form of `with_line(offset)` and `as_output(value)`, applied to a set of line values.
+    pub fn with_output_lines(&mut self, values: &Values) -> &mut Self {
+        self.cfg.with_output_lines(values);
+        self
+    }
+
     /// Remove a set of lines from the request.
     pub fn without_lines(&mut self, offsets: &[Offset]) -> &mut Self {
         self.cfg.without_lines(offsets);
@@ -909,6 +917,46 @@ mod tests {
         b.without_lines(&[3, 5]);
         assert_eq!(b.cfg.num_lines(), 3);
         assert_eq!(b.cfg.offsets, &[1, 0, 7]);
+    }
+
+    fn sorted(s: &[u32]) -> Vec<u32> {
+        let mut x = s.to_vec();
+        x.sort();
+        x
+    }
+
+    #[test]
+    fn with_output_lines() {
+        let mut b = Builder::default();
+        assert_eq!(b.cfg.num_lines(), 0);
+
+        let vv: Values = [(3, Value::Active), (5, Value::Inactive)]
+            .into_iter()
+            .collect();
+
+        b.with_output_lines(&vv);
+        assert_eq!(b.cfg.num_lines(), 2);
+        assert_eq!(sorted(&b.cfg.offsets), &[3, 5]);
+        assert!(b.cfg.lcfg.contains_key(&3));
+        assert_eq!(b.cfg.lcfg.get(&3).unwrap().direction, Some(Output));
+        assert_eq!(b.cfg.lcfg.get(&3).unwrap().value, Some(Value::Active));
+        assert!(b.cfg.lcfg.contains_key(&5));
+        assert_eq!(b.cfg.lcfg.get(&5).unwrap().direction, Some(Output));
+        assert_eq!(b.cfg.lcfg.get(&5).unwrap().value, Some(Value::Inactive));
+
+        let vv: Values = [(3, Value::Inactive), (1, Value::Active)]
+            .into_iter()
+            .collect();
+
+        b.with_output_lines(&vv);
+        assert_eq!(b.cfg.num_lines(), 3);
+        assert_eq!(sorted(&b.cfg.offsets), &[1, 3, 5]);
+        assert!(b.cfg.lcfg.contains_key(&3));
+        assert_eq!(b.cfg.lcfg.get(&3).unwrap().direction, Some(Output));
+        assert_eq!(b.cfg.lcfg.get(&3).unwrap().value, Some(Value::Inactive));
+        assert!(b.cfg.lcfg.contains_key(&1));
+        assert_eq!(b.cfg.lcfg.get(&1).unwrap().direction, Some(Output));
+        assert_eq!(b.cfg.lcfg.get(&1).unwrap().value, Some(Value::Active));
     }
 
     #[test]
