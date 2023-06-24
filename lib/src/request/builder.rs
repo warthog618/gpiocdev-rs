@@ -461,7 +461,8 @@ impl Builder {
 
     /// Add a set of output lines, with values, to the selected lines.
     ///
-    /// This is a short form of `with_line(offset)` and `as_output(value)`, applied to a set of line values.
+    /// This is a short form of [`with_line(offset)`](#method.with_line) and
+    /// [`as_output(value)`](#method.as_output), applied to a set of line values.
     pub fn with_output_lines(&mut self, values: &Values) -> &mut Self {
         self.cfg.with_output_lines(values);
         self
