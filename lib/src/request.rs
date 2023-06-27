@@ -223,17 +223,42 @@ impl Request {
     /// # }
     /// ```
     pub fn value(&self, offset: Offset) -> Result<Value> {
-        if !self.offsets.contains(&offset) {
-            return Err(Error::InvalidArgument(
-                "offset is not a requested line.".to_string(),
-            ));
+        let idx = self
+            .offsets
+            .iter()
+            .position(|v| v == &offset)
+            .ok_or_else(|| Error::InvalidArgument("offset is not a requested line.".to_string()))?;
+        self.do_value(idx)
+    }
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn do_value(&self, idx: usize) -> Result<Value> {
+        match self.abiv {
+            AbiVersion::V1 => self.do_value_v1(idx),
+            AbiVersion::V2 => self.do_value_v2(idx),
         }
-        let mut values = Values::default();
-        values.set(offset, Value::Inactive);
-        self.values(&mut values)?;
-        values.get(offset).ok_or_else(|| {
-            Error::UnexpectedResponse("Requested value not present in response.".to_string())
-        })
+    }
+    #[cfg(not(feature = "uapi_v2"))]
+    fn do_value(&self, idx: usize) -> Result<Value> {
+        self.do_value_v1(idx)
+    }
+    #[cfg(not(feature = "uapi_v1"))]
+    fn do_value(&self, idx: usize) -> Result<Value> {
+        self.do_value_v2(idx)
+    }
+    #[cfg(feature = "uapi_v1")]
+    fn do_value_v1(&self, idx: usize) -> Result<Value> {
+        let mut vals = v1::LineValues::default();
+        v1::get_line_values(self.fd, &mut vals)
+            .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))?;
+        Ok(vals.get(idx).into())
+    }
+    #[cfg(feature = "uapi_v2")]
+    fn do_value_v2(&self, idx: usize) -> Result<Value> {
+        let mut vals = v2::LineValues::default();
+        vals.mask.set(idx, true);
+        v2::get_line_values(self.fd, &mut vals)
+            .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))?;
+        Ok(vals.get(idx).unwrap().into())
     }
 
     /// Set the values for a subset of the requested lines.
@@ -309,14 +334,40 @@ impl Request {
     /// # Ok(())
     /// # }
     pub fn set_value(&self, offset: Offset, value: Value) -> Result<()> {
-        if !self.offsets.contains(&offset) {
-            return Err(Error::InvalidArgument(
-                "offset is not a requested line.".to_string(),
-            ));
+        let idx = self
+            .offsets
+            .iter()
+            .position(|v| v == &offset)
+            .ok_or_else(|| Error::InvalidArgument("offset is not a requested line.".to_string()))?;
+        self.do_set_value(idx, value)
+    }
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn do_set_value(&self, idx: usize, value: Value) -> Result<()> {
+        match self.abiv {
+            AbiVersion::V1 => self.do_set_value_v1(idx, value),
+            AbiVersion::V2 => self.do_set_value_v2(idx, value),
         }
-        let mut values = Values::default();
-        values.set(offset, value);
-        self.set_values(&values)
+    }
+    #[cfg(not(feature = "uapi_v2"))]
+    fn do_set_value(&self, idx: usize, value: Value) -> Result<()> {
+        self.do_set_value_v1(idx, value)
+    }
+    #[cfg(not(feature = "uapi_v1"))]
+    fn do_set_value(&self, idx: usize, value: Value) -> Result<()> {
+        self.do_set_value_v2(idx, value)
+    }
+    #[cfg(feature = "uapi_v1")]
+    fn do_set_value_v1(&self, idx: usize, value: Value) -> Result<()> {
+        let mut vals = v1::LineValues::default();
+        vals.set(idx, value.into());
+        v1::set_line_values(self.fd, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
+    }
+    #[cfg(feature = "uapi_v2")]
+    fn do_set_value_v2(&self, idx: usize, value: Value) -> Result<()> {
+        let mut vals = v2::LineValues::default();
+        vals.bits.set(idx, value.into());
+        vals.mask.set(idx, true);
+        v2::set_line_values(self.fd, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
 
     /// Get a snapshot of the requested configuration.
