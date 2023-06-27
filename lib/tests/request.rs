@@ -1413,12 +1413,32 @@ mod request {
     #[allow(unused_variables)]
     fn set_value(abiv: AbiVersion) {
         let s = Simpleton::new(3);
+        let offset = 1;
         let offsets = &[0, 1, 2];
 
+        // single line request
         let mut builder = Request::builder();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
 
+        let req = builder
+            .on_chip(s.dev_path())
+            .with_line(offset)
+            .as_output(Value::Inactive)
+            .request()
+            .unwrap();
+
+        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::Low);
+
+        assert!(req.set_value(offset, Value::Active).is_ok());
+        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::High);
+
+        assert!(req.set_value(offset, Value::Inactive).is_ok());
+        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::Low);
+
+        drop(req);
+
+        // multi line request
         let req = builder
             .on_chip(s.dev_path())
             .with_lines(offsets)
