@@ -539,11 +539,11 @@ impl Request {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_read_edge_event(&self) -> Result<EdgeEvent> {
         // bbuf is statically sized to the greater of the v1/v2 size so it can be placed on the stack.
-        let mut bbuf = [0; mem::size_of::<v2::LineEdgeEvent>()];
+        let mut bbuf = [0; mem::size_of::<v2::LineEdgeEvent>() / 8];
         // and dynamically sliced down to the required size, if necessary
-        let buf = &mut bbuf[0..self.edge_event_size()];
+        let buf = &mut bbuf[0..self.edge_event_u64_size()];
         let n = self.read_edge_events_into_slice(buf)?;
-        self.do_edge_event_from_slice(&buf[0..n])
+        self.do_edge_event_from_slice(&buf[0..n / 8])
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_read_edge_event(&self) -> Result<EdgeEvent> {
@@ -561,25 +561,27 @@ impl Request {
 
     // External buffer/slice methods.
 
-    /// Read edge events from the kernel into a user space `[u8]` slice.
+    /// Read edge events from the kernel into a user space `[u64]` slice.
     ///
     /// This is a helper function for the special case where the user prefers to
     /// manage the buffer containing raw events, e.g. to place it in a specific
     /// location in memory.
     ///
+    /// The slice is `u64` to satisfy alignment requirements on 32bit platforms.
+    ///
     /// This will read in [`edge_event_size`] sized chunks so `buf` must be at least
-    /// as large as one event.
+    /// as large as one event. e.g. `vec![0_u64; edge_event_size()/8]`
     ///
     /// This function will block if no events are available to read.
     ///
     /// * `buf` - The slice to contain the raw events.
     ///
     /// [`edge_event_size`]: #method.edge_event_size
-    pub fn read_edge_events_into_slice(&self, buf: &mut [u8]) -> Result<usize> {
+    pub fn read_edge_events_into_slice(&self, buf: &mut [u64]) -> Result<usize> {
         gpiocdev_uapi::read_event(self.fd, buf).map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))
     }
 
-    /// Read an edge event from a `[u8]` slice.
+    /// Read an edge event from a `[u64]` slice.
     ///
     /// This is a helper function for the special case where the user prefers to
     /// manage the buffer containing raw events, e.g. to place it in a specific
@@ -591,11 +593,11 @@ impl Request {
     /// * `buf` - The slice containing the raw event.
     ///
     /// [`read_edge_events_into_slice`]: #method.read_edge_events_into_slice
-    pub fn edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
+    pub fn edge_event_from_slice(&self, buf: &[u64]) -> Result<EdgeEvent> {
         self.do_edge_event_from_slice(buf)
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
+    fn do_edge_event_from_slice(&self, buf: &[u64]) -> Result<EdgeEvent> {
         Ok(match self.abiv {
             AbiVersion::V1 => {
                 let mut ee = EdgeEvent::from(
@@ -613,7 +615,7 @@ impl Request {
         })
     }
     #[cfg(not(feature = "uapi_v2"))]
-    fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
+    fn do_edge_event_from_slice(&self, buf: &[u64]) -> Result<EdgeEvent> {
         let mut ee = EdgeEvent::from(
             v1::LineEdgeEvent::from_slice(buf).map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
         );
@@ -622,16 +624,26 @@ impl Request {
         Ok(ee)
     }
     #[cfg(not(feature = "uapi_v1"))]
-    fn do_edge_event_from_slice(&self, buf: &[u8]) -> Result<EdgeEvent> {
+    fn do_edge_event_from_slice(&self, buf: &[u64]) -> Result<EdgeEvent> {
         Ok(EdgeEvent::from(
             v2::LineEdgeEvent::from_slice(buf).map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
         ))
     }
 
+    /// The number of u64s required to buffer a single event read from the request.
+    ///
+    /// This can be used to size an external `[u64]` slice to read events into.
+    /// The slice size should be a multiple of this size.
+    /// e.g. `vec![0_u64; edge_event_u64_size()]` is a buffer large enough for one event.
+    pub fn edge_event_u64_size(&self) -> usize {
+        self.do_edge_event_size() / 8
+    }
+
     /// The number of bytes required to buffer a single event read from the request.
     ///
-    /// This can be used to size an external `[u8]` slice to read events into.
+    /// This can be used to size an external `[u64]` slice to read events into.
     /// The slice size should be a multiple of this size.
+    /// e.g. `vec![0_u64; edge_event_size()]` is a buffer large enough for 8 events.
     pub fn edge_event_size(&self) -> usize {
         self.do_edge_event_size()
     }

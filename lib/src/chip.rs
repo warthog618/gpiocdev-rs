@@ -251,27 +251,27 @@ impl Chip {
         debug_assert!(
             mem::size_of::<v2::LineInfoChangeEvent>() >= mem::size_of::<v1::LineInfoChangeEvent>()
         );
-        let mut bbuf = [0; mem::size_of::<v2::LineInfoChangeEvent>()];
-        let evsize = self.line_info_change_event_size();
+        let mut bbuf = [0_u64; mem::size_of::<v2::LineInfoChangeEvent>() / 8];
+        let evt_u64_size = self.line_info_change_event_u64_size();
         // and dynamically sliced down to the required size, if necessary
-        let buf = &mut bbuf[0..evsize];
+        let buf = &mut bbuf[0..evt_u64_size];
         let n = gpiocdev_uapi::read_event(self.fd, buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
-        self.line_info_change_event_from_slice(&buf[0..n])
+        self.line_info_change_event_from_slice(&buf[0..n / 8])
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
-        let mut buf = [0; mem::size_of::<uapi::LineInfoChangeEvent>()];
+        let mut buf = [0_u64; mem::size_of::<uapi::LineInfoChangeEvent>()/8];
         let n = gpiocdev_uapi::read_event(self.fd, &mut buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
-        self.line_info_change_event_from_slice(&buf[0..n])
+        self.line_info_change_event_from_slice(&buf[0..n / 8])
     }
 
     /// An iterator for info change events from the chip.
     pub fn info_change_events(&self) -> InfoChangeIterator {
         InfoChangeIterator {
             chip: self,
-            buf: vec![0; self.line_info_change_event_size()],
+            buf: vec![0_u64; self.line_info_change_event_u64_size()],
         }
     }
 
@@ -325,7 +325,7 @@ impl Chip {
     }
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    fn line_info_change_event_from_slice(&self, d: &[u8]) -> Result<InfoChangeEvent> {
+    fn line_info_change_event_from_slice(&self, d: &[u64]) -> Result<InfoChangeEvent> {
         Ok(match self.actual_abi_version()? {
             V1 => InfoChangeEvent::from(
                 v1::LineInfoChangeEvent::from_slice(d)
@@ -338,11 +338,15 @@ impl Chip {
         })
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
-    fn line_info_change_event_from_slice(&self, d: &[u8]) -> Result<InfoChangeEvent> {
+    fn line_info_change_event_from_slice(&self, d: &[u64]) -> Result<InfoChangeEvent> {
         Ok(InfoChangeEvent::from(
             uapi::LineInfoChangeEvent::from_slice(d)
                 .map_err(|e| Error::Uapi(UapiCall::LICEFromBuf, e))?,
         ))
+    }
+
+    fn line_info_change_event_u64_size(&self) -> usize {
+        self.line_info_change_event_size()/8
     }
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -401,14 +405,15 @@ pub struct InfoChangeIterator<'a> {
     chip: &'a Chip,
 
     /// The buffer for uAPI edge events, sized by event size and capacity
-    buf: Vec<u8>,
+    buf: Vec<u64>,
 }
 
 impl<'a> InfoChangeIterator<'a> {
     fn read_event(&mut self) -> Result<InfoChangeEvent> {
         let n = gpiocdev_uapi::read_event(self.chip.fd, &mut self.buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
-        self.chip.line_info_change_event_from_slice(&self.buf[0..n])
+        self.chip
+            .line_info_change_event_from_slice(&self.buf[0..n / 8])
     }
 }
 

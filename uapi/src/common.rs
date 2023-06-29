@@ -16,10 +16,10 @@ pub fn has_event(fd: RawFd) -> Result<bool> {
 }
 
 /// Read an event from a chip or request file descriptor.
-pub fn read_event(fd: RawFd, buf: &mut [u8]) -> Result<usize> {
+pub fn read_event(fd: RawFd, buf: &mut [u64]) -> Result<usize> {
     unsafe {
         let bufptr: *mut libc::c_void = std::ptr::addr_of_mut!(*buf) as *mut libc::c_void;
-        match libc::read(fd, bufptr, buf.len()) {
+        match libc::read(fd, bufptr, buf.len() * 8) {
             -1 => Err(Error::from_errno()),
             x => Ok(x.try_into().unwrap()),
         }

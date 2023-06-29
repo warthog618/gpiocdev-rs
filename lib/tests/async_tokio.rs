@@ -275,7 +275,8 @@ mod request {
         builder.using_abi_version(abiv);
         let req = AsyncRequest::new(builder.request().unwrap());
 
-        let mut buf = vec![0; req.as_ref().edge_event_size() * 3];
+        let evt_u64_size = req.as_ref().edge_event_size() / 8;
+        let mut buf = vec![0_u64; evt_u64_size * 3];
 
         // create four events
         s.toggle(offset).unwrap();
@@ -292,7 +293,7 @@ mod request {
             .read_edge_events_into_slice(buf.as_mut_slice())
             .await
             .unwrap();
-        assert_eq!(wlen, buf.capacity());
+        assert_eq!(wlen, buf.capacity() * 8);
 
         let evt = req.as_ref().edge_event_from_slice(buf.as_slice()).unwrap();
         assert_eq!(evt.offset, offset);
@@ -307,7 +308,7 @@ mod request {
 
         let evt = req
             .as_ref()
-            .edge_event_from_slice(&buf.as_slice()[req.as_ref().edge_event_size()..])
+            .edge_event_from_slice(&buf.as_slice()[evt_u64_size..])
             .unwrap();
         assert_eq!(evt.offset, offset);
         assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Falling);
@@ -321,7 +322,7 @@ mod request {
 
         let evt = req
             .as_ref()
-            .edge_event_from_slice(&buf.as_slice()[req.as_ref().edge_event_size() * 2..])
+            .edge_event_from_slice(&buf.as_slice()[evt_u64_size * 2..])
             .unwrap();
         assert_eq!(evt.offset, offset);
         assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Rising);

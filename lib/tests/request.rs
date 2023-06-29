@@ -10,6 +10,12 @@ use std::path::{Path, PathBuf};
 use std::thread::sleep;
 use std::time::Duration;
 
+// max time to wait for an event - expected or not
+const EVENT_WAIT_TIMEOUT: Duration = Duration::from_millis(25);
+
+// max time to allow events to propagate fromn the sim to cdev
+const PROPAGATION_DELAY: Duration = Duration::from_millis(10);
+
 mod builder {
     use std::collections::HashMap;
 
@@ -21,7 +27,7 @@ mod builder {
 
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
-        use gpiocdev::line::EdgeDetection;
+        use gpiocdev::line::{EdgeDetection, Value};
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V1;
         use gpiosim::Simpleton;
@@ -130,12 +136,54 @@ mod builder {
                 )
             );
         }
+
+        #[test]
+        fn request_line_config() {
+            use gpiocdev::line::{Config, Direction};
+
+            let s = Simpleton::new(4);
+
+            let mut builder = Request::builder();
+            #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+            builder.using_abi_version(V1);
+
+            let req = builder
+                .on_chip(s.dev_path())
+                .with_line(2)
+                .as_output(Value::Inactive)
+                .with_line(3)
+                .as_output(Value::Active)
+                .request();
+            assert!(req.is_ok());
+            if let Ok(req) = req {
+                let cfg = req.line_config(1);
+                assert!(cfg.is_none());
+                let cfg = req.line_config(2);
+                assert_eq!(
+                    cfg,
+                    Some(Config {
+                        direction: Some(Direction::Output),
+                        value: Some(Value::Inactive),
+                        ..Default::default()
+                    })
+                );
+                let cfg = req.line_config(3);
+                assert_eq!(
+                    cfg,
+                    Some(Config {
+                        direction: Some(Direction::Output),
+                        value: Some(Value::Active),
+                        ..Default::default()
+                    })
+                );
+            }
+        }
     }
 
     #[cfg(feature = "uapi_v2")]
     mod uapi_v2 {
         use gpiocdev::chip::Chip;
-        use gpiocdev::line::{Direction, EdgeDetection, EventClock};
+        use gpiocdev::line::{Direction, EdgeDetection, EventClock, Value};
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V2;
         use gpiosim::Simpleton;
@@ -315,6 +363,42 @@ mod builder {
             // the kernel buffer, but the size is only a hint, so the test would
             // have to make assumptions about kernel internals.
         }
+
+        #[test]
+        fn request_line_config() {
+            use gpiocdev::line::{Config, Direction};
+
+            let s = Simpleton::new(4);
+            let req = Request::builder()
+                .on_chip(s.dev_path())
+                .with_line(2)
+                .as_input()
+                .with_line(3)
+                .as_output(Value::Active)
+                .request();
+            assert!(req.is_ok());
+            if let Ok(req) = req {
+                let cfg = req.line_config(1);
+                assert!(cfg.is_none());
+                let cfg = req.line_config(2);
+                assert_eq!(
+                    cfg,
+                    Some(Config {
+                        direction: Some(Direction::Input),
+                        ..Default::default()
+                    })
+                );
+                let cfg = req.line_config(3);
+                assert_eq!(
+                    cfg,
+                    Some(Config {
+                        direction: Some(Direction::Output),
+                        value: Some(Value::Active),
+                        ..Default::default()
+                    })
+                );
+            }
+        }
     }
 
     fn request(abiv: AbiVersion) {
@@ -406,7 +490,7 @@ mod builder {
         let req = builder.request().unwrap();
 
         s.set_pull(offset, Level::High).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         let info = c.line_info(offset).unwrap();
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Input);
@@ -541,7 +625,7 @@ mod builder {
         builder.using_abi_version(abiv);
         builder.on_chip(s.dev_path()).with_lines(offsets).as_is();
         let req = builder.request().unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         let info = c.line_info(l_in).unwrap();
         assert_eq!(info.direction, Direction::Input);
         let info = c.line_info(l_out).unwrap();
@@ -812,49 +896,13 @@ mod builder {
             .request();
         assert_eq!(res.unwrap_err(), ChipError(path, ErrorKind::NotGpioDevice));
     }
-
-    #[test]
-    fn request_line_config() {
-        use gpiocdev::line::{Config, Direction};
-
-        let s = Simpleton::new(4);
-        let req = Request::builder()
-            .on_chip(s.dev_path())
-            .with_line(2)
-            .as_input()
-            .with_line(3)
-            .as_output(Value::Active)
-            .request();
-        assert!(req.is_ok());
-        if let Ok(req) = req {
-            let cfg = req.line_config(1);
-            assert!(cfg.is_none());
-            let cfg = req.line_config(2);
-            assert_eq!(
-                cfg,
-                Some(Config {
-                    direction: Some(Direction::Input),
-                    ..Default::default()
-                })
-            );
-            let cfg = req.line_config(3);
-            assert_eq!(
-                cfg,
-                Some(Config {
-                    direction: Some(Direction::Output),
-                    value: Some(Value::Active),
-                    ..Default::default()
-                })
-            );
-        }
-    }
 }
 
 mod request {
     use super::*;
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
-        use super::propagation_delay;
+        use super::wait_propagation_delay;
         use gpiocdev::line::{EdgeDetection, EdgeKind};
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V1;
@@ -946,13 +994,13 @@ mod request {
 
             // create four events
             s.toggle(offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
 
             let mut iter = req.edge_events();
 
@@ -1001,21 +1049,23 @@ mod request {
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .request()
                 .unwrap();
-            let mut buf = vec![0; req.edge_event_size() * 3];
+
+            let evt_size64 = req.edge_event_size() / 8;
+            let mut buf = vec![0_u64; evt_size64 * 3];
 
             // create four events
             s.toggle(offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
 
             // read a buffer full
             let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-            assert_eq!(wlen, buf.capacity());
+            assert_eq!(wlen, buf.capacity() * 8);
 
             let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
             assert_eq!(evt.offset, offset);
@@ -1024,7 +1074,7 @@ mod request {
             assert_eq!(evt.seqno, 0);
 
             let evt = req
-                .edge_event_from_slice(&buf.as_slice()[req.edge_event_size()..])
+                .edge_event_from_slice(&buf.as_slice()[evt_size64..])
                 .unwrap();
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Falling);
@@ -1032,7 +1082,7 @@ mod request {
             assert_eq!(evt.seqno, 0);
 
             let evt = req
-                .edge_event_from_slice(&buf.as_slice()[req.edge_event_size() * 2..])
+                .edge_event_from_slice(&buf.as_slice()[evt_size64 * 2..])
                 .unwrap();
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Rising);
@@ -1068,7 +1118,7 @@ mod request {
 
     #[cfg(feature = "uapi_v2")]
     mod uapi_v2 {
-        use super::propagation_delay;
+        use super::wait_propagation_delay;
         use gpiocdev::line::{EdgeDetection, EdgeKind};
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V2;
@@ -1184,13 +1234,13 @@ mod request {
 
             // create four events
             s.toggle(1).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(2).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(1).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(2).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
 
             let mut iter = req.edge_events();
             let evt = iter.next().unwrap().unwrap();
@@ -1230,21 +1280,23 @@ mod request {
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .request()
                 .unwrap();
-            let mut buf = vec![0; req.edge_event_size() * 3];
+
+            let evt_size64 = req.edge_event_size() / 8;
+            let mut buf = vec![0_u64; evt_size64 * 3];
 
             // create four events
             s.toggle(1).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(2).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(1).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             s.toggle(2).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
 
             // read a buffer full
             let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-            assert_eq!(wlen, buf.capacity());
+            assert_eq!(wlen, buf.capacity() * 8);
 
             let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
             assert_eq!(evt.offset, 1);
@@ -1253,7 +1305,7 @@ mod request {
             assert_eq!(evt.seqno, 1);
 
             let evt = req
-                .edge_event_from_slice(&buf.as_slice()[req.edge_event_size()..])
+                .edge_event_from_slice(&buf.as_slice()[evt_size64..])
                 .unwrap();
             assert_eq!(evt.offset, 2);
             assert_eq!(evt.kind, EdgeKind::Rising);
@@ -1261,7 +1313,7 @@ mod request {
             assert_eq!(evt.seqno, 2);
 
             let evt = req
-                .edge_event_from_slice(&buf.as_slice()[req.edge_event_size() * 2..])
+                .edge_event_from_slice(&buf.as_slice()[evt_size64 * 2..])
                 .unwrap();
             assert_eq!(evt.offset, 1);
             assert_eq!(evt.kind, EdgeKind::Falling);
@@ -1318,12 +1370,12 @@ mod request {
             assert_eq!(v, Value::Inactive);
 
             s.pullup(*offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             let v = req.value(*offset).unwrap();
             assert_eq!(v, Value::Active);
 
             s.pulldown(*offset).unwrap();
-            propagation_delay();
+            wait_propagation_delay();
             let v = req.value(*offset).unwrap();
             assert_eq!(v, Value::Inactive);
         }
@@ -1362,7 +1414,7 @@ mod request {
 
         s.pullup(1).unwrap();
         s.pullup(3).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Inactive));
         assert_eq!(vals.get(1), Some(Value::Active));
@@ -1370,7 +1422,7 @@ mod request {
 
         s.pullup(0).unwrap();
         s.pulldown(3).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Active));
         assert_eq!(vals.get(1), Some(Value::Active));
@@ -1380,7 +1432,7 @@ mod request {
         let mut vals = Values::from_offsets(offsets);
         s.pulldown(0).unwrap();
         s.pullup(3).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Inactive));
         assert_eq!(vals.get(1), Some(Value::Active));
@@ -1388,7 +1440,7 @@ mod request {
 
         // subset
         s.pulldown(0).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         let mut vals = Values::from_offsets(&[0, 3]);
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Inactive));
@@ -1650,7 +1702,7 @@ mod request {
         assert_eq!(req.has_edge_event(), Ok(false));
 
         s.pullup(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert_eq!(req.has_edge_event(), Ok(true));
     }
 
@@ -1671,10 +1723,10 @@ mod request {
             .request()
             .unwrap();
 
-        assert_eq!(req.wait_edge_event(Duration::from_millis(1)), Ok(false));
+        assert_eq!(req.wait_edge_event(EVENT_WAIT_TIMEOUT), Ok(false));
 
         s.pullup(offset).unwrap();
-        assert_eq!(req.wait_edge_event(Duration::from_millis(1)), Ok(true));
+        assert_eq!(req.wait_edge_event(EVENT_WAIT_TIMEOUT), Ok(true));
     }
 
     #[allow(unused_variables)]
@@ -1695,7 +1747,7 @@ mod request {
             .unwrap();
 
         s.pullup(offset).unwrap();
-        assert_eq!(req.wait_edge_event(Duration::from_millis(1)), Ok(true));
+        assert_eq!(req.wait_edge_event(EVENT_WAIT_TIMEOUT), Ok(true));
         let evt = req.read_edge_event().unwrap();
         assert_eq!(evt.kind, EdgeKind::Rising);
         assert_eq!(evt.offset, offset);
@@ -1708,7 +1760,7 @@ mod request {
         }
 
         s.pulldown(offset).unwrap();
-        assert_eq!(req.wait_edge_event(Duration::from_millis(1)), Ok(true));
+        assert_eq!(req.wait_edge_event(EVENT_WAIT_TIMEOUT), Ok(true));
         let evt = req.read_edge_event().unwrap();
         assert_eq!(evt.kind, EdgeKind::Falling);
         if abiv == AbiVersion::V2 {
@@ -1735,21 +1787,23 @@ mod request {
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
             .unwrap();
-        let mut buf = vec![0; req.edge_event_size() * 3];
+
+        let evt_size64 = req.edge_event_size() / 8;
+        let mut buf = vec![0_u64; evt_size64 * 3];
 
         // create four events
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
 
         // read a buffer full
         let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-        assert_eq!(wlen, buf.capacity());
+        assert_eq!(wlen, buf.capacity() * 8);
 
         // read remaining event
         let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
@@ -1818,13 +1872,13 @@ mod edge_event_buffer {
 
         // create four events
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert_eq!(buf.len(), 0);
 
         // read one (copy two to buffer and return the first)
@@ -1863,9 +1917,9 @@ mod edge_event_buffer {
 
         // create two events
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert!(buf.is_empty());
 
         // read one
@@ -1894,7 +1948,7 @@ mod edge_event_buffer {
         assert_eq!(buf.has_event(), Ok(false));
 
         s.pullup(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
         _ = buf.read_event().unwrap();
         assert_eq!(buf.has_event(), Ok(false));
@@ -1916,7 +1970,7 @@ mod edge_event_buffer {
         assert_eq!(buf.has_event(), Ok(false));
 
         s.pullup(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
         let evt = buf.read_event().unwrap();
         assert_eq!(evt.kind, EdgeKind::Rising);
@@ -1928,7 +1982,7 @@ mod edge_event_buffer {
         }
 
         s.pulldown(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
         let evt = buf.read_event().unwrap();
         assert_eq!(evt.kind, EdgeKind::Falling);
@@ -1955,7 +2009,7 @@ mod edge_event_buffer {
         assert_eq!(buf.has_event(), Ok(false));
 
         s.pullup(offset).unwrap();
-        let evt = buf.wait_event(Duration::from_millis(1)).unwrap();
+        let evt = buf.wait_event(EVENT_WAIT_TIMEOUT).unwrap();
         assert_eq!(evt.kind, EdgeKind::Rising);
         assert_eq!(evt.offset, offset);
         #[cfg(feature = "uapi_v2")]
@@ -1965,7 +2019,7 @@ mod edge_event_buffer {
         }
 
         s.pulldown(offset).unwrap();
-        let evt = buf.wait_event(Duration::from_millis(1)).unwrap();
+        let evt = buf.wait_event(EVENT_WAIT_TIMEOUT).unwrap();
         assert_eq!(evt.kind, EdgeKind::Falling);
         #[cfg(feature = "uapi_v2")]
         {
@@ -1976,8 +2030,8 @@ mod edge_event_buffer {
 }
 
 // allow time for a gpiosim set to propagate to cdev
-fn propagation_delay() {
-    sleep(Duration::from_millis(1));
+fn wait_propagation_delay() {
+    sleep(PROPAGATION_DELAY);
 }
 
 struct Symlink {

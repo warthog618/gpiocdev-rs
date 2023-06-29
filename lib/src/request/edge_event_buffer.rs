@@ -15,39 +15,41 @@ pub struct EdgeEventBuffer<'a> {
     req: &'a Request,
 
     /// The size of an individual edge event stored in the buffer.
-    event_size: usize,
+    event_u64_size: usize,
 
-    /// The number of bytes currently written into the buffer
+    /// The number of u64s currently written into the buffer
     filled: usize,
 
-    /// The number of bytes currently read from the buffer.
+    /// The number of u64s currently read from the buffer.
     read: usize,
 
     /// The buffer for uAPI edge events, sized by event size and capacity
-    buf: Vec<u8>,
+    buf: Vec<u64>,
 }
 
 impl<'a> EdgeEventBuffer<'a> {
     pub(super) fn new(req: &Request, event_size: usize, capacity: usize) -> EdgeEventBuffer {
+        debug_assert!(event_size % 8 == 0);
+        let event_u64_size = event_size / 8;
         EdgeEventBuffer {
             req,
-            event_size,
+            event_u64_size,
             filled: 0,
             read: 0,
-            buf: vec![0; max(capacity, 1) * event_size],
+            buf: vec![0_u64; max(capacity, 1) * event_u64_size],
         }
     }
 
     /// The number of events that can be stored in the buffer.
     pub fn capacity(&self) -> usize {
-        self.buf.capacity() / self.event_size
+        self.buf.capacity() / self.event_u64_size
     }
 
     /// The number of unread events currently stored in this buffer.
     ///
     /// This does not include events which may be buffered in the kernel.
     pub fn len(&self) -> usize {
-        (self.filled - self.read) / self.event_size
+        (self.filled - self.read) / self.event_u64_size
     }
 
     /// Returns true if there are no unread events in the buffer.
@@ -76,7 +78,7 @@ impl<'a> EdgeEventBuffer<'a> {
     /// [`wait_event`]: #method.wait_event
     pub fn read_event(&mut self) -> Result<EdgeEvent> {
         if self.read < self.filled {
-            let evt_end = self.read + self.event_size;
+            let evt_end = self.read + self.event_u64_size;
             let evt = &self.buf[self.read..evt_end];
             self.read = evt_end;
             return self.req.edge_event_from_slice(evt);
@@ -87,11 +89,12 @@ impl<'a> EdgeEventBuffer<'a> {
         // Could turn these into run-time errors, but they should never happen
         // so make them asserts to keep it simple.
         assert!(n > 0);
-        assert_eq!(n % self.event_size, 0);
-        self.filled = n;
-        self.read = self.event_size;
+        assert_eq!(n % (self.event_u64_size * 8), 0);
+        let n64 = n / 8; // convert from bytes to 64bit blocks
+        self.filled = n64;
+        self.read = self.event_u64_size;
         self.req
-            .edge_event_from_slice(&self.buf[0..self.event_size])
+            .edge_event_from_slice(&self.buf[0..self.event_u64_size])
     }
 
     /// Wait for an edge event from the request.

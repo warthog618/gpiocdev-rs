@@ -145,12 +145,12 @@ fn edge_latency(b: &mut Bencher, abiv: AbiVersion) {
 
     b.iter(|| {
         s.set_pull(offset, pull).unwrap();
-        // read into slice to avoid allocating
-        req.read_edge_events_into_slice(&mut event).unwrap();
         pull = match pull {
             Level::High => Level::Low,
             Level::Low => Level::High,
         };
+        // read into slice to avoid allocating
+        req.read_edge_events_into_slice(&mut event).unwrap();
     });
 }
 
@@ -208,11 +208,11 @@ fn edge_event_allocation(b: &mut Bencher, abiv: AbiVersion) {
 
     b.iter(|| {
         s.set_pull(offset, pull).unwrap();
-        // allocating the event
-        let _ = req.read_edge_event().unwrap();
         pull = match pull {
             Level::High => Level::Low,
             Level::Low => Level::High,
         };
+        // allocating the event
+        let _ = req.read_edge_event().unwrap();
     });
 }

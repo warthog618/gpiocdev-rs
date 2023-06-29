@@ -192,14 +192,14 @@ impl AsyncRequest {
     ///    .as_input()
     ///    .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
     ///    .request()?;
-    /// let mut buf = vec![0; req.edge_event_size() * 3];
+    /// let mut buf = vec![0_u64; req.edge_event_u64_size() * 3];
     /// let areq = AsyncRequest::new(req);
     /// let num_evts = areq.read_edge_events_into_slice(&mut buf).await?;
     /// // process events in buf...
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn read_edge_events_into_slice(&self, buf: &mut [u8]) -> Result<usize> {
+    pub async fn read_edge_events_into_slice(&self, buf: &mut [u64]) -> Result<usize> {
         loop {
             let mut guard = self.0.readable().await?;
             let req = self.0.get_ref();
@@ -245,7 +245,6 @@ impl AsyncRequest {
             events: self.0.get_ref().new_edge_event_buffer(capacity),
         }
     }
-
     /// Async form of [`Request::edge_events`].
     ///
     /// # Example
