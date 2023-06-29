@@ -358,6 +358,12 @@ impl Request {
     }
     #[cfg(feature = "uapi_v1")]
     fn do_set_value_v1(&self, idx: usize, value: Value) -> Result<()> {
+        if self.offsets.len() > 1 {
+            return Err(Error::AbiLimitation(
+                AbiVersion::V1,
+                "requires all requested lines".to_string(),
+            ));
+        }
         let mut vals = v1::LineValues::default();
         vals.set(idx, value.into());
         v1::set_line_values(self.fd, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
