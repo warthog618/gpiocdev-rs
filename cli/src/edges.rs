@@ -379,7 +379,7 @@ struct Event {
 
 impl Event {
     fn print(&self, ci: &ChipInfo, opts: &Opts) {
-        print!("{}\t{}\t", self.timestamp, event_kind_name(self.edge.kind));
+        print!("{}\t{:09}\t", self.timestamp, event_kind_name(self.edge.kind));
         if let Some(lname) = &self.name {
             if opts.line_opts.chip.is_some() {
                 print!("{} {} ", ci.name, self.edge.offset);

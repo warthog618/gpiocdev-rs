@@ -395,7 +395,7 @@ pub fn format_time(evtime: u64, timefmt: &TimeFmt) -> String {
     let ts_sec = (evtime / 1000000000) as i64;
     let ts_nsec = (evtime % 1000000000) as u32;
     match timefmt {
-        TimeFmt::Seconds => format!("{}.{}", ts_sec, ts_nsec),
+        TimeFmt::Seconds => format!("{}.{:09}", ts_sec, ts_nsec),
         TimeFmt::Localtime => {
             let t = Local
                 .from_utc_datetime(&NaiveDateTime::from_timestamp_opt(ts_sec, ts_nsec).unwrap());
