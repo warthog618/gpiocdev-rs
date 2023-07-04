@@ -141,7 +141,7 @@ fn edge_latency(b: &mut Bencher, abiv: AbiVersion) {
         .unwrap();
 
     let mut pull = Level::High;
-    let mut event = vec![0; req.edge_event_size()];
+    let mut event = vec![0_u64; req.edge_event_u64_size()];
 
     b.iter(|| {
         s.set_pull(offset, pull).unwrap();
