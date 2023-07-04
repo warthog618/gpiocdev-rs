@@ -12,14 +12,14 @@ license = "Apache-2.0 OR MIT"
 name = "gpiocdev"
 repository = "https://github.com/warthog618/gpiocdev-rs"
 rust-version = "1.62"
-version = "0.4.3"
+version = "0.5.0"
 
 [dependencies]
 async-io = {version = "1.9.0", optional = true}
 bitmaps = "3.2"
 chrono = "0.4"
 futures = {version = "0.3", optional = true}
-gpiocdev-uapi = {version = "0.3", path = "../uapi", default-features = false}
+gpiocdev-uapi = {version = "0.4", path = "../uapi", default-features = false}
 human-sort = "0.2"
 nohash-hasher = "0.2"
 serde = {version = "1.0", optional = true}
