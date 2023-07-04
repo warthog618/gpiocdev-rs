@@ -195,9 +195,10 @@ pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
 
 /// An identifier for which field of the [`LineAttributeValueUnion`] is in use.
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum LineAttributeKind {
     /// The attribute is *inactive* - no fields are in use.
+    #[default]
     Unused = 0,
 
     /// The flags field is in use.
@@ -208,12 +209,6 @@ pub enum LineAttributeKind {
 
     /// The debounce_period_us field is in use.
     Debounce = 3,
-}
-
-impl Default for LineAttributeKind {
-    fn default() -> Self {
-        LineAttributeKind::Unused
-    }
 }
 
 impl TryFrom<u32> for LineAttributeKind {
