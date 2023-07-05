@@ -104,6 +104,17 @@ fn chips() {
     }
 }
 
+macro_rules! common_tests {
+    ($abiv:expr, $($name:ident),*) => {
+        $(
+            #[test]
+            fn $name() {
+                super::$name($abiv)
+            }
+        )*
+        }
+}
+
 mod chip {
     use super::*;
     use gpiocdev::chip::Chip;
@@ -426,71 +437,27 @@ mod chip {
 
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
-        use gpiocdev::AbiVersion::V1;
-
-        #[test]
-        fn line_info() {
-            super::line_info(V1);
-        }
-
-        #[test]
-        fn watch_line_info() {
-            super::watch_line_info(V1);
-        }
-
-        #[test]
-        fn has_line_info_change_event() {
-            super::has_line_info_change_event(V1);
-        }
-
-        #[test]
-        fn read_line_info_change_event() {
-            super::read_line_info_change_event(V1);
-        }
-
-        #[test]
-        fn info_change_events() {
-            super::info_change_events(V1);
-        }
-
-        #[test]
-        fn wait_info_change_event() {
-            super::wait_info_change_event(V1);
+        common_tests! {
+            gpiocdev::AbiVersion::V1,
+            line_info,
+            watch_line_info,
+            has_line_info_change_event,
+            read_line_info_change_event,
+            info_change_events,
+            wait_info_change_event
         }
     }
 
     #[cfg(feature = "uapi_v2")]
     mod uapi_v2 {
-        use gpiocdev::AbiVersion::V2;
-
-        #[test]
-        fn line_info() {
-            super::line_info(V2);
-        }
-
-        #[test]
-        fn watch_line_info() {
-            super::watch_line_info(V2);
-        }
-
-        #[test]
-        fn has_line_info_change_event() {
-            super::has_line_info_change_event(V2);
-        }
-
-        #[test]
-        fn read_line_info_change_event() {
-            super::read_line_info_change_event(V2);
-        }
-
-        #[test]
-        fn info_change_events() {
-            super::info_change_events(V2);
-        }
-
-        #[test]
-        fn wait_info_change_event() {
-            super::wait_info_change_event(V2);
+        common_tests! {
+            gpiocdev::AbiVersion::V2,
+            line_info,
+            watch_line_info,
+            has_line_info_change_event,
+            read_line_info_change_event,
+            info_change_events,
+            wait_info_change_event
         }
     }
 

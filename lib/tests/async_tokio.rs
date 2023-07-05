@@ -3,37 +3,37 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 #[cfg(feature = "async_tokio")]
+macro_rules! common_tests {
+    ($abiv:expr, $($name:ident),*) => {
+        $(
+            #[tokio::test]
+            async fn $name() {
+                super::$name($abiv).await
+            }
+        )*
+        }
+}
+
+#[cfg(feature = "async_tokio")]
 mod chip {
     use gpiocdev::{Chip, Request};
     use std::path::Path;
 
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
-        use gpiocdev::AbiVersion::V1;
-
-        #[tokio::test]
-        async fn read_line_info_change_event() {
-            super::read_line_info_change_event(V1).await
-        }
-
-        #[tokio::test]
-        async fn info_change_events() {
-            super::info_change_events(V1).await
+        common_tests! {
+            gpiocdev::AbiVersion::V1,
+            read_line_info_change_event,
+            info_change_events
         }
     }
 
     #[cfg(feature = "uapi_v2")]
     mod uapi_v2 {
-        use gpiocdev::AbiVersion::V2;
-
-        #[tokio::test]
-        async fn read_line_info_change_event() {
-            super::read_line_info_change_event(V2).await
-        }
-
-        #[tokio::test]
-        async fn info_change_events() {
-            super::info_change_events(V2).await
+        common_tests! {
+            gpiocdev::AbiVersion::V2,
+            read_line_info_change_event,
+            info_change_events
         }
     }
 
@@ -165,51 +165,23 @@ mod request {
 
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
-        use gpiocdev::AbiVersion::V1;
-
-        #[tokio::test]
-        async fn read_edge_event() {
-            super::read_edge_event(V1).await
-        }
-
-        #[tokio::test]
-        async fn read_edge_events_into_slice() {
-            super::read_edge_events_into_slice(V1).await
-        }
-
-        #[tokio::test]
-        async fn new_edge_event_stream() {
-            super::new_edge_event_stream(V1).await
-        }
-
-        #[tokio::test]
-        async fn edge_events() {
-            super::edge_events(V1).await
+        common_tests! {
+            gpiocdev::AbiVersion::V1,
+            read_edge_event,
+            read_edge_events_into_slice,
+            new_edge_event_stream,
+            edge_events
         }
     }
 
     #[cfg(feature = "uapi_v2")]
     mod uapi_v2 {
-        use gpiocdev::AbiVersion::V2;
-
-        #[tokio::test]
-        async fn read_edge_event() {
-            super::read_edge_event(V2).await
-        }
-
-        #[tokio::test]
-        async fn read_edge_events_into_slice() {
-            super::read_edge_events_into_slice(V2).await
-        }
-
-        #[tokio::test]
-        async fn new_edge_event_stream() {
-            super::new_edge_event_stream(V2).await
-        }
-
-        #[tokio::test]
-        async fn edge_events() {
-            super::edge_events(V2).await
+        common_tests! {
+            gpiocdev::AbiVersion::V2,
+            read_edge_event,
+            read_edge_events_into_slice,
+            new_edge_event_stream,
+            edge_events
         }
     }
 

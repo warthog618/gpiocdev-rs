@@ -16,6 +16,17 @@ const EVENT_WAIT_TIMEOUT: Duration = Duration::from_millis(25);
 // max time to allow events to propagate fromn the sim to cdev
 const PROPAGATION_DELAY: Duration = Duration::from_millis(10);
 
+macro_rules! common_tests {
+    ($abiv:expr, $($name:ident),*) => {
+        $(
+            #[test]
+            fn $name() {
+                super::$name($abiv)
+            }
+        )*
+        }
+}
+
 mod builder {
     use std::collections::HashMap;
 
@@ -33,39 +44,15 @@ mod builder {
         use gpiosim::Simpleton;
         use std::time::Duration;
 
-        #[test]
-        fn request() {
-            super::request(V1)
-        }
-
-        #[test]
-        fn request_as_is() {
-            super::request_as_is(V1)
-        }
-
-        #[test]
-        fn request_found_line() {
-            super::request_found_line(V1)
-        }
-
-        #[test]
-        fn request_found_lines() {
-            super::request_found_lines(V1)
-        }
-
-        #[test]
-        fn request_output_lines() {
-            super::request_output_lines(V1)
-        }
-
-        #[test]
-        fn request_mixed_config() {
-            super::request_mixed_config(V1)
-        }
-
-        #[test]
-        fn request_invalid_offset() {
-            super::request_invalid_offset(V1)
+        common_tests! {
+            gpiocdev::AbiVersion::V1,
+            request,
+            request_as_is,
+            request_found_line,
+            request_found_lines,
+            request_output_lines,
+            request_mixed_config,
+            request_invalid_offset
         }
 
         #[test]
@@ -185,43 +172,18 @@ mod builder {
         use gpiocdev::chip::Chip;
         use gpiocdev::line::{Direction, EdgeDetection, EventClock, Value};
         use gpiocdev::request::Request;
-        use gpiocdev::AbiVersion::V2;
         use gpiosim::Simpleton;
         use std::time::Duration;
 
-        #[test]
-        fn request() {
-            super::request(V2)
-        }
-
-        #[test]
-        fn request_as_is() {
-            super::request_as_is(V2)
-        }
-
-        #[test]
-        fn request_found_line() {
-            super::request_found_line(V2)
-        }
-
-        #[test]
-        fn request_found_lines() {
-            super::request_found_lines(V2)
-        }
-
-        #[test]
-        fn request_output_lines() {
-            super::request_output_lines(V2)
-        }
-
-        #[test]
-        fn request_mixed_config() {
-            super::request_mixed_config(V2)
-        }
-
-        #[test]
-        fn request_invalid_offset() {
-            super::request_invalid_offset(V2)
+        common_tests! {
+            gpiocdev::AbiVersion::V2,
+            request,
+            request_as_is,
+            request_found_line,
+            request_found_lines,
+            request_output_lines,
+            request_mixed_config,
+            request_invalid_offset
         }
 
         #[test]
@@ -908,29 +870,18 @@ mod request {
         use gpiocdev::AbiVersion::V1;
         use gpiosim::Simpleton;
 
-        #[test]
-        fn value() {
-            super::value(V1);
-        }
-
-        #[test]
-        fn values() {
-            super::values(V1);
-        }
-
-        #[test]
-        fn set_value() {
-            super::set_value(V1);
-        }
-
-        #[test]
-        fn set_values() {
-            super::set_values(V1);
-        }
-
-        #[test]
-        fn reconfigure() {
-            super::reconfigure(V1);
+        common_tests! {
+            V1,
+            value,
+            values,
+            set_value,
+            set_values,
+            reconfigure,
+            has_edge_event,
+            wait_edge_event,
+            read_edge_event,
+            new_edge_event_buffer,
+            read_edge_events_into_slice
         }
 
         #[test]
@@ -955,26 +906,6 @@ mod request {
                 res.unwrap_err().to_string(),
                 "uAPI ABI v1 cannot reconfigure edge detection."
             );
-        }
-
-        #[test]
-        fn has_edge_event() {
-            super::has_edge_event(V1);
-        }
-
-        #[test]
-        fn wait_edge_event() {
-            super::wait_edge_event(V1);
-        }
-
-        #[test]
-        fn read_edge_event() {
-            super::read_edge_event(V1);
-        }
-
-        #[test]
-        fn new_edge_event_buffer() {
-            super::new_edge_event_buffer(V1);
         }
 
         #[test]
@@ -1027,11 +958,6 @@ mod request {
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 0);
             assert_eq!(evt.seqno, 0);
-        }
-
-        #[test]
-        fn read_edge_events_into_slice() {
-            super::read_edge_events_into_slice(V1)
         }
 
         #[test]
@@ -1121,58 +1047,21 @@ mod request {
         use super::wait_propagation_delay;
         use gpiocdev::line::{EdgeDetection, EdgeKind};
         use gpiocdev::request::Request;
-        use gpiocdev::AbiVersion::V2;
         use gpiosim::Simpleton;
         use std::time::Duration;
 
-        #[test]
-        fn value() {
-            super::value(V2);
-        }
-
-        #[test]
-        fn values() {
-            super::values(V2);
-        }
-
-        #[test]
-        fn set_value() {
-            super::set_value(V2);
-        }
-
-        #[test]
-        fn set_values() {
-            super::set_values(V2);
-        }
-
-        #[test]
-        fn reconfigure() {
-            super::reconfigure(V2);
-        }
-
-        #[test]
-        fn has_edge_event() {
-            super::has_edge_event(V2);
-        }
-
-        #[test]
-        fn wait_edge_event() {
-            super::wait_edge_event(V2);
-        }
-
-        #[test]
-        fn read_edge_event() {
-            super::read_edge_event(V2);
-        }
-
-        #[test]
-        fn read_edge_events_into_slice() {
-            super::read_edge_events_into_slice(V2);
-        }
-
-        #[test]
-        fn new_edge_event_buffer() {
-            super::new_edge_event_buffer(V2);
+        common_tests! {
+            gpiocdev::AbiVersion::V2,
+            value,
+            values,
+            set_value,
+            set_values,
+            reconfigure,
+            has_edge_event,
+            wait_edge_event,
+            read_edge_event,
+            new_edge_event_buffer,
+            read_edge_events_into_slice
         }
 
         #[test]
