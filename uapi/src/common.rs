@@ -118,12 +118,6 @@ pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
 #[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
 pub struct Errno(pub i32);
 
-impl Errno {
-    pub fn description(&self) -> String {
-        std::io::Error::from_raw_os_error(self.0).to_string()
-    }
-}
-
 impl From<&std::io::Error> for Errno {
     fn from(e: &std::io::Error) -> Self {
         Errno(e.raw_os_error().unwrap_or(0))
@@ -131,7 +125,7 @@ impl From<&std::io::Error> for Errno {
 }
 impl std::fmt::Display for Errno {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.description())
+        write!(f, "{}", std::io::Error::from_raw_os_error(self.0))
     }
 }
 
