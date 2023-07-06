@@ -15,10 +15,9 @@ use super::common::{ValidationResult, IOCTL_MAGIC};
 
 // common to ABI v1 and v2.
 pub use super::common::{
-    get_chip_info, unwatch_line_info, ChipInfo, LineEdgeEventKind, LineInfoChangeKind, Offset,
-    Offsets, Padding, UnderReadError, ValidationError,
+    get_chip_info, unwatch_line_info, ChipInfo, Errno, Error, LineEdgeEventKind,
+    LineInfoChangeKind, Name, Offset, Offsets, Padding, Result, UnderReadError, ValidationError,
 };
-use super::{Error, Name, Result};
 
 #[repr(u8)]
 enum Ioctl {
