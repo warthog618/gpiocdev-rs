@@ -16,12 +16,25 @@ pub fn has_event(fd: RawFd) -> Result<bool> {
 }
 
 /// Read an event from a chip or request file descriptor.
+///
+/// Returns the number of u64 words read.
 pub fn read_event(fd: RawFd, buf: &mut [u64]) -> Result<usize> {
     unsafe {
         let bufptr: *mut libc::c_void = std::ptr::addr_of_mut!(*buf) as *mut libc::c_void;
         match libc::read(fd, bufptr, buf.len() * 8) {
             -1 => Err(Error::from_errno()),
-            x => Ok(x.try_into().unwrap()),
+            x => {
+                let size: usize = x.try_into().unwrap();
+                if size % 8 == 0 {
+                    Ok(size / 8)
+                } else {
+                    Err(Error::from(UnderReadError::new(
+                        "read_event",
+                        buf.len() * 8,
+                        size,
+                    )))
+                }
+            }
         }
     }
 }
@@ -167,7 +180,7 @@ impl Error {
 #[error("Reading {obj} returned {found} bytes, expected {expected}.")]
 pub struct UnderReadError {
     /// The struct that under read.
-    pub obj: String,
+    pub obj: &'static str,
     /// The number of bytes expected.
     pub expected: usize,
     /// The number of bytes read.
@@ -176,9 +189,9 @@ pub struct UnderReadError {
 
 impl UnderReadError {
     /// Create an UnderReadError.
-    pub fn new<S: Into<String>>(obj: S, expected: usize, found: usize) -> UnderReadError {
+    pub fn new(obj: &'static str, expected: usize, found: usize) -> UnderReadError {
         UnderReadError {
-            obj: obj.into(),
+            obj,
             expected,
             found,
         }
@@ -304,6 +317,12 @@ impl Offsets {
     #[inline]
     pub fn set(&mut self, idx: usize, offset: Offset) {
         self.0[idx] = offset;
+    }
+
+    /// Copy offsets from an iterable list.
+    pub fn copy_from_slice(&mut self, s: &[u32]) {
+        let extent = std::cmp::min(NUM_LINES_MAX, s.len());
+        self.0[0..extent].copy_from_slice(s);
     }
 }
 

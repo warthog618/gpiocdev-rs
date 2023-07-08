@@ -7,13 +7,10 @@ use std::fs::File;
 use std::mem;
 use std::os::unix::prelude::{FromRawFd, RawFd};
 
-use super::common::{ValidationResult, IOCTL_MAGIC};
+use super::common::IOCTL_MAGIC;
 
 // common to ABI v1 and v2.
-pub use super::common::{
-    get_chip_info, unwatch_line_info, ChipInfo, Errno, Error, LineEdgeEventKind,
-    LineInfoChangeKind, Name, Offset, Offsets, Padding, Result, UnderReadError, ValidationError,
-};
+pub use super::common::*;
 
 #[repr(u8)]
 enum Ioctl {
@@ -185,6 +182,11 @@ impl LineInfoChangeEvent {
             .validate()
             .map_err(|e| ValidationError::new("kind", e))
     }
+
+    /// The number of u64 words required to store a LineInfoChangeEvent.
+    pub fn u64_size() -> usize {
+        mem::size_of::<LineInfoChangeEvent>() / 8
+    }
 }
 
 /// Information about a GPIO line handle request.
@@ -350,6 +352,12 @@ impl LineValues {
             *dst = *src;
         }
         n
+    }
+
+    /// Copy values from an iterable list - in order of requested offsets.
+    pub fn copy_from_slice(&mut self, s: &[u8]) {
+        let extent = std::cmp::min(64usize, s.len());
+        self.0[0..extent].copy_from_slice(s);
     }
 
     /// Return the value of a line.
@@ -529,6 +537,11 @@ impl LineEdgeEvent {
         self.kind
             .validate()
             .map_err(|e| ValidationError::new("kind", e))
+    }
+
+    /// The number of u64 words required to store a LineEdgeEvent.
+    pub fn u64_size() -> usize {
+        mem::size_of::<LineEdgeEvent>() / 8
     }
 }
 
