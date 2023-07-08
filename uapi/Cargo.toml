@@ -21,6 +21,9 @@ libc = "0.2"
 nix = "0.26"
 thiserror = "1.0"
 
+[dev-dependencies]
+gpiosim = "0.3"
+
 [features]
 default = ["uapi_v2"]
 uapi_v1 = []
