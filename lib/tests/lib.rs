@@ -8,6 +8,8 @@
 //  - kernel supports uAPI versions corresponding to selected build features
 
 use gpiosim::Bank;
+use human_sort::compare;
+use std::cmp::Ordering;
 
 #[test]
 fn find_named_line() {
@@ -36,7 +38,11 @@ fn find_named_line() {
 
     let l = gpiocdev::find_named_line("fl apple").unwrap();
     // depending on how other tests are running, the order of the sim chips is not 100% predictable.
-    if sim.chips()[0].dev_path() < sim.chips()[1].dev_path() {
+    if compare(
+        &sim.chips()[0].dev_path().to_string_lossy(),
+        &sim.chips()[1].dev_path().to_string_lossy(),
+    ) == Ordering::Less
+    {
         assert_eq!(&l.chip, sim.chips()[0].dev_path());
         assert_eq!(l.info.offset, 6);
     } else {
@@ -79,7 +85,11 @@ fn find_named_lines() {
     let found = gpiocdev::find_named_lines(&["fls apple"], false).unwrap();
     assert_eq!(found.len(), 1);
     let l = found.get(&"fls apple").unwrap();
-    if sim.chips()[0].dev_path() < sim.chips()[1].dev_path() {
+    if compare(
+        &sim.chips()[0].dev_path().to_string_lossy(),
+        &sim.chips()[1].dev_path().to_string_lossy(),
+    ) == Ordering::Less
+    {
         assert_eq!(&l.chip, sim.chips()[0].dev_path());
         assert_eq!(l.info.offset, 6);
     } else {
@@ -96,7 +106,7 @@ fn find_named_lines() {
     let found = gpiocdev::find_named_lines(&["fls banana", "fls piggly"], true).unwrap();
     assert_eq!(found.len(), 2);
 
-    let found = gpiocdev::find_named_lines(&["fl nada"], true).unwrap();
+    let found = gpiocdev::find_named_lines(&["fls nada"], true).unwrap();
     assert_eq!(found.len(), 0);
 
     let found =
@@ -105,7 +115,11 @@ fn find_named_lines() {
     assert_eq!(&l.chip, sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
     let l = found.get(&"fls apple").unwrap();
-    if sim.chips()[0].dev_path() < sim.chips()[1].dev_path() {
+    if compare(
+        &sim.chips()[0].dev_path().to_string_lossy(),
+        &sim.chips()[1].dev_path().to_string_lossy(),
+    ) == Ordering::Less
+    {
         assert_eq!(&l.chip, sim.chips()[0].dev_path());
         assert_eq!(l.info.offset, 6);
     } else {
