@@ -247,7 +247,7 @@ mod request {
         builder.using_abi_version(abiv);
         let req = AsyncRequest::new(builder.request().unwrap());
 
-        let evt_u64_size = req.as_ref().edge_event_size() / 8;
+        let evt_u64_size = req.as_ref().edge_event_u64_size();
         let mut buf = vec![0_u64; evt_u64_size * 3];
 
         // create four events
@@ -472,6 +472,6 @@ mod request {
 
     // allow time for a gpiosim set to propagate to cdev
     async fn propagation_delay() {
-        tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
     }
 }

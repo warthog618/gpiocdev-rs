@@ -2,19 +2,18 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use crate::common::wait_propagation_delay;
 use gpiocdev::line::{EdgeDetection, EdgeKind, Value, Values};
 use gpiocdev::request::Request;
 use gpiocdev::AbiVersion;
 use gpiosim::Simpleton;
 use std::path::{Path, PathBuf};
-use std::thread::sleep;
 use std::time::Duration;
+
+mod common;
 
 // max time to wait for an event - expected or not
 const EVENT_WAIT_TIMEOUT: Duration = Duration::from_millis(25);
-
-// max time to allow events to propagate fromn the sim to cdev
-const PROPAGATION_DELAY: Duration = Duration::from_millis(10);
 
 macro_rules! common_tests {
     ($abiv:expr, $($name:ident),*) => {
@@ -28,13 +27,12 @@ macro_rules! common_tests {
 }
 
 mod builder {
-    use std::collections::HashMap;
-
     use super::*;
     use gpiocdev::chip::{Chip, ErrorKind};
     use gpiocdev::line::{Bias, Direction, Drive, Info};
     use gpiocdev::Error::GpioChip as ChipError;
     use gpiocdev::FoundLine;
+    use std::collections::HashMap;
 
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
@@ -864,7 +862,7 @@ mod request {
     use super::*;
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
-        use super::wait_propagation_delay;
+        use crate::common::wait_propagation_delay;
         use gpiocdev::line::{EdgeDetection, EdgeKind};
         use gpiocdev::request::Request;
         use gpiocdev::AbiVersion::V1;
@@ -1044,7 +1042,7 @@ mod request {
 
     #[cfg(feature = "uapi_v2")]
     mod uapi_v2 {
-        use super::wait_propagation_delay;
+        use crate::common::wait_propagation_delay;
         use gpiocdev::line::{EdgeDetection, EdgeKind};
         use gpiocdev::request::Request;
         use gpiosim::Simpleton;
@@ -1916,11 +1914,6 @@ mod edge_event_buffer {
             assert_eq!(evt.seqno, 2);
         }
     }
-}
-
-// allow time for a gpiosim set to propagate to cdev
-fn wait_propagation_delay() {
-    sleep(PROPAGATION_DELAY);
 }
 
 struct Symlink {

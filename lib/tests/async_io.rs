@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 #[cfg(feature = "async_io")]
+mod common;
+
+#[cfg(feature = "async_io")]
 macro_rules! common_tests {
     ($abiv:expr, $($name:ident),*) => {
         $(
@@ -162,6 +165,7 @@ mod chip {
 
 #[cfg(feature = "async_io")]
 mod request {
+    use crate::common::wait_propagation_delay;
     use async_std::future;
     use futures::StreamExt;
     use gpiocdev::async_io::AsyncRequest;
@@ -253,18 +257,18 @@ mod request {
         builder.using_abi_version(abiv);
         let req = AsyncRequest::new(builder.request().unwrap());
 
-        let evt_u64_size = req.as_ref().edge_event_size() / 8;
+        let evt_u64_size = req.as_ref().edge_event_u64_size();
         let mut buf = vec![0_u64; evt_u64_size * 3];
 
         // create four events
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
 
         async_io::block_on(async {
             // read a buffer full
@@ -351,13 +355,13 @@ mod request {
 
         // create four events
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
 
         let mut iter = req.new_edge_event_stream(2);
 
@@ -425,13 +429,13 @@ mod request {
         let req = AsyncRequest::new(builder.request().unwrap());
         // create four events
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
         s.toggle(offset).unwrap();
-        propagation_delay();
+        wait_propagation_delay();
 
         let mut iter = req.edge_events();
 
@@ -480,10 +484,5 @@ mod request {
                 assert_eq!(evt.seqno, 0);
             }
         })
-    }
-
-    // allow time for a gpiosim set to propagate to cdev
-    fn propagation_delay() {
-        std::thread::sleep(std::time::Duration::from_millis(1));
     }
 }
