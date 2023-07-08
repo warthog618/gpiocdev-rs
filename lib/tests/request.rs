@@ -991,7 +991,7 @@ mod request {
 
             // read a buffer full
             let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-            assert_eq!(wlen, buf.capacity() * 8);
+            assert_eq!(wlen, buf.capacity());
 
             let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
             assert_eq!(evt.offset, offset);
@@ -1017,7 +1017,7 @@ mod request {
 
             // read remaining event
             let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-            assert_eq!(wlen, req.edge_event_size());
+            assert_eq!(wlen, req.edge_event_u64_size());
 
             let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
             assert_eq!(evt.offset, offset);
@@ -1185,7 +1185,7 @@ mod request {
 
             // read a buffer full
             let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-            assert_eq!(wlen, buf.capacity() * 8);
+            assert_eq!(wlen, buf.capacity());
 
             let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
             assert_eq!(evt.offset, 1);
@@ -1211,7 +1211,7 @@ mod request {
 
             // read remaining event
             let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-            assert_eq!(wlen, req.edge_event_size());
+            assert_eq!(wlen, req.edge_event_u64_size());
 
             let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
             assert_eq!(evt.offset, 2);
@@ -1692,11 +1692,11 @@ mod request {
 
         // read a buffer full
         let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-        assert_eq!(wlen, buf.capacity() * 8);
+        assert_eq!(wlen, buf.capacity());
 
         // read remaining event
         let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
-        assert_eq!(wlen, req.edge_event_size());
+        assert_eq!(wlen, req.edge_event_u64_size());
     }
 
     #[allow(unused_variables)]

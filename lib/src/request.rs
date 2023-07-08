@@ -543,7 +543,7 @@ impl Request {
         // and dynamically sliced down to the required size, if necessary
         let buf = &mut bbuf[0..self.edge_event_u64_size()];
         let n = self.read_edge_events_into_slice(buf)?;
-        self.do_edge_event_from_slice(&buf[0..n / 8])
+        self.do_edge_event_from_slice(&buf[0..n])
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_read_edge_event(&self) -> Result<EdgeEvent> {
@@ -570,9 +570,11 @@ impl Request {
     /// The slice is `u64` to satisfy alignment requirements on 32bit platforms.
     ///
     /// This will read in [`edge_event_size`] sized chunks so `buf` must be at least
-    /// as large as one event. e.g. `vec![0_u64; edge_event_size()/8]`
+    /// as large as one event. e.g. `vec![0_u64; edge_event_u64_size()]`
     ///
     /// This function will block if no events are available to read.
+    ///
+    /// Returns the numner of u64 words read.
     ///
     /// * `buf` - The slice to contain the raw events.
     ///

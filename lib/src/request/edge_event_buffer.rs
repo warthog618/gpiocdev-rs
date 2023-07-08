@@ -89,9 +89,8 @@ impl<'a> EdgeEventBuffer<'a> {
         // Could turn these into run-time errors, but they should never happen
         // so make them asserts to keep it simple.
         assert!(n > 0);
-        assert_eq!(n % (self.event_u64_size * 8), 0);
-        let n64 = n / 8; // convert from bytes to 64bit blocks
-        self.filled = n64;
+        assert_eq!(n % (self.event_u64_size), 0);
+        self.filled = n;
         self.read = self.event_u64_size;
         self.req
             .edge_event_from_slice(&self.buf[0..self.event_u64_size])

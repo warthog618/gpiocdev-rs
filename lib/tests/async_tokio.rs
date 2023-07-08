@@ -265,7 +265,7 @@ mod request {
             .read_edge_events_into_slice(buf.as_mut_slice())
             .await
             .unwrap();
-        assert_eq!(wlen, buf.capacity() * 8);
+        assert_eq!(wlen, buf.capacity());
 
         let evt = req.as_ref().edge_event_from_slice(buf.as_slice()).unwrap();
         assert_eq!(evt.offset, offset);
@@ -311,7 +311,7 @@ mod request {
             .read_edge_events_into_slice(buf.as_mut_slice())
             .await
             .unwrap();
-        assert_eq!(wlen, req.as_ref().edge_event_size());
+        assert_eq!(wlen, req.as_ref().edge_event_u64_size());
 
         let evt = req.as_ref().edge_event_from_slice(buf.as_slice()).unwrap();
         assert_eq!(evt.offset, offset);
