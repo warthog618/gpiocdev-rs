@@ -119,6 +119,7 @@ impl LineValues {
     /// * `idx` - The index into the [`LineRequest.offsets`] for the line of interest.
     ///
     /// [`LineRequest.offsets`]: struct@LineRequest
+    #[inline]
     pub fn get(&self, idx: usize) -> Option<bool> {
         if !self.mask.get(idx) {
             return None;
@@ -134,6 +135,7 @@ impl LineValues {
     /// * `active` - The logical state of the line to be set.
     ///
     /// [`LineRequest.offsets`]: struct@LineRequest
+    #[inline]
     pub fn set(&mut self, idx: usize, active: bool) {
         self.bits.set(idx, active);
         self.mask.set(idx, true);
@@ -147,6 +149,7 @@ impl LineValues {
     /// * `idx` - The index into the [`LineRequest.offsets`] for the line of interest.
     ///
     /// [`LineRequest.offsets`]: struct@LineRequest
+    #[inline]
     pub fn unset_mask(&mut self, idx: usize) {
         self.mask.set(idx, false);
     }
@@ -156,6 +159,7 @@ impl LineValues {
 ///
 /// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lv` - The line values to be populated.
+#[inline]
 pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
     // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
     match unsafe {
@@ -180,6 +184,7 @@ pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
 ///
 /// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lv` - The line values to be set.
+#[inline]
 pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
     // SAFETY: lv is not modified.
     match unsafe {
@@ -415,11 +420,13 @@ pub struct LineConfig {
 
 impl LineConfig {
     /// The nth attribute in the attrs
+    #[inline]
     pub fn attr(&self, idx: usize) -> &LineConfigAttribute {
         &self.attrs.0[idx]
     }
 
     /// The nth attribute in the attrs
+    #[inline]
     pub fn attr_mut(&mut self, idx: usize) -> &mut LineConfigAttribute {
         &mut self.attrs.0[idx]
     }
@@ -429,6 +436,7 @@ impl LineConfig {
 ///
 /// * `lfd` - The fd of the file returned by [`get_line`].
 /// * `lc` - The configuration to be applied.
+#[inline]
 pub fn set_line_config(lfd: RawFd, lc: LineConfig) -> Result<()> {
     // SAFETY: lc is consumed.
     unsafe {
@@ -489,6 +497,7 @@ pub struct LineRequest {
 ///
 /// * `cfd` - The fd of the open chip.
 /// * `lr` - The line request.
+#[inline]
 pub fn get_line(cfd: RawFd, lr: LineRequest) -> Result<File> {
     // SAFETY: lr is consumed and the returned file is drawn from the returned fd.
     unsafe {
@@ -556,6 +565,7 @@ pub struct LineInfo {
 
 impl LineInfo {
     /// The nth attribute in the attrs
+    #[inline]
     pub fn attr(&self, idx: usize) -> &LineAttribute {
         &self.attrs.0[idx]
     }
@@ -583,6 +593,7 @@ impl LineInfo {
 ///
 /// * `cfd` - The fd of the open chip.
 /// * `offset` - The offset of the line.
+#[inline]
 pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
@@ -614,6 +625,7 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
 ///
 /// * `cfd` - The fd of the open chip.
 /// * `offset` - The offset of the line to watch.
+#[inline]
 pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
@@ -725,6 +737,7 @@ impl LineEdgeEvent {
     ///
     /// The buffer is assumed to have been populated by a read of the line request File,
     /// so the content is validated before being returned.
+    #[inline]
     pub fn from_slice(d: &[u64]) -> Result<&LineEdgeEvent> {
         debug_assert!(mem::size_of::<LineEdgeEvent>() % 8 == 0);
         let len = d.len() * 8;

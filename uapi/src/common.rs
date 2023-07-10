@@ -11,6 +11,7 @@ use std::slice;
 use std::time::Duration;
 
 /// Check if the file has an event available to read.
+#[inline]
 pub fn has_event(fd: RawFd) -> Result<bool> {
     wait_event(fd, Duration::ZERO)
 }
@@ -18,6 +19,7 @@ pub fn has_event(fd: RawFd) -> Result<bool> {
 /// Read an event from a chip or request file descriptor.
 ///
 /// Returns the number of u64 words read.
+#[inline]
 pub fn read_event(fd: RawFd, buf: &mut [u64]) -> Result<usize> {
     unsafe {
         let bufptr: *mut libc::c_void = std::ptr::addr_of_mut!(*buf) as *mut libc::c_void;
@@ -168,6 +170,8 @@ pub enum Error {
 }
 
 impl Error {
+    /// Create an error from the current errno value.
+    #[inline]
     pub fn from_errno() -> Error {
         Error::Os(Errno(unsafe { *libc::__errno_location() }))
     }
@@ -189,7 +193,7 @@ pub struct UnderReadError {
 
 impl UnderReadError {
     /// Create an UnderReadError.
-    pub fn new(obj: &'static str, expected: usize, found: usize) -> UnderReadError {
+    pub(crate) fn new(obj: &'static str, expected: usize, found: usize) -> UnderReadError {
         UnderReadError {
             obj,
             expected,
@@ -212,7 +216,7 @@ pub struct ValidationError {
 
 impl ValidationError {
     /// Create a ValidationError.
-    pub fn new<S: Into<String>, T: Into<String>>(field: S, msg: T) -> ValidationError {
+    pub(crate) fn new<S: Into<String>, T: Into<String>>(field: S, msg: T) -> ValidationError {
         ValidationError {
             field: field.into(),
             msg: msg.into(),
@@ -242,6 +246,7 @@ impl Name {
     }
 
     /// Convert the contained name to a OsString slice.
+    #[inline]
     pub fn as_os_str(&self) -> &OsStr {
         unsafe { OsStr::from_bytes(slice::from_raw_parts(&self.0[0], self.strlen())) }
     }

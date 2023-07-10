@@ -86,6 +86,7 @@ bitflags! {
 ///
 /// * 'cfd' - The fd of the open chip.
 /// * `offset` - The offset of the line.
+#[inline]
 pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
@@ -116,6 +117,7 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
 ///
 /// * 'cfd' - The fd of the open chip.
 /// * `offset` - The offset of the line to watch.
+#[inline]
 pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
@@ -265,6 +267,7 @@ bitflags! {
 ///
 /// * 'cfd' - The fd of the open chip.
 /// * `hr` - The line handle request.
+#[inline]
 pub fn get_line_handle(cfd: RawFd, hr: HandleRequest) -> Result<File> {
     // SAFETY: hr is consumed and the returned file is drawn from the returned fd.
     unsafe {
@@ -307,6 +310,7 @@ pub struct HandleConfig {
 ///
 /// * `lf` - The file returned by [`get_line_handle`].
 /// * `hc` - The configuration to be applied.
+#[inline]
 pub fn set_line_config(cfd: RawFd, hc: HandleConfig) -> Result<()> {
     // SAFETY: hc is consumed.
     unsafe {
@@ -397,6 +401,7 @@ impl Default for LineValues {
 ///
 /// * `lf` - The file returned by [`get_line_handle`] or [`get_line_event`].
 /// * `vals` - The line values to be populated.
+#[inline]
 pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
     // SAFETY: vals are raw integers that are safe to decode.
     match unsafe {
@@ -419,6 +424,7 @@ pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
 ///
 /// * `lf` - The file returned by [`get_line_handle`].
 /// * `vals` - The line values to be set.
+#[inline]
 pub fn set_line_values(lfd: RawFd, vals: &LineValues) -> Result<()> {
     // SAFETY: vals is not modified.
     match unsafe {
@@ -484,6 +490,7 @@ bitflags! {
 ///
 /// * 'cfd' - The fd of the open chip.
 /// * `er` - The line event request.
+#[inline]
 pub fn get_line_event(cfd: RawFd, er: EventRequest) -> Result<File> {
     // SAFETY: er is consumed and the returned file is drawn from the returned fd.
     unsafe {
