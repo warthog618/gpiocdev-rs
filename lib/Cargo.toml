@@ -65,10 +65,6 @@ targets = []
 
 [[bench]]
 harness = false
-name = "builder"
-
-[[bench]]
-harness = false
 name = "event"
 
 [[bench]]
@@ -78,3 +74,7 @@ name = "request"
 [[bench]]
 harness = false
 name = "sim"
+
+[[bench]]
+harness = false
+name = "value"
