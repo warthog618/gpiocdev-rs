@@ -22,6 +22,7 @@ nix = "0.26"
 thiserror = "1.0"
 
 [dev-dependencies]
+criterion = "0.5"
 gpiosim = "0.3"
 
 [features]
@@ -32,3 +33,11 @@ uapi_v2 = []
 [package.metadata.docs.rs]
 all-features = true
 targets = []
+
+[[bench]]
+harness = false
+name = "event"
+
+[[bench]]
+harness = false
+name = "request"
