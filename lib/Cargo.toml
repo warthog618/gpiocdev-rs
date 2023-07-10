@@ -69,6 +69,10 @@ name = "builder"
 
 [[bench]]
 harness = false
+name = "event"
+
+[[bench]]
+harness = false
 name = "request"
 
 [[bench]]
