@@ -69,8 +69,8 @@ fn on_input() {
     wait_propagation_delay();
     assert_eq!(get_line_values(lfd, &mut values), Ok(()));
     assert_eq!(values.get(0), Some(true));
-    assert!(!values.bits.get(1)); // reset to 0 by the kernel despite the mask being clear.
-    assert!(!values.bits.get(2)); // also reset to 0, not reflecting the value of the line.
+    assert_eq!(values.bits & 0x02, 0); // reset to 0 by the kernel despite the mask being clear.
+    assert_eq!(values.bits & 0x04, 0); // also reset to 0, not reflecting the value of the line.
     assert_eq!(values.get(3), Some(false));
 }
 

@@ -339,7 +339,7 @@ mod tests {
             let offsets = Vec::from([1, 5, 3, 8]);
             let mut src = Values::default();
             let dst = src.to_v2(&[]);
-            assert!(dst.bits.is_empty());
+            assert_eq!(dst.bits, 0);
             src.set(1, Value::Active);
             src.set(3, Value::Inactive);
             src.set(7, Value::Active); // should be ignored
@@ -349,7 +349,7 @@ mod tests {
             assert!(dst.get(1).is_none()); // 5
             assert!(!dst.get(2).unwrap()); // 3
             assert!(dst.get(3).unwrap()); // 8
-            assert_eq!(dst.mask.into_value(), 0b1101); // only 3 entries set
+            assert_eq!(dst.mask, 0b1101); // only 3 entries set
         }
 
         #[test]

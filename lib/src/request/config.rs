@@ -6,8 +6,6 @@ use crate::line::{
     self, Bias, Direction, Drive, EdgeDetection, EventClock, Offset, Offsets, Value, Values,
 };
 use crate::{AbiVersion, Error, Result};
-#[cfg(feature = "uapi_v2")]
-use bitmaps::Bitmap;
 #[cfg(feature = "uapi_v1")]
 use gpiocdev_uapi::v1;
 #[cfg(feature = "uapi_v2")]
@@ -522,8 +520,7 @@ impl Config {
         for (idx, offset) in self.offsets.iter().enumerate() {
             // unwrap is safe here as offsets match lcfg keys
             let lcfg = self.lcfg.get(offset).unwrap();
-            let mut mask = Bitmap::default();
-            mask.set(idx, true);
+            let mask = 0x01 << idx;
             let lflags: v2::LineFlags = lcfg.into();
             match flags.get_mut(&lflags) {
                 Some(bits) => {
@@ -547,14 +544,16 @@ impl Config {
             }
             if lcfg.direction == Some(Direction::Output) {
                 values.mask |= mask;
-                values.bits.set(idx, lcfg.value().into());
+                if lcfg.value() == Value::Active {
+                    values.bits |= mask;
+                }
             }
         }
         // have room for 10 attributes, excluding one set of flags.
         let mut num_attrs = flags.len() + debounced.len() - 1;
         // Check bits, not mask, as kernel defaults values to 0 if not specified,
         // so all outputs set to inactive can be skipped.
-        if !values.bits.is_empty() {
+        if values.bits != 0 {
             num_attrs += 1;
         }
         if num_attrs > v2::NUM_ATTRS_MAX {
@@ -568,11 +567,12 @@ impl Config {
             ));
         }
         // find flags with most lines set => default flags
-        let mut max_ls = 0;
+        let mut max_lines = 0;
         let mut base_flags = v2::LineFlags::default();
         for (flg, ls) in flags.iter() {
-            if ls.len() > max_ls {
-                max_ls = ls.len();
+            let lines = ls.count_ones();
+            if lines > max_lines {
+                max_lines = lines;
                 base_flags = *flg;
             }
         }
@@ -595,7 +595,7 @@ impl Config {
         }
 
         // outputs values, if any
-        if !values.bits.is_empty() {
+        if values.bits != 0 {
             let attr = cfg.attr_mut(num_attrs);
             attr.mask = values.mask;
             attr.attr.set_values(values.bits);
@@ -615,7 +615,7 @@ impl Config {
 }
 
 #[cfg(feature = "uapi_v2")]
-type LineSet = Bitmap<64>;
+type LineSet = u64;
 
 /// An iterator over the currently selected lines in a Config.
 // This is strictly internal as external usage could invalidate the safety contract.
@@ -1278,10 +1278,7 @@ mod tests {
 
         // first is flags for line 4
         let lca = lc.attrs.0[0];
-        assert!(!lca.mask.get(0));
-        assert!(!lca.mask.get(1));
-        assert!(lca.mask.get(2));
-        assert!(!lca.mask.get(3));
+        assert_eq!(lca.mask, 0b0100);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
         unsafe {
             assert!(lca
@@ -1293,24 +1290,15 @@ mod tests {
 
         // second is values for outputs
         let lca = lc.attrs.0[1];
-        assert!(lca.mask.get(0));
-        assert!(lca.mask.get(1));
-        assert!(!lca.mask.get(2));
-        assert!(lca.mask.get(3));
+        assert_eq!(lca.mask, 0b1011);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
         unsafe {
-            assert!(lca.attr.value.values.get(0));
-            assert!(!lca.attr.value.values.get(1));
-            assert!(!lca.attr.value.values.get(2));
-            assert!(lca.attr.value.values.get(3));
+            assert_eq!(lca.attr.value.values, 0b1001);
         }
 
         // third is debounce for line 4
         let lca = lc.attrs.0[2];
-        assert!(!lca.mask.get(0));
-        assert!(!lca.mask.get(1));
-        assert!(lca.mask.get(2));
-        assert!(!lca.mask.get(3));
+        assert_eq!(lca.mask, 0b0100);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Debounce);
         unsafe {
             assert_eq!(lca.attr.value.debounce_period_us, 10000);

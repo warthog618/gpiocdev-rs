@@ -140,7 +140,7 @@ fn check_info() {
     let mut xattr = LineAttribute::default();
     xattr.set_debounce_period_us(123);
     let attr = lc.attr_mut(0);
-    attr.mask.set(0, true);
+    attr.mask = 1;
     attr.attr = xattr;
     assert_eq!(set_line_config(lfd, lc), Ok(()));
     info = get_line_info(cfd, offset).unwrap();

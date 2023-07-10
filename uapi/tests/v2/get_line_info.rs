@@ -169,7 +169,7 @@ fn check_info() {
     let mut xattr = LineAttribute::default();
     xattr.set_debounce_period_us(123);
     let attr = lr.config.attr_mut(0);
-    attr.mask.set(0, true);
+    attr.mask = 1;
     attr.attr = xattr;
     l = get_line(fd, lr).unwrap();
     info = get_line_info(fd, offset).unwrap();

@@ -1185,13 +1185,7 @@ mod tests {
             assert_eq!(lr.config.num_attrs, 2);
             // first is flags for line inputs
             let lca = lr.config.attrs.0[0];
-            assert!(lca.mask.get(0));
-            assert!(lca.mask.get(1));
-            assert!(lca.mask.get(2));
-            assert!(!lca.mask.get(3));
-            assert!(!lca.mask.get(4));
-            assert!(!lca.mask.get(5));
-            assert!(!lca.mask.get(6));
+            assert_eq!(lca.mask, 0b000111);
             assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
             unsafe {
                 assert!(lca
@@ -1202,22 +1196,11 @@ mod tests {
             }
             // second is values for outputs
             let lca = lr.config.attrs.0[1];
-            assert!(!lca.mask.get(0));
-            assert!(!lca.mask.get(1));
-            assert!(!lca.mask.get(2));
-            assert!(lca.mask.get(3));
-            assert!(lca.mask.get(4));
-            assert!(lca.mask.get(5));
-            assert!(lca.mask.get(6));
+            assert_eq!(lca.mask, 0b1111000);
             assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
             unsafe {
-                assert!(!lca.attr.value.values.get(0)); // inputs should be inactive
-                assert!(!lca.attr.value.values.get(1));
-                assert!(!lca.attr.value.values.get(2));
-                assert!(lca.attr.value.values.get(3)); // two active outputs
-                assert!(lca.attr.value.values.get(4));
-                assert!(!lca.attr.value.values.get(5)); // and two inactive
-                assert!(!lca.attr.value.values.get(6));
+                // inputs should be inactive, outputs as per config
+                assert_eq!(lca.attr.value.values, 0b0011000);
             }
         } else {
             panic!("not a line request");

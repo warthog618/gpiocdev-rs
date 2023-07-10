@@ -254,8 +254,10 @@ impl Request {
     }
     #[cfg(feature = "uapi_v2")]
     fn do_value_v2(&self, idx: usize) -> Result<Value> {
-        let mut vals = v2::LineValues::default();
-        vals.mask.set(idx, true);
+        let mut vals = v2::LineValues {
+            mask: 0x01 << idx,
+            ..Default::default()
+        };
         v2::get_line_values(self.fd, &mut vals)
             .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))?;
         Ok(vals.get(idx).unwrap().into())
@@ -309,7 +311,7 @@ impl Request {
     #[cfg(feature = "uapi_v2")]
     fn do_set_values_v2(&self, values: &Values) -> Result<()> {
         let lv = &values.to_v2(&self.offsets);
-        if lv.mask.is_empty() {
+        if lv.mask == 0 {
             return Err(Error::InvalidArgument(
                 "no requested lines in set values.".to_string(),
             ));
@@ -371,8 +373,11 @@ impl Request {
     #[cfg(feature = "uapi_v2")]
     fn do_set_value_v2(&self, idx: usize, value: Value) -> Result<()> {
         let mut vals = v2::LineValues::default();
-        vals.bits.set(idx, value.into());
-        vals.mask.set(idx, true);
+        let mask = 0x01 << idx;
+        if value == Value::Active {
+            vals.bits |= mask;
+        }
+        vals.mask |= mask;
         v2::set_line_values(self.fd, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
 

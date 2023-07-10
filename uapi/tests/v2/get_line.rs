@@ -179,7 +179,6 @@ fn as_output() {
 
 #[test]
 fn with_output_values() {
-    use bitmaps::Bitmap;
 
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
@@ -196,11 +195,10 @@ fn with_output_values() {
     };
     lr_base.offsets.set(0, offset);
     lr_base.config.num_attrs = 1;
-    let mut values = Bitmap::new();
-    values.set(0, true);
+    let mut values = 1;
     let attr_mut = lr_base.config.attr_mut(0);
     attr_mut.attr.set_values(values);
-    attr_mut.mask.set(0, true);
+    attr_mut.mask = 1;
     let xflags = LineFlags::USED | LineFlags::OUTPUT;
 
     // single line
@@ -220,10 +218,10 @@ fn with_output_values() {
     lr.num_lines = 3;
     lr.offsets.set(1, 0);
     lr.offsets.set(2, 3);
-    values.set(2, true);
+    values |= 0x04;
     let attr_mut = lr.config.attr_mut(0);
     attr_mut.attr.set_values(values);
-    attr_mut.mask.set(2, true);
+    attr_mut.mask |= 0x04;
     let l = get_line(fd, lr).unwrap();
     info = get_line_info(fd, offset).unwrap();
     assert_eq!(

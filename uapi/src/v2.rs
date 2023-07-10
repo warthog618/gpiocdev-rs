@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use bitflags::bitflags;
-use bitmaps::Bitmap;
 use std::convert::TryFrom;
 use std::fmt;
 use std::fs::File;
@@ -81,10 +80,10 @@ bitflags! {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LineValues {
     /// The value of the lines, set to 1 for *active* and 0 for *inactive*.
-    pub bits: Bitmap<64>,
+    pub bits: u64,
 
     /// The lines in a request to access, set to 1 to access and 0 to ignore.
-    pub mask: Bitmap<64>,
+    pub mask: u64,
 }
 
 impl LineValues {
@@ -121,10 +120,12 @@ impl LineValues {
     /// [`LineRequest.offsets`]: struct@LineRequest
     #[inline]
     pub fn get(&self, idx: usize) -> Option<bool> {
-        if !self.mask.get(idx) {
+        debug_assert!(idx < 64);
+        let mask = 0x01 << idx;
+        if self.mask & mask == 0 {
             return None;
         }
-        Some(self.bits.get(idx))
+        Some(self.bits & mask != 0)
     }
 
     /// Set the value of a line.
@@ -137,8 +138,14 @@ impl LineValues {
     /// [`LineRequest.offsets`]: struct@LineRequest
     #[inline]
     pub fn set(&mut self, idx: usize, active: bool) {
-        self.bits.set(idx, active);
-        self.mask.set(idx, true);
+        debug_assert!(idx < 64);
+        let mask = 0x01 << idx;
+        self.mask |= mask;
+        if active {
+            self.bits |= mask;
+        } else {
+            self.bits &= !mask;
+        }
     }
 
     /// Clear the mask bit for a line.
@@ -151,7 +158,9 @@ impl LineValues {
     /// [`LineRequest.offsets`]: struct@LineRequest
     #[inline]
     pub fn unset_mask(&mut self, idx: usize) {
-        self.mask.set(idx, false);
+        debug_assert!(idx < 64);
+        let mask = 0x01 << idx;
+        self.mask &= !mask;
     }
 }
 
@@ -272,7 +281,7 @@ impl LineAttribute {
     }
 
     /// Set the attribute as output values.
-    pub fn set_values(&mut self, values: Bitmap<64>) {
+    pub fn set_values(&mut self, values: u64) {
         self.kind = LineAttributeKind::Values;
         self.value.values = values;
     }
@@ -303,7 +312,7 @@ impl fmt::Debug for LineAttribute {
                 LineAttributeKind::Unused => write!(f, "unused"),
                 LineAttributeKind::Flags => write!(f, "flags: {:?}", self.value.flags),
                 LineAttributeKind::Values => {
-                    write!(f, "values: {:08x}", self.value.values.as_value())
+                    write!(f, "values: {:08x}", self.value.values)
                 }
                 LineAttributeKind::Debounce => {
                     write!(f, "debounce_period_us: {}", self.value.debounce_period_us)
@@ -344,7 +353,7 @@ pub union LineAttributeValueUnion {
     ///  corresponding to the index into [`LineRequest.offsets`].
     ///
     /// [`LineRequest.offsets`]: struct@LineRequest
-    pub values: Bitmap<64>,
+    pub values: u64,
 
     /// The debounce period, in microseconds.
     pub debounce_period_us: u32,
@@ -367,7 +376,7 @@ pub enum LineAttributeValue {
     Flags(LineFlags),
 
     /// The line values.
-    Values(Bitmap<64>),
+    Values(u64),
 }
 
 /// A configuration attribute associated with one or more of the requested lines.
@@ -381,7 +390,7 @@ pub struct LineConfigAttribute {
     /// to the index into [`LineRequest.offsets`].
     ///
     /// [`LineRequest.offsets`]: struct@LineRequest
-    pub mask: Bitmap<64>,
+    pub mask: u64,
 }
 
 /// The set of additional configuration attributes for a line request.
@@ -836,19 +845,20 @@ mod tests {
     }
 
     mod line_values {
-        use super::{Bitmap, LineValues};
+        use super::LineValues;
 
         #[test]
         fn get() {
             let mut a = LineValues::default();
             for idx in [0, 2] {
-                assert!(!a.bits.get(idx), "idx: {}", idx);
+                let mask = 0x1 << idx;
+                assert_eq!(a.bits & mask, 0, "idx: {}", idx);
                 assert!(a.get(idx).is_none(), "idx: {}", idx);
 
-                a.mask.set(idx, true);
+                a.mask |= mask;
                 assert!(!a.get(idx).unwrap(), "idx: {}", idx);
 
-                a.bits.set(idx, true);
+                a.bits |= mask;
                 assert!(a.get(idx).unwrap(), "idx: {}", idx);
             }
         }
@@ -857,43 +867,34 @@ mod tests {
         fn set() {
             let mut a = LineValues::default();
             for idx in [0, 2] {
+                let mask = 0x1 << idx;
                 a.set(idx, false);
-                assert!(a.mask.get(idx), "idx: {}", idx);
-                assert!(!a.bits.get(idx), "idx: {}", idx);
+                assert_eq!(a.mask & mask, mask, "idx: {}", idx);
+                assert_eq!(a.bits & mask, 0, "idx: {}", idx);
 
                 a.set(idx, true);
-                assert!(a.mask.get(idx), "idx: {}", idx);
-                assert!(a.bits.get(idx), "idx: {}", idx);
+                assert_eq!(a.mask & mask, mask, "idx: {}", idx);
+                assert_eq!(a.bits & mask, mask, "idx: {}", idx);
             }
         }
 
         #[test]
         fn unset_mask() {
             let mut a = LineValues {
-                mask: Bitmap::mask(6),
+                mask: 0x7f,
                 ..Default::default()
             };
-            assert_eq!(a.mask.len(), 6);
-            assert!(a.mask.get(0));
-
+            assert_eq!(a.mask & 0x01, 0x01);
             a.unset_mask(0);
-            assert!(!a.mask.get(0));
-            assert_eq!(a.mask.len(), 5);
-            assert!(a.mask.get(3));
+            assert_eq!(a.mask & 0x01, 0);
 
+            assert_eq!(a.mask & 0x08, 0x08);
             a.unset_mask(3);
-            assert!(!a.mask.get(3));
-            assert_eq!(a.mask.len(), 4);
-            assert!(a.mask.get(5));
+            assert_eq!(a.mask & 0x08, 0);
 
+            assert_eq!(a.mask & 0x20, 0x20);
             a.unset_mask(5);
-            assert!(!a.mask.get(5));
-            assert_eq!(a.mask.len(), 3);
-            assert!(!a.mask.get(6));
-
-            a.unset_mask(5);
-            assert!(!a.mask.get(5));
-            assert_eq!(a.mask.len(), 3);
+            assert_eq!(a.mask & 0x20, 0);
         }
 
         #[test]

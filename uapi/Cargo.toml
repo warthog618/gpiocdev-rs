@@ -16,7 +16,6 @@ version = "0.4.0"
 
 [dependencies]
 bitflags = "2.0"
-bitmaps = "3.2"
 libc = "0.2"
 nix = "0.26"
 thiserror = "1.0"
