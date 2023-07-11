@@ -224,8 +224,10 @@ impl Values {
     pub(crate) fn to_v2(&self, offsets: &[Offset]) -> v2::LineValues {
         let mut dst: v2::LineValues = Default::default();
         if self.0.is_empty() {
-            for idx in 0..offsets.len() {
-                dst.mask |= 0x01 << idx;
+            if offsets.len() < 64 {
+                dst.mask = (0x01_u64 << offsets.len()) - 1;
+            } else {
+                dst.mask = !0_u64;
             }
             return dst;
         }
