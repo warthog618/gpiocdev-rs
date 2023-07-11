@@ -7,10 +7,9 @@ use super::Offset;
 use gpiocdev_uapi::v1;
 #[cfg(feature = "uapi_v2")]
 use gpiocdev_uapi::v2;
-use nohash_hasher::IntMap;
 #[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};
-use std::collections::hash_map::Iter;
+use std::cmp::Ordering;
 
 /// The logical level of a line.
 ///
@@ -84,26 +83,104 @@ impl From<u8> for Value {
     }
 }
 
+/// The value of a partiuclar line.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct LineValue {
+    /// the offset of the line
+    pub offset: Offset,
+    /// the value of the line
+    pub value: Value,
+}
+
 /// A  collection of line values.
 ///
 /// Lines are identified by their offset.
 #[derive(Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Values(IntMap<Offset, Value>);
+pub struct Values(Vec<LineValue>);
 impl Values {
-    /// overlays the values from src over the values in the dst.
+    // updates the values in dst with values from src.
+    //
+    // Both sets of offsets must be sorted.
     #[cfg(feature = "uapi_v1")]
-    pub(crate) fn overlay_from_v1(&mut self, offsets: &[Offset], src: &v1::LineValues) {
-        for (idx, offset) in offsets.iter().enumerate() {
-            self.0.insert(*offset, src.get(idx).into());
+    pub(crate) fn update_from_v1(&mut self, offsets: &[Offset], src: &v1::LineValues) {
+        // requested full set
+        if self.0.is_empty() {
+            self.0.reserve_exact(offsets.len());
+            for (idx, offset) in offsets.iter().enumerate() {
+                self.0.push(LineValue {
+                    offset: *offset,
+                    value: Value::from(src.get(idx)),
+                });
+            }
+            return;
+        }
+        // requested explicit set
+        let mut sidx = 0;
+        for lv in self.0.iter_mut() {
+            // values is a superset of src, and both are sorted...
+            while sidx < offsets.len() {
+                match lv.offset.cmp(&offsets[sidx]) {
+                    Ordering::Less => {
+                        // offset is self, but not src, so skip it
+                        break;
+                    }
+                    Ordering::Equal => {
+                        lv.value = Value::from(src.get(sidx));
+                        sidx += 1;
+                        break;
+                    }
+                    Ordering::Greater => {
+                        // offset is in src, but not self, so ignore it
+                        sidx += 1;
+                        continue;
+                    }
+                }
+            }
         }
     }
-    /// overlays the values from src over the values in the dst.
+
+    // updates the values in dst with values from src.
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    pub(crate) fn overlay_from_v2(&mut self, offsets: &[Offset], src: &v2::LineValues) {
+    pub(crate) fn update_from_v2(&mut self, offsets: &[Offset], src: &v2::LineValues) {
+        // requested full set
+        if self.0.is_empty() {
+            self.0.reserve_exact(offsets.len());
+            for (idx, offset) in offsets.iter().enumerate() {
+                self.0.push(LineValue {
+                    offset: *offset,
+                    value: Value::from(src.get(idx).unwrap()),
+                });
+            }
+            return;
+        }
+        // requested explicit set
+        let mut didx = 0;
         for (idx, offset) in offsets.iter().enumerate() {
-            if let Some(val) = src.get(idx) {
-                self.0.insert(*offset, val.into());
+            if let Some(v) = src.get(idx) {
+                // self is a superset of src, and both are sorted, so scan to find offset
+                loop {
+                    if let Some(lv) = self.0.get_mut(didx) {
+                        match lv.offset.cmp(offset) {
+                            Ordering::Less => {
+                                // offset is in src, but not dst, so skip it
+                                didx += 1;
+                                continue;
+                            }
+                            Ordering::Equal => {
+                                lv.value = Value::from(v);
+                                didx += 1;
+                                break;
+                            }
+                            Ordering::Greater => {
+                                // offset is in values, but not offsets, so ignore it
+                                break;
+                            }
+                        }
+                    }
+                    return;
+                }
             }
         }
     }
@@ -111,24 +188,66 @@ impl Values {
     // v1 values are a contiguous list.  If a list shorter than offsets
     // is presented to the kernel then the missing lines default to zero.
     // Build the complete values list here with any missing values being zero filled.
+    ///
+    /// Both sets of offsets must be sorted.
     #[cfg(feature = "uapi_v1")]
     pub(crate) fn to_v1(&self, offsets: &[Offset]) -> v1::LineValues {
         let mut dst: v1::LineValues = Default::default();
-        for (idx, offset) in offsets.iter().enumerate() {
-            if let Some(val) = self.0.get(offset) {
-                dst.set(idx, (*val).into());
+        let mut didx = 0;
+        for lv in self.0.iter() {
+            while didx < offsets.len() {
+                match lv.offset.cmp(&offsets[didx]) {
+                    Ordering::Less => {
+                        // offset is in values, but not offsets, so ignore it
+                        break;
+                    }
+                    Ordering::Equal => {
+                        dst.set(didx, lv.value.into());
+                        didx += 1;
+                        break;
+                    }
+                    Ordering::Greater => {
+                        // offset is in offsets, but not values, so it defaults
+                        didx += 1;
+                        continue;
+                    }
+                }
             }
         }
         dst
     }
+
+    // v2 values are a bitmap in offsets ordering
+    ///
+    /// Both sets of offsets must be sorted.
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     pub(crate) fn to_v2(&self, offsets: &[Offset]) -> v2::LineValues {
         let mut dst: v2::LineValues = Default::default();
-        for (idx, offset) in offsets.iter().enumerate() {
-            if self.is_empty() {
-                dst.set(idx, false);
-            } else if let Some(val) = self.0.get(offset) {
-                dst.set(idx, (*val).into());
+        if self.0.is_empty() {
+            for idx in 0..offsets.len() {
+                dst.mask |= 0x01 << idx;
+            }
+            return dst;
+        }
+        let mut didx = 0;
+        for lv in self.0.iter() {
+            while didx < offsets.len() {
+                match lv.offset.cmp(&offsets[didx]) {
+                    Ordering::Less => {
+                        // offset is in values, but not offsets, so ignore it
+                        break;
+                    }
+                    Ordering::Equal => {
+                        dst.set(didx, lv.value.into());
+                        didx += 1;
+                        break;
+                    }
+                    Ordering::Greater => {
+                        // offset is in offsets, but not values, so it defaults
+                        didx += 1;
+                        continue;
+                    }
+                }
             }
         }
         dst
@@ -137,20 +256,36 @@ impl Values {
     /// Get the value of a line.
     #[inline]
     pub fn get(&self, offset: Offset) -> Option<Value> {
-        self.0.get(&offset).copied()
+        match self.0.binary_search_by(|lv| lv.offset.cmp(&offset)) {
+            Ok(idx) => Some(self.0.get(idx).unwrap().value),
+            Err(_idx) => None,
+        }
     }
 
     /// Set the value of a line.
     #[inline]
-    pub fn set(&mut self, offset: Offset, val: Value) -> &mut Self {
-        self.0.insert(offset, val);
+    pub fn set(&mut self, offset: Offset, value: Value) -> &mut Self {
+        // fast path - appending
+        if let Some(last) = self.0.last() {
+            if offset > last.offset {
+                self.0.push(LineValue { offset, value });
+                return self;
+            }
+        }
+        // slow path - inserting
+        match self.0.binary_search_by(|lv| lv.offset.cmp(&offset)) {
+            Ok(idx) => {
+                self.0.get_mut(idx).unwrap().value = value;
+            }
+            Err(idx) => self.0.insert(idx, LineValue { offset, value }),
+        }
         self
     }
 
     /// Toggle all values.
     pub fn not(&mut self) -> &mut Self {
-        for (_, v) in &mut self.0.iter_mut() {
-            *v = v.not();
+        for lv in self.0.iter_mut() {
+            lv.value = lv.value.not();
         }
         self
     }
@@ -160,14 +295,27 @@ impl Values {
     /// If not already set then sets the line active.
     #[inline]
     pub fn toggle(&mut self, offset: Offset) {
-        let val = self.0.get(&offset).copied().unwrap_or(Value::Inactive);
-        self.0.insert(offset, val.not());
+        match self.0.binary_search_by(|lv| lv.offset.cmp(&offset)) {
+            Ok(idx) => {
+                let lv = self.0.get_mut(idx).unwrap();
+                lv.value = lv.value.not();
+            }
+            Err(idx) => self.0.insert(
+                idx,
+                LineValue {
+                    offset,
+                    value: Value::Active,
+                },
+            ),
+        }
     }
 
     /// Remove any value setting for a line.
     #[inline]
     pub fn unset(&mut self, offset: Offset) {
-        self.0.remove(&offset);
+        if let Ok(idx) = self.0.binary_search_by(|lv| lv.offset.cmp(&offset)) {
+            self.0.remove(idx);
+        }
     }
 
     /// The number of lines for which values are contained in this set.
@@ -193,19 +341,35 @@ impl Values {
     }
 
     /// An iterator to visit all values.
-    pub fn iter(&self) -> Iter<'_, Offset, Value> {
+    pub fn iter(&self) -> std::slice::Iter<'_, LineValue> {
         self.0.iter()
     }
 
-    /// Return true if values contains a matching key.
+    /// Returns true if values are defined for all offsets.
+    ///
+    /// Offsets must be sorted.
     #[cfg(feature = "uapi_v1")]
-    pub(crate) fn contains_key(&self, offset: &Offset) -> bool {
-        self.0.contains_key(offset)
+    pub(crate) fn contains_keys(&self, offsets: &[Offset]) -> bool {
+        let mut start_idx = 0;
+        for offset in offsets.iter() {
+            match self.0[start_idx..self.0.len()]
+                .iter()
+                .position(|lv| &lv.offset == offset)
+            {
+                Some(idx) => {
+                    start_idx += idx + 1;
+                    continue;
+                }
+                None => return false,
+            }
+        }
+        true
     }
 }
 impl<'a> FromIterator<&'a Offset> for Values {
     fn from_iter<I: IntoIterator<Item = &'a Offset>>(iter: I) -> Self {
         let mut values = Values::default();
+        // not quite as fast as append and sort, but also performs de-duping.
         for offset in iter {
             values.set(*offset, Value::Inactive);
         }
@@ -215,6 +379,7 @@ impl<'a> FromIterator<&'a Offset> for Values {
 impl FromIterator<(Offset, Value)> for Values {
     fn from_iter<I: IntoIterator<Item = (Offset, Value)>>(iter: I) -> Self {
         let mut values = Values::default();
+        // not quite as fast as append and sort, but also performs de-duping.
         for (offset, value) in iter {
             values.set(offset, value);
         }
@@ -273,55 +438,84 @@ mod tests {
         #[test]
         #[cfg(feature = "uapi_v1")]
         fn from_v1() {
-            let offsets = Vec::from([1, 5, 3, 8]);
-            let src = v1::LineValues::from_slice(&[1, 1, 0, 1]);
+            // offset must be sorted
+            let offsets = Vec::from([1, 3, 5, 8]);
+            let src = v1::LineValues::from_slice(&[1, 0, 1, 1]);
+            // full set
             let mut dst = Values::default();
+            dst.update_from_v1(&offsets, &src);
+            assert_eq!(dst.get(1), Some(Value::Active));
+            assert_eq!(dst.get(2), None);
+            assert_eq!(dst.get(3), Some(Value::Inactive));
+            assert_eq!(dst.get(4), None);
+            assert_eq!(dst.get(5), Some(Value::Active));
+            assert_eq!(dst.get(6), None);
+            assert_eq!(dst.get(7), None);
+            assert_eq!(dst.get(8), Some(Value::Active));
+
+            // explicit set
+            let mut dst = Values::default();
+            dst.set(1, Value::Inactive);
+            dst.set(3, Value::Active);
             dst.set(4, Value::Active);
             dst.set(7, Value::Inactive);
-            dst.overlay_from_v1(&offsets, &src);
+            dst.update_from_v1(&offsets, &src);
             assert_eq!(dst.get(1), Some(Value::Active));
             assert_eq!(dst.get(2), None);
             assert_eq!(dst.get(3), Some(Value::Inactive));
             assert_eq!(dst.get(4), Some(Value::Active));
-            assert_eq!(dst.get(5), Some(Value::Active));
+            assert_eq!(dst.get(5), None);
             assert_eq!(dst.get(6), None);
             assert_eq!(dst.get(7), Some(Value::Inactive));
-            assert_eq!(dst.get(8), Some(Value::Active));
+            assert_eq!(dst.get(8), None);
         }
 
         #[test]
         #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
         fn from_v2() {
-            let offsets = Vec::from([1, 5, 3, 8]);
+            // offsets must be sorted
+            let offsets = Vec::from([1, 3, 5, 8]);
             let mut src = v2::LineValues::default();
             src.set(0, true);
-            src.set(1, true);
-            src.set(2, false);
+            src.set(1, false);
+            src.set(2, true);
             src.set(3, true);
             let mut dst = Values::default();
+            dst.set(3, Value::Active);
             dst.set(4, Value::Active);
+            dst.set(5, Value::Inactive);
             dst.set(7, Value::Inactive);
-            dst.overlay_from_v2(&offsets, &src);
-            assert_eq!(dst.get(1), Some(Value::Active));
+            dst.update_from_v2(&offsets, &src);
+            assert_eq!(dst.get(1), None);
             assert_eq!(dst.get(2), None);
             assert_eq!(dst.get(3), Some(Value::Inactive));
             assert_eq!(dst.get(4), Some(Value::Active));
             assert_eq!(dst.get(5), Some(Value::Active));
             assert_eq!(dst.get(6), None);
             assert_eq!(dst.get(7), Some(Value::Inactive));
-            assert_eq!(dst.get(8), Some(Value::Active));
+            assert_eq!(dst.get(8), None);
         }
 
         #[test]
         #[cfg(feature = "uapi_v1")]
         fn to_v1() {
-            let offsets = Vec::from([1, 5, 3, 8]);
+            // offsets must be sorted.
+            let offsets = Vec::from([1, 3, 5, 8]);
+            // both empty
             let mut src = Values::default();
             let dst = src.to_v1(&[]);
             assert_eq!(dst.get(0), 0); // 1
             assert_eq!(dst.get(1), 0); // 5
             assert_eq!(dst.get(2), 0); // 3
             assert_eq!(dst.get(3), 0); // 8
+
+            let dst = src.to_v1(&offsets);
+            assert_eq!(dst.get(0), 0); // 1
+            assert_eq!(dst.get(1), 0); // 5
+            assert_eq!(dst.get(2), 0); // 3
+            assert_eq!(dst.get(3), 0); // 8
+
+            // values intersects offsets
             src.set(1, Value::Active);
             src.set(3, Value::Inactive);
             src.set(7, Value::Active); // should be ignored
@@ -336,20 +530,29 @@ mod tests {
         #[test]
         #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
         fn to_v2() {
-            let offsets = Vec::from([1, 5, 3, 8]);
+            // offsets must be sorted.
+            let offsets = Vec::from([1, 3, 5, 8]);
+            // both empty
             let mut src = Values::default();
             let dst = src.to_v2(&[]);
             assert_eq!(dst.bits, 0);
+            assert_eq!(dst.mask, 0);
+            // empty values
+            let dst = src.to_v2(&offsets);
+            assert_eq!(dst.bits, 0);
+            assert_eq!(dst.mask, 0b01111);
+
+            // values intersects offsets
             src.set(1, Value::Active);
             src.set(3, Value::Inactive);
             src.set(7, Value::Active); // should be ignored
             src.set(8, Value::Active);
             let dst = src.to_v2(&offsets);
             assert!(dst.get(0).unwrap()); // 1
-            assert!(dst.get(1).is_none()); // 5
-            assert!(!dst.get(2).unwrap()); // 3
+            assert!(!dst.get(1).unwrap()); // 3
+            assert!(dst.get(2).is_none()); // 5
             assert!(dst.get(3).unwrap()); // 8
-            assert_eq!(dst.mask, 0b1101); // only 3 entries set
+            assert_eq!(dst.mask, 0b1011); // only 3 entries set
         }
 
         #[test]
@@ -488,21 +691,42 @@ mod tests {
             vv.set(2, Value::Active);
             let mut i = vv.iter();
             // assumes keys returned in order...
-            assert_eq!(i.next(), Some((&1, &Value::Inactive)));
-            assert_eq!(i.next(), Some((&2, &Value::Active)));
-            assert_eq!(i.next(), Some((&3, &Value::Inactive)));
+            assert_eq!(
+                i.next(),
+                Some(&LineValue {
+                    offset: 1,
+                    value: Value::Inactive
+                })
+            );
+            assert_eq!(
+                i.next(),
+                Some(&LineValue {
+                    offset: 2,
+                    value: Value::Active
+                })
+            );
+            assert_eq!(
+                i.next(),
+                Some(&LineValue {
+                    offset: 3,
+                    value: Value::Inactive
+                })
+            );
             assert_eq!(i.next(), None);
         }
 
         #[test]
         #[cfg(feature = "uapi_v1")]
-        fn contains_key() {
+        fn contains_keys() {
             let vv = Values::from_offsets(&[1, 2, 3]);
-            assert!(!vv.contains_key(&0));
-            assert!(vv.contains_key(&1));
-            assert!(vv.contains_key(&2));
-            assert!(vv.contains_key(&3));
-            assert!(!vv.contains_key(&4));
+            assert!(!vv.contains_keys(&[0]));
+            assert!(vv.contains_keys(&[1]));
+            assert!(vv.contains_keys(&[2]));
+            assert!(vv.contains_keys(&[3]));
+            assert!(!vv.contains_keys(&[4]));
+            assert!(vv.contains_keys(&[1, 2, 3]));
+            assert!(vv.contains_keys(&[1, 3]));
+            assert!(vv.contains_keys(&[2, 3]));
         }
     }
 }

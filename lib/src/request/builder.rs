@@ -112,6 +112,7 @@ impl Builder {
             return Err(Error::InvalidArgument("No chip specified.".to_string()));
         }
         let chip = Chip::from_path(&self.cfg.chip)?;
+        self.cfg.offsets.sort_unstable();
         self.do_request(&chip).map(|f| self.to_request(f))
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]

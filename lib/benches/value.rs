@@ -4,7 +4,7 @@
 
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 
-use gpiocdev::line::{Value, Values};
+use gpiocdev::line::{Offset, Value, Values};
 use gpiocdev::request::Request;
 use gpiocdev::AbiVersion;
 use gpiosim::Simpleton;
@@ -18,8 +18,10 @@ fn v1_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V1;
     c.bench_function("uapi_v1 get one", |b| get_one(b, V1));
     c.bench_function("uapi_v1 get ten", |b| get_ten(b, V1));
+    c.bench_function("uapi_v1 get maxlen", |b| get_maxlen(b, V1));
     c.bench_function("uapi_v1 set one", |b| set_one(b, V1));
     c.bench_function("uapi_v1 set ten", |b| set_ten(b, V1));
+    c.bench_function("uapi_v1 set maxlen", |b| set_maxlen(b, V1));
 }
 #[cfg(not(feature = "uapi_v1"))]
 fn v1_benchmarks(_c: &mut Criterion) {}
@@ -29,8 +31,10 @@ fn v2_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V2;
     c.bench_function("uapi_v2 get one", |b| get_one(b, V2));
     c.bench_function("uapi_v2 get ten", |b| get_ten(b, V2));
+    c.bench_function("uapi_v2 get maxlen", |b| get_maxlen(b, V2));
     c.bench_function("uapi_v2 set one", |b| set_one(b, V2));
     c.bench_function("uapi_v2 set ten", |b| set_ten(b, V2));
+    c.bench_function("uapi_v2 set maxlen", |b| set_maxlen(b, V2));
 }
 #[cfg(not(feature = "uapi_v2"))]
 fn v1_benchmarks(_c: &mut Criterion) {}
@@ -56,7 +60,25 @@ fn get_one(b: &mut Bencher, abiv: AbiVersion) {
 #[allow(unused_variables)]
 fn get_ten(b: &mut Bencher, abiv: AbiVersion) {
     let s = Simpleton::new(10);
-    let offsets = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let offsets: Vec<Offset> = (0..10).collect();
+
+    let mut builder = Request::builder();
+    builder.on_chip(s.dev_path());
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    builder.using_abi_version(abiv);
+    let req = builder.with_lines(&offsets).as_input().request().unwrap();
+    let mut values = Values::from_offsets(&offsets);
+
+    b.iter(|| {
+        req.values(&mut values).unwrap();
+    });
+}
+
+// determine time taken to get ten lines
+#[allow(unused_variables)]
+fn get_maxlen(b: &mut Bencher, abiv: AbiVersion) {
+    let s = Simpleton::new(64);
+    let offsets: Vec<Offset> = (0..64).collect();
 
     let mut builder = Request::builder();
     builder.on_chip(s.dev_path());
@@ -95,7 +117,29 @@ fn set_one(b: &mut Bencher, abiv: AbiVersion) {
 #[allow(unused_variables)]
 fn set_ten(b: &mut Bencher, abiv: AbiVersion) {
     let s = Simpleton::new(10);
-    let offsets = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let offsets: Vec<Offset> = (0..10).collect();
+
+    let mut builder = Request::builder();
+    builder.on_chip(s.dev_path());
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    builder.using_abi_version(abiv);
+    let req = builder
+        .with_lines(&offsets)
+        .as_output(Value::Active)
+        .request()
+        .unwrap();
+    let values = Values::from_offsets(&offsets);
+
+    b.iter(|| {
+        req.set_values(&values).unwrap();
+    });
+}
+
+// determine time taken to set multiple lines
+#[allow(unused_variables)]
+fn set_maxlen(b: &mut Bencher, abiv: AbiVersion) {
+    let s = Simpleton::new(64);
+    let offsets: Vec<Offset> = (0..64).collect();
 
     let mut builder = Request::builder();
     builder.on_chip(s.dev_path());

@@ -364,11 +364,11 @@ impl Config {
     /// Passing empty values re-selects the base config for subsequent mutations.
     pub fn with_output_lines(&mut self, values: &Values) -> &mut Self {
         self.selected.clear();
-        for (offset, value) in values.iter() {
-            self.select_line(offset);
-            let cfg = self.lcfg.get_mut(offset).unwrap();
+        for lv in values.iter() {
+            self.select_line(&lv.offset);
+            let cfg = self.lcfg.get_mut(&lv.offset).unwrap();
             cfg.direction = Some(Direction::Output);
-            cfg.value = Some(*value);
+            cfg.value = Some(lv.value);
             // set input specific options back to default
             cfg.edge_detection = None;
             cfg.debounce_period = None;

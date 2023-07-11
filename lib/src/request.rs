@@ -187,23 +187,14 @@ impl Request {
     fn do_values_v1(&self, values: &mut Values) -> Result<()> {
         let mut vals = v1::LineValues::default();
         v1::get_line_values(self.fd, &mut vals)
-            .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))?;
-        if values.is_empty() {
-            values.overlay_from_v1(&self.offsets, &vals);
-            return Ok(());
-        }
-        for i in 0..self.offsets.len() {
-            if values.contains_key(&self.offsets[i]) {
-                values.set(self.offsets[i], vals.get(i).into());
-            }
-        }
-        Ok(())
+            .map(|_| values.update_from_v1(&self.offsets, &vals))
+            .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))
     }
     #[cfg(feature = "uapi_v2")]
     fn do_values_v2(&self, values: &mut Values) -> Result<()> {
         let mut vals = values.to_v2(&self.offsets);
         v2::get_line_values(self.fd, &mut vals)
-            .map(|_| values.overlay_from_v2(&self.offsets, &vals))
+            .map(|_| values.update_from_v2(&self.offsets, &vals))
             .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))
     }
 
@@ -299,7 +290,7 @@ impl Request {
     }
     #[cfg(feature = "uapi_v1")]
     fn do_set_values_v1(&self, values: &Values) -> Result<()> {
-        if self.offsets.iter().any(|o| !values.contains_key(o)) {
+        if !values.contains_keys(&self.offsets) {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
                 "requires all requested lines".to_string(),
