@@ -10,4 +10,3 @@ const PROPAGATION_DELAY: Duration = Duration::from_millis(10);
 pub fn wait_propagation_delay() {
     std::thread::sleep(PROPAGATION_DELAY);
 }
-
