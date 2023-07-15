@@ -570,7 +570,7 @@ impl Request {
     ///
     /// This function will block if no events are available to read.
     ///
-    /// Returns the numner of u64 words read.
+    /// Returns the number of u64 words read.
     ///
     /// * `buf` - The slice to contain the raw events.
     ///
