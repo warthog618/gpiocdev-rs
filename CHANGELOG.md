@@ -58,9 +58,10 @@ Each crate has its own detailed CHANGELOG:
 
 ## 2022-11-24
 
+ - add `--consumer` option to cli commands.
+
 ### Crates
 
- -- add `--consumer` option to cli commands.
 
  - [cli v0.4.0](cli/CHANGELOG.md#v0.4.0)
 
