@@ -347,6 +347,11 @@ impl Values {
         self.0.iter()
     }
 
+    /// An mutating iterator to visit all values.
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LineValue> {
+        self.0.iter_mut()
+    }
+
     /// Returns true if values are defined for all offsets.
     ///
     /// Offsets must be sorted.
@@ -715,6 +720,46 @@ mod tests {
                 })
             );
             assert_eq!(i.next(), None);
+        }
+
+        #[test]
+        fn iter_mut() {
+            let mut vv = Values::from_offsets(&[1, 2, 3]);
+            vv.set(2, Value::Active);
+            let mut i = vv.iter_mut();
+            // assumes keys returned in order...
+            let mut lv = i.next();
+            assert_eq!(
+                lv,
+                Some(&mut LineValue {
+                    offset: 1,
+                    value: Value::Inactive
+                })
+            );
+            lv.unwrap().value = Value::Active;
+            lv = i.next();
+            assert_eq!(
+                lv,
+                Some(&mut LineValue {
+                    offset: 2,
+                    value: Value::Active
+                })
+            );
+            lv.unwrap().value = Value::Inactive;
+            lv = i.next();
+            assert_eq!(
+                lv,
+                Some(&mut LineValue {
+                    offset: 3,
+                    value: Value::Inactive
+                })
+            );
+            lv.unwrap().value = Value::Active;
+            assert_eq!(i.next(), None);
+            assert_eq!(
+                vv.iter().map(|lv| lv.value).collect::<Vec<Value>>(),
+                [Value::Active, Value::Inactive, Value::Active]
+            )
         }
 
         #[test]
