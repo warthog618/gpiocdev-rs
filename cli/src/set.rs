@@ -738,32 +738,32 @@ mod tests {
                 .unwrap()
                 .0
                 .iter()
-                .eq(vec![Duration::ZERO].iter()));
+                .eq([Duration::ZERO].iter()));
             assert!(parse_time_sequence("1")
                 .unwrap()
                 .0
                 .iter()
-                .eq(vec![Duration::from_millis(1)].iter()));
+                .eq([Duration::from_millis(1)].iter()));
             assert!(parse_time_sequence("2ms")
                 .unwrap()
                 .0
                 .iter()
-                .eq(vec![Duration::from_millis(2)].iter()));
+                .eq([Duration::from_millis(2)].iter()));
             assert!(parse_time_sequence("3us")
                 .unwrap()
                 .0
                 .iter()
-                .eq(vec![Duration::from_micros(3)].iter()));
+                .eq([Duration::from_micros(3)].iter()));
             assert!(parse_time_sequence("4s")
                 .unwrap()
                 .0
                 .iter()
-                .eq(vec![Duration::new(4, 0)].iter()));
+                .eq([Duration::new(4, 0)].iter()));
             assert!(parse_time_sequence("1,2ms,3us,4s,0")
                 .unwrap()
                 .0
                 .iter()
-                .eq(vec![
+                .eq([
                     Duration::from_millis(1),
                     Duration::from_millis(2),
                     Duration::from_micros(3),

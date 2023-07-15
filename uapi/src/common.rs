@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use libc::{self, c_long, pollfd, sigset_t, time_t, timespec, POLLIN};
+use libc::{self, c_long, pollfd, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
 use std::mem::{self, MaybeUninit};
 use std::os::unix::prelude::{OsStrExt, RawFd};
@@ -57,7 +57,7 @@ pub fn wait_event(fd: RawFd, d: Duration) -> Result<bool> {
             std::ptr::addr_of_mut!(pfd),
             1,
             std::ptr::addr_of!(timeout),
-            ptr::null() as *const sigset_t,
+            ptr::null(),
         ) {
             -1 => Err(Error::from_errno()),
             0 => Ok(false),
