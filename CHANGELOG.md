@@ -4,7 +4,7 @@ Each crate has its own detailed CHANGELOG:
 - [lib](lib/CHANGELOG.md)
 - [uapi](uapi/CHANGELOG.md)
 
-## [Unreleased]
+## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.0...HEAD)
 
 ## 2023-07-18
 
@@ -106,6 +106,4 @@ Each crate has its own detailed CHANGELOG:
  - [cli v0.1.0](cli/CHANGELOG.md#v0.1.0)
  - [lib v0.1.0](lib/CHANGELOG.md#v0.1.0)
  - [uapi v0.1.0](uapi/CHANGELOG.md#v0.1.0)
-
-[Unreleased]: https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.0...HEAD
 
