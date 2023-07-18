@@ -465,11 +465,11 @@ pub enum Error {
     #[error("{0}")]
     UnexpectedResponse(String),
 
-    /// The platform or library does not support the requested uAPI ABI version.
+    /// The kernel or build does not support the requested uAPI ABI version.
     #[error("{0} is not supported by the {1}.")]
     UnsupportedAbi(AbiVersion, AbiSupportKind),
 
-    /// The platform has no support for any uAPI ABI version.
+    /// The kernel has no support for any uAPI ABI version.
     #[error("uAPI ABI is not supported by the kernel.")]
     NoAbiSupport(),
 }
