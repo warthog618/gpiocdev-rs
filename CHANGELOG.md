@@ -6,6 +6,8 @@ Each crate has its own detailed CHANGELOG:
 
 ## [Unreleased]
 
+## 2023-07-18
+
  - performance improvements.
  - event buffer `u64` sizing.
 
@@ -105,5 +107,5 @@ Each crate has its own detailed CHANGELOG:
  - [lib v0.1.0](lib/CHANGELOG.md#v0.1.0)
  - [uapi v0.1.0](uapi/CHANGELOG.md#v0.1.0)
 
-[Unreleased]: https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.5.0...HEAD
+[Unreleased]: https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.0...HEAD
 
