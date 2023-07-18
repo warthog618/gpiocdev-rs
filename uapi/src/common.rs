@@ -130,6 +130,7 @@ pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
     }
 }
 
+/// An error number returned by a kernel ioctl call.
 #[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
 pub struct Errno(pub i32);
 
@@ -161,6 +162,7 @@ pub enum Error {
     #[error(transparent)]
     Os(Errno),
 
+    /// An error indicating insufficient data read for the expected object.
     #[error(transparent)]
     UnderRead(#[from] UnderReadError),
 
