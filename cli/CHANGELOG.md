@@ -1,7 +1,10 @@
 <a name="unreleased"></a>
-## [Unreleased] (v0.5.1)
+## [Unreleased]
 
- - update `rustyline` dependency.
+<a name="v0.5.1"></a>
+## v0.5.1 - 2023-07-18
+
+ - update `gpiocdev` dependency.
 
 <a name="v0.5.0"></a>
 ## v0.5.0 - 2023-07-04

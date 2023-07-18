@@ -1,8 +1,11 @@
 <a name="unreleased"></a>
-## Unreleased (v0.6.0)
+## Unreleased
+
+<a name="v0.6.0"></a>
+## v0.6.0 - 2023-07-18
 
  - replace `Bitmaps` with `u64`.
- - event buffer and read functions all use `u64` sizes instead of byte sizes.
+ - functions to read edge events to and from slices all use `u64` sizes instead of byte sizes.
  - optimise `Values` to improve set/get performance.
  - refactor benches.
  - refactor tests.

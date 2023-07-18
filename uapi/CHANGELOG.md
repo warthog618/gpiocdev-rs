@@ -1,5 +1,8 @@
 <a name="unreleased"></a>
-## Unreleased (v0.5.0)
+## Unreleased
+
+<a name="v0.5.0"></a>
+## v0.5.0 - 2023-07-18
 
  - use `u64` rather than `Bitmap` for v2 bitmaps.
  - add benches.
