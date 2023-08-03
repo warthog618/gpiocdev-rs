@@ -106,9 +106,10 @@ fn do_cmd(opts: &Opts) -> CmdResult {
         bld.using_abi_version(r.abiv);
         match bld.request() {
             Ok(req) => {
-                requests.push(req);
+                requests.push(Some(req));
             }
             Err(e) => {
+                requests.push(None);
                 res.push_error(
                     &opts.emit,
                     &anyhow!(e).context(format!(
@@ -123,21 +124,23 @@ fn do_cmd(opts: &Opts) -> CmdResult {
         thread::sleep(period);
     }
     for (idx, ci) in r.chips.iter().enumerate() {
-        let mut values = Values::default();
-        match requests[idx].values(&mut values) {
-            Ok(()) => {
-                for line in r.lines.iter().filter(|l| l.1.chip_idx == idx) {
-                    res.values.push(LineValue {
-                        id: line.0.to_string(),
-                        value: values.get(line.1.offset).unwrap(),
-                    });
+        if let Some(req) = &requests[idx] {
+            let mut values = Values::default();
+            match req.values(&mut values) {
+                Ok(()) => {
+                    for line in r.lines.iter().filter(|l| l.1.chip_idx == idx) {
+                        res.values.push(LineValue {
+                            id: line.0.to_string(),
+                            value: values.get(line.1.offset).unwrap(),
+                        });
+                    }
                 }
-            }
-            Err(e) => {
-                res.push_error(
-                    &opts.emit,
-                    &anyhow!(e).context(format!("failed to read values from {}", ci.name)),
-                );
+                Err(e) => {
+                    res.push_error(
+                        &opts.emit,
+                        &anyhow!(e).context(format!("failed to read values from {}", ci.name)),
+                    );
+                }
             }
         }
     }
