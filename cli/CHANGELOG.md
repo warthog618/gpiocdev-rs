@@ -1,6 +1,11 @@
 <a name="unreleased"></a>
 ## Unreleased
 
+<a name="v0.5.2"></a>
+## v0.5.2 - 2023-08-11
+
+ - fix issue #11 - get panics if request fails.
+
 <a name="v0.5.1"></a>
 ## v0.5.1 - 2023-07-18
 
