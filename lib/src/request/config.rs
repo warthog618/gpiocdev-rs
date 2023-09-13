@@ -328,7 +328,7 @@ impl Config {
         self
     }
 
-    /// Remove a lines from the config.
+    /// Remove a line from the config.
     pub fn without_line(&mut self, offset: Offset) -> &mut Self {
         self.remove_line(&offset);
         self

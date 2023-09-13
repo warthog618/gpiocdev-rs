@@ -445,7 +445,7 @@ impl Builder {
         self
     }
 
-    /// Remove a lines from the request.
+    /// Remove a line from the request.
     pub fn without_line(&mut self, offset: Offset) -> &mut Self {
         self.cfg.without_line(offset);
         self
