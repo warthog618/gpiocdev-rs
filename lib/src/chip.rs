@@ -261,7 +261,7 @@ impl Chip {
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
-        let mut buf = [0_u64; mem::size_of::<uapi::LineInfoChangeEvent>()/8];
+        let mut buf = [0_u64; mem::size_of::<uapi::LineInfoChangeEvent>() / 8];
         let n = gpiocdev_uapi::read_event(self.fd, &mut buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
         self.line_info_change_event_from_slice(&buf[0..n])
@@ -346,7 +346,7 @@ impl Chip {
     }
 
     fn line_info_change_event_u64_size(&self) -> usize {
-        self.line_info_change_event_size()/8
+        self.line_info_change_event_size() / 8
     }
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -412,8 +412,7 @@ impl<'a> InfoChangeIterator<'a> {
     fn read_event(&mut self) -> Result<InfoChangeEvent> {
         let n = gpiocdev_uapi::read_event(self.chip.fd, &mut self.buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
-        self.chip
-            .line_info_change_event_from_slice(&self.buf[0..n])
+        self.chip.line_info_change_event_from_slice(&self.buf[0..n])
     }
 }
 
