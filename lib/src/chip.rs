@@ -15,7 +15,7 @@ use gpiocdev_uapi::{v1, v2};
 #[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};
 #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::fmt;
 use std::fs;
 use std::mem;
@@ -89,7 +89,7 @@ pub struct Chip {
     /// Cached copy of _f.as_raw_fd() for syscalls, to avoid Arc<Mutex<>> overheads for ops.
     pub(crate) fd: RawFd,
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-    abiv: RefCell<Option<AbiVersion>>,
+    abiv: Cell<Option<AbiVersion>>,
 }
 
 impl Chip {
@@ -151,11 +151,14 @@ impl Chip {
     // determine the actual abi version to use for subsequent uAPI operations.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn actual_abi_version(&self) -> Result<AbiVersion> {
-        let mut abiv = self.abiv.borrow_mut();
-        if abiv.is_none() {
-            *abiv = Some(self.detect_abi_version()?);
-        }
-        Ok(abiv.unwrap())
+        Ok(match self.abiv.get() {
+            Some(abiv) => abiv,
+            None => {
+                let abiv = self.detect_abi_version()?;
+                self.abiv.set(Some(abiv));
+                abiv
+            }
+        })
     }
 
     /// Find the info for the named line.
@@ -320,7 +323,7 @@ impl Chip {
     /// Set the ABI version to use for subsequent operations.
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     pub fn using_abi_version(&mut self, abiv: AbiVersion) -> &mut Self {
-        self.abiv = RefCell::new(Some(abiv));
+        self.abiv.set(Some(abiv));
         self
     }
 
@@ -353,7 +356,7 @@ impl Chip {
     fn line_info_change_event_size(&self) -> usize {
         // may not be initialised if called via info_change_events()
         // in which case return the larger of the two
-        match self.abiv.borrow().unwrap_or(V2) {
+        match self.abiv.get().unwrap_or(V2) {
             V1 => mem::size_of::<v1::LineInfoChangeEvent>(),
             V2 => mem::size_of::<v2::LineInfoChangeEvent>(),
         }
