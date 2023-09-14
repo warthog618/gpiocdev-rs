@@ -73,10 +73,7 @@ impl<'a> Iterator for LineInfoIterator<'a> {
     type Item = Result<line::Info>;
 
     fn next(&mut self) -> Option<Result<line::Info>> {
-        match self.offsets.next() {
-            Some(offset) => Some(self.chip.line_info(offset)),
-            None => None,
-        }
+        self.offsets.next().map(|offset| self.chip.line_info(offset))
     }
 }
 
@@ -165,10 +162,9 @@ impl Chip {
     ///
     /// Returns the first matching line.
     pub fn find_line_info(&self, name: &str) -> Option<line::Info> {
-        if let Ok(iter) = self.line_info_iter() {
-            return iter.filter_map(|x| x.ok()).find(|li| li.name == name);
-        }
-        None
+        self.line_info_iter()
+            .ok()
+            .and_then(|iter| iter.filter_map(|x| x.ok()).find(|li| li.name == name))
     }
 
     /// Get the information for a line on the chip.
@@ -177,11 +173,11 @@ impl Chip {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
-        let res = match self.actual_abi_version()? {
+        match self.actual_abi_version()? {
             V1 => v1::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
             V2 => v2::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
-        };
-        res.map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e))
+        }
+        .map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
@@ -210,11 +206,11 @@ impl Chip {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
-        let res = match self.actual_abi_version()? {
+        match self.actual_abi_version()? {
             V1 => v1::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
             V2 => v2::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
-        };
-        res.map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e))
+        }
+        .map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
