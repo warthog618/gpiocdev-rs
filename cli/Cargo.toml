@@ -11,7 +11,7 @@ keywords = ["linux", "gpio", "gpiochip", "cli", "embedded"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev-cli"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-rust-version = "1.64"
+rust-version = "1.70"
 version = "0.5.2"
 
 [[bin]]
