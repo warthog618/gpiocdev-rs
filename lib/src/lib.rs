@@ -582,14 +582,14 @@ mod tests {
         #[test]
         fn from_nanos() {
             let t = Timestamp::from_nanos(123);
-            assert_eq!(t.0.timestamp_nanos(), 123);
+            assert_eq!(t.0.timestamp_nanos_opt(), Some(123));
         }
 
         #[test]
         fn into_datetime() {
             let t = Timestamp::from_nanos(678);
             let dt: DateTime<Utc> = t.into();
-            assert_eq!(dt.timestamp_nanos(), 678);
+            assert_eq!(dt.timestamp_nanos_opt(), Some(678));
         }
     }
 
