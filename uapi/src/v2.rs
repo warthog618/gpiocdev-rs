@@ -10,8 +10,6 @@ use std::mem;
 use std::os::unix::prelude::{FromRawFd, RawFd};
 use std::time::Duration;
 
-use super::common::IOCTL_MAGIC;
-
 // common to ABI v1 and v2.
 pub use super::common::*;
 
@@ -171,17 +169,7 @@ impl LineValues {
 #[inline]
 pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
     // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
-    match unsafe {
-        libc::ioctl(
-            lfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::GetLineValues,
-                mem::size_of::<LineValues>()
-            ),
-            lv,
-        )
-    } {
+    match unsafe { libc::ioctl(lfd, iorw!(Ioctl::GetLineValues, LineValues), lv) } {
         0 => Ok(()),
         _ => Err(Error::from_errno()),
     }
@@ -196,17 +184,7 @@ pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
 #[inline]
 pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
     // SAFETY: lv is not modified.
-    match unsafe {
-        libc::ioctl(
-            lfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::SetLineValues,
-                mem::size_of::<LineValues>()
-            ),
-            lv,
-        )
-    } {
+    match unsafe { libc::ioctl(lfd, iorw!(Ioctl::SetLineValues, LineValues), lv) } {
         0 => Ok(()),
         _ => Err(Error::from_errno()),
     }
@@ -449,15 +427,7 @@ impl LineConfig {
 pub fn set_line_config(lfd: RawFd, lc: LineConfig) -> Result<()> {
     // SAFETY: lc is consumed.
     unsafe {
-        match libc::ioctl(
-            lfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::SetLineConfig,
-                mem::size_of::<LineConfig>()
-            ),
-            &lc,
-        ) {
+        match libc::ioctl(lfd, iorw!(Ioctl::SetLineConfig, LineConfig), &lc) {
             0 => Ok(()),
             _ => Err(Error::from_errno()),
         }
@@ -510,15 +480,7 @@ pub struct LineRequest {
 pub fn get_line(cfd: RawFd, lr: LineRequest) -> Result<File> {
     // SAFETY: lr is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(
-            cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::GetLine,
-                mem::size_of::<LineRequest>()
-            ),
-            &lr,
-        ) {
+        match libc::ioctl(cfd, iorw!(Ioctl::GetLine, LineRequest), &lr) {
             0 => Ok(File::from_raw_fd(lr.fd)),
             _ => Err(Error::from_errno()),
         }
@@ -609,17 +571,7 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         ..Default::default()
     };
     // SAFETY: returned struct is explicitly validated before being returned.
-    match unsafe {
-        libc::ioctl(
-            cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::GetLineInfo,
-                mem::size_of::<LineInfo>()
-            ),
-            &li,
-        )
-    } {
+    match unsafe { libc::ioctl(cfd, iorw!(Ioctl::GetLineInfo, LineInfo), &li) } {
         0 => li.validate().map(|_| li).map_err(Error::from),
         _ => Err(Error::from_errno()),
     }
@@ -641,17 +593,7 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         ..Default::default()
     };
     // SAFETY: returned struct is explicitly validated before being returned.
-    match unsafe {
-        libc::ioctl(
-            cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::WatchLineInfo,
-                mem::size_of::<LineInfo>()
-            ),
-            &li,
-        )
-    } {
+    match unsafe { libc::ioctl(cfd, iorw!(Ioctl::WatchLineInfo, LineInfo), &li) } {
         0 => li.validate().map(|_| li).map_err(Error::from),
         _ => Err(Error::from_errno()),
     }

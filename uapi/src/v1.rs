@@ -7,8 +7,6 @@ use std::fs::File;
 use std::mem;
 use std::os::unix::prelude::{FromRawFd, RawFd};
 
-use super::common::IOCTL_MAGIC;
-
 // common to ABI v1 and v2.
 pub use super::common::*;
 
@@ -93,17 +91,7 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         ..Default::default()
     };
     // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
-    match unsafe {
-        libc::ioctl(
-            cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::GetLineInfo,
-                mem::size_of::<LineInfo>()
-            ),
-            &li,
-        )
-    } {
+    match unsafe { libc::ioctl(cfd, iorw!(Ioctl::GetLineInfo, LineInfo), &li) } {
         0 => Ok(li),
         _ => Err(Error::from_errno()),
     }
@@ -124,17 +112,7 @@ pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
         ..Default::default()
     };
     // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
-    match unsafe {
-        libc::ioctl(
-            cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::WatchLineInfo,
-                mem::size_of::<LineInfo>()
-            ),
-            &li,
-        )
-    } {
+    match unsafe { libc::ioctl(cfd, iorw!(Ioctl::WatchLineInfo, LineInfo), &li) } {
         0 => Ok(li),
         _ => Err(Error::from_errno()),
     }
@@ -271,15 +249,7 @@ bitflags! {
 pub fn get_line_handle(cfd: RawFd, hr: HandleRequest) -> Result<File> {
     // SAFETY: hr is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(
-            cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::GetLineHandle,
-                mem::size_of::<HandleRequest>()
-            ),
-            &hr,
-        ) {
+        match libc::ioctl(cfd, iorw!(Ioctl::GetLineHandle, HandleRequest), &hr) {
             0 => Ok(File::from_raw_fd(hr.fd)),
             _ => Err(Error::from_errno()),
         }
@@ -314,15 +284,7 @@ pub struct HandleConfig {
 pub fn set_line_config(cfd: RawFd, hc: HandleConfig) -> Result<()> {
     // SAFETY: hc is consumed.
     unsafe {
-        match libc::ioctl(
-            cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::SetConfig,
-                mem::size_of::<HandleConfig>()
-            ),
-            &hc,
-        ) {
+        match libc::ioctl(cfd, iorw!(Ioctl::SetConfig, HandleConfig), &hc) {
             0 => Ok(()),
             _ => Err(Error::from_errno()),
         }
@@ -407,11 +369,7 @@ pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
     match unsafe {
         libc::ioctl(
             lfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::GetLineValues,
-                mem::size_of::<LineValues>()
-            ),
+            iorw!(Ioctl::GetLineValues, LineValues),
             vals.0.as_mut_ptr(),
         )
     } {
@@ -430,11 +388,7 @@ pub fn set_line_values(lfd: RawFd, vals: &LineValues) -> Result<()> {
     match unsafe {
         libc::ioctl(
             lfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::SetLineValues,
-                mem::size_of::<LineValues>()
-            ),
+            iorw!(Ioctl::SetLineValues, LineValues),
             vals.0.as_ptr(),
         )
     } {
@@ -494,15 +448,7 @@ bitflags! {
 pub fn get_line_event(cfd: RawFd, er: EventRequest) -> Result<File> {
     // SAFETY: er is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(
-            cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::GetLineEvent,
-                mem::size_of::<EventRequest>()
-            ),
-            &er,
-        ) {
+        match libc::ioctl(cfd, iorw!(Ioctl::GetLineEvent, EventRequest), &er) {
             0 => Ok(File::from_raw_fd(er.fd)),
             _ => Err(Error::from_errno()),
         }

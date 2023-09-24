@@ -16,6 +16,20 @@ pub fn has_event(fd: RawFd) -> Result<bool> {
     wait_event(fd, Duration::ZERO)
 }
 
+macro_rules! ior {
+    ($nr:expr, $dty:ty) => {
+        ioctl_sys::ior!(IOCTL_MAGIC, $nr, mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
+    };
+}
+pub(crate) use ior;
+
+macro_rules! iorw {
+    ($nr:expr, $dty:ty) => {
+        ioctl_sys::iorw!(IOCTL_MAGIC, $nr, mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
+    };
+}
+pub(crate) use iorw;
+
 /// Read an event from a chip or request file descriptor.
 ///
 /// Returns the number of u64 words read.
@@ -98,7 +112,7 @@ pub fn get_chip_info(cfd: RawFd) -> Result<ChipInfo> {
     unsafe {
         match libc::ioctl(
             cfd,
-            nix::request_code_read!(IOCTL_MAGIC, Ioctl::GetChipInfo, mem::size_of::<ChipInfo>()),
+            ior!(Ioctl::GetChipInfo, ChipInfo),
             chip.as_mut_ptr(),
         ) {
             0 => Ok(chip.assume_init()),
@@ -117,11 +131,7 @@ pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
     match unsafe {
         libc::ioctl(
             cfd,
-            nix::request_code_readwrite!(
-                IOCTL_MAGIC,
-                Ioctl::UnwatchLineInfo,
-                mem::size_of::<u32>()
-            ),
+            iorw!(Ioctl::UnwatchLineInfo, u32),
             &offset,
         )
     } {
