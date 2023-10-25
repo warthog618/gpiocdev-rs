@@ -12,56 +12,21 @@ SPDX-License-Identifier: CC0-1.0
 
 A Rust library for accessing GPIO lines on Linux platforms using the GPIO character device.
 
-This is the equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/) but in pure Rust.
+This is the equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git/) but in pure Rust.  Unlike the **libgpiod** bindings, this library supports both versions of the GPIO uAPI and supports Rust async.
 
-The gpiocdev crate provides an API to access GPIOs from Rust applications.
+## Companion Crates
 
-## ABI Compatibility
+The [gpiocdev-uapi](https://crates.io/crates/gpiocdev-uapi) crate provides a lower level safe wrapper around the GPIO uAPI, while this crate provides a higher level abstraction and unified interface for both uAPI v1 and v2.  You almost certainly want to use the higher level abstraction.
 
-The library is compatible with the Linux GPIO uAPI, both v1 and v2, including receiving line edge events.
+The [gpiocdev-cli](https://crates.io/crates/gpiocdev-cli) crate provides a command line tool, similar to the **libgpiod** tools, for accessing GPIO lines from shell.
 
-The gpiocdev API provides a unified abstraction for both uAPI versions, but will return an error if v2 features are attempted to be used on a v1-only system.
-
-uAPI v2 specific features include:
-
-- lines with different configurations in one request
-- debouncing edge detection input lines
-- edge detection on multiple lines in one request
-- sequence numbers on edge events
-- reconfiguring edge detection without releasing the request
-- selection of source clock for edge events
-
-Compatibility with either uAPI version can be selected via features, with the default being uAPI v2.  If built with both, the library can automatically detect and use the most current available version, so defaulting to v2 and falling back to v1 if that is unavailable.
-
-The library makes no use of the deprecated **sysfs** GPIO API.
-
-## Async Compatibility
-
-The majority of the GPIO uAPI is synchronous.  The exceptions are waiting for edge events from [Request](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Request.html)s, and info change events from [Chip](https://docs.rs/gpiocdev/latest/gpiocdev/chip/struct.Chip.html)s.
-Support for asynchronous wrappers around these are provided through features for the following reactors:
-
-|Reactor|Feature|Module|
-|---|---|---|
-|tokio|async_tokio|gpiocdev::tokio|
-|async-io|async_io|gpiocdev::async_io|
-
-Additionally, Chips and Requests also expose their underlying file descriptor, which may be used directly with an async reactor.  An example of this is the **gpiocdev-cli** [edges](https://github.com/warthog618/gpiocdev-rs/blob/master/cli/src/edges.rs) command, which can asynchronously wait on multiple lines spread across multiple chips using the [mio](https://crates.io/crates/mio) reactor.
-
-With respect to the synchronous uAPI functions, those can generally be considered non-blocking unless the GPIO line is provided by an expander connected to the host processor via a bus such as I2C or SPI.  In such cases, and depending on the application requirements and the async reactor, calls to synchronous functions may need to be made from a separate thread so as not to stall a single-threaded reactor.
+The [gpiosim](https://crates.io/crates/gpiosim) crate provides GPIO simulators used to test **gpiocdev**, and potentially any applications that use it.
 
 ## Example Usage
 
-Requesting a line by name:
-
 ```rust
-    let led0 = gpiocdev::find_named_line("LED0").unwrap();
-    let req = Request::builder()
-        .with_found_line(&led0)
-        .as_output(Value::Active)
-        .request()?;
-
-    // change value later
-    req.set_value(led0.offset, Value::Inactive)
+use gpiocdev::Request;
+use gpiocdev::line::Value;
 ```
 
 Getting a line value:
@@ -93,6 +58,19 @@ Setting a line:
     req.set_value(22, Value::Inactive)
 ```
 
+Requesting a line by name:
+
+```rust
+    let led0 = gpiocdev::find_named_line("LED0").unwrap();
+    let req = Request::builder()
+        .with_found_line(&led0)
+        .as_output(Value::Active)
+        .request()?;
+
+    // change value later
+    req.set_value(led0.offset, Value::Inactive)
+```
+
 Waiting for events on a line:
 
 ```rust
@@ -100,7 +78,7 @@ Waiting for events on a line:
     let req = Request::builder()
         .on_chip("/dev/gpiochip0")
         .with_line(23)
-        .with_edge_detection(EdgeDetection::BothEdges)
+        .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
         .request()?;
 
     // wait for line edge events
@@ -151,13 +129,46 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
         .with_line(23)
         .as_input()
         .as_active_low()
-        .with_bias(Bias::PullUp)
+        .with_bias(gpiocdev::line::Bias::PullUp)
         .request()?;
     // get the value
     let value = req.value(23)?;
 ```
 
-A good starting point to learn more is the [Builder](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Builder.html).
+Working examples can be found in the [examples](https://github.com/warthog618/gpiocdev-rs/tree/master/lib/examples) directory.
+
+## ABI Compatibility
+
+The library is compatible with the Linux GPIO uAPI, both v1 and v2, including receiving line edge events.
+
+The gpiocdev API provides a unified abstraction for both uAPI versions, but will return an error if v2 features are attempted to be used on a v1-only system.
+
+uAPI v2 specific features include:
+
+- lines with different configurations in one request
+- debouncing edge detection input lines
+- edge detection on multiple lines in one request
+- sequence numbers on edge events
+- reconfiguring edge detection without releasing the request
+- selection of source clock for edge events
+
+Compatibility with either uAPI version can be selected via features, with the default being uAPI v2.  If built with both, the library can automatically detect and use the most current available version, so defaulting to v2 and falling back to v1 if that is unavailable.
+
+**gpiocdev** does not use the slower and deprecated **sysfs** GPIO API.
+
+## Async Compatibility
+
+The majority of the GPIO uAPI is synchronous.  The exceptions are waiting for edge events from [Request](https://docs.rs/gpiocdev/latest/gpiocdev/request/struct.Request.html)s, and info change events from [Chip](https://docs.rs/gpiocdev/latest/gpiocdev/chip/struct.Chip.html)s.
+Support for asynchronous wrappers around these are provided through features for the following reactors:
+
+|Reactor|Feature|Module|
+|---|---|---|
+|tokio|async_tokio|gpiocdev::tokio|
+|async-io|async_io|gpiocdev::async_io|
+
+Additionally, Chips and Requests also expose their underlying file descriptor, which may be used directly with an async reactor.  An example of this is the **gpiocdev-cli** [edges](https://github.com/warthog618/gpiocdev-rs/blob/master/cli/src/edges.rs) command, which can asynchronously wait on multiple lines spread across multiple chips using the [mio](https://crates.io/crates/mio) reactor.
+
+With respect to the synchronous uAPI functions, those can generally be considered non-blocking unless the GPIO line is provided by an expander connected to the host processor via a bus such as I2C or SPI.  In such cases, and depending on the application requirements and the async reactor, calls to synchronous functions may need to be made from a separate thread so as not to stall a single-threaded reactor.
 
 ## License
 

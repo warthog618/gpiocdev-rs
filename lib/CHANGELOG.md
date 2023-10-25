@@ -1,6 +1,8 @@
 <a name="unreleased"></a>
 ## Unreleased
 
+ - rework README.
+
 <a name="v0.6.0"></a>
 ## v0.6.0 - 2023-07-18
 
