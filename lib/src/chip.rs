@@ -21,7 +21,7 @@ use std::fs;
 use std::mem;
 use std::ops::Range;
 use std::os::linux::fs::MetadataExt;
-use std::os::unix::prelude::{AsRawFd, RawFd};
+use std::os::unix::prelude::{AsRawFd, OsStrExt, RawFd};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -49,6 +49,32 @@ pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     Err(Error::GpioChip(pb, ErrorKind::NotGpioDevice))
 }
 
+/// Compare two chip paths.
+///
+// Sorts paths naturally, assuming any chip numbering is at the end of the path - as it is for gpiochips.
+pub fn path_compare(a: &Path, b: &Path) -> std::cmp::Ordering {
+    let a = a.as_os_str().as_bytes();
+    let b = b.as_os_str().as_bytes();
+
+    if a.len() == b.len() {
+        // if equal length then just compare lexicographically
+        return a.cmp(b);
+    }
+    for it in a.iter().zip(b.iter()) {
+        let (ai, bi) = it;
+        if *ai != *bi {
+            if !ai.is_ascii_digit() || !bi.is_ascii_digit() {
+                // if either is not a digit then this character is definitive
+                return (*ai).cmp(bi);
+            }
+            // else drop thru to length comparison
+            break;
+        }
+    }
+    // equal up to to the length of the shortest - or to digits and shorter numbers are smaller
+    a.len().cmp(&b.len())
+}
+
 /// Returns the paths of all the GPIO character devices on the system.
 ///
 /// The returned paths are sorted in name order and are confirmed to be GPIO character devices,
@@ -58,7 +84,7 @@ pub fn chips() -> Result<Vec<PathBuf>> {
         .filter_map(|x| x.ok())
         .flat_map(|de| is_chip(de.path()))
         .collect::<Vec<PathBuf>>();
-    chips.sort_unstable_by(|a, b| human_sort::compare(&a.to_string_lossy(), &b.to_string_lossy()));
+    chips.sort_unstable_by(|a, b| path_compare(a, b));
     chips.dedup();
     Ok(chips)
 }
@@ -469,5 +495,40 @@ mod tests {
             assert_eq!(i.name.as_str(), "banana");
             assert_eq!(i.label.as_str(), "peel");
         }
+    }
+
+    #[test]
+    fn path_compare() {
+        use super::path_compare;
+        use std::cmp::Ordering;
+
+        assert_eq!(
+            path_compare(Path::new("/dev/gpiochip0"), Path::new("/dev/gpiochip0")),
+            Ordering::Equal
+        );
+        assert_eq!(
+            path_compare(Path::new("/dev/gpiochip0"), Path::new("/dev/gpiochip1")),
+            Ordering::Less
+        );
+        assert_eq!(
+            path_compare(Path::new("/dev/gpiochip3"), Path::new("/dev/gpiochip10")),
+            Ordering::Less
+        );
+        assert_eq!(
+            path_compare(Path::new("/dev/gpiochip3"), Path::new("/dev/gpiochip30")),
+            Ordering::Less
+        );
+        assert_eq!(
+            path_compare(Path::new("/dev/gpiochip10"), Path::new("/dev/gpiochip3")),
+            Ordering::Greater
+        );
+        assert_eq!(
+            path_compare(Path::new("/dev/gpiochip"), Path::new("/dev/gpiochip1")),
+            Ordering::Less
+        );
+        assert_eq!(
+            path_compare(Path::new("/dev/gpiechip0"), Path::new("/dev/gpiochip1")),
+            Ordering::Less
+        );
     }
 }
