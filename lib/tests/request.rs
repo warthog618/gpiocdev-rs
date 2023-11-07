@@ -883,6 +883,20 @@ mod request {
         }
 
         #[test]
+        fn chip_path() {
+            let s = Simpleton::new(3);
+            let offset = 2;
+
+            let req = Request::builder()
+                .on_chip(s.dev_path())
+                .with_line(offset)
+                .request()
+                .unwrap();
+
+            assert_eq!(req.chip_path().as_os_str(), s.dev_path());
+        }
+
+        #[test]
         fn reconfigure_edge_detection_change() {
             let s = Simpleton::new(20);
             let offsets: Vec<Offset> = (1..16).collect();

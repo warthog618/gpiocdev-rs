@@ -372,6 +372,15 @@ impl Request {
         v2::set_line_values(self.fd, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
 
+    /// Return the path of the chip for this request.
+    pub fn chip_path(&self) -> std::path::PathBuf {
+        self.cfg
+            .read()
+            .expect("failed to acquire read lock on config")
+            .chip
+            .clone()
+    }
+
     /// Get a snapshot of the requested configuration.
     ///
     /// This is the configuration currently applied to the hardware.

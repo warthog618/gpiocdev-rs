@@ -12,7 +12,7 @@ use gpiocdev_uapi::v1;
 use gpiocdev_uapi::v2;
 use nohash_hasher::IntMap;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// The configuration for a request for one or more lines.
@@ -87,6 +87,11 @@ impl Config {
     pub fn on_chip<P: Into<PathBuf>>(&mut self, path: P) -> &mut Self {
         self.chip = path.into();
         self
+    }
+
+    /// Return the path of the chip for this configuration.
+    pub fn chip(&self) -> &Path {
+        &self.chip
     }
 
     /// Set the selected lines to input.
@@ -673,6 +678,7 @@ mod tests {
     #[test]
     fn default() {
         let cfg = Config::default();
+        assert!(cfg.chip.as_os_str().is_empty());
         assert_eq!(cfg.lcfg.len(), 0);
         assert_eq!(cfg.selected.len(), 0);
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -734,6 +740,23 @@ mod tests {
         cfg.as_active_high();
         assert!(cfg.base.active_low);
         assert!(!cfg.lcfg.get(&3).unwrap().active_low);
+    }
+
+    #[test]
+    fn chip() {
+        let mut cfg = Config::default();
+        assert!(cfg.chip().as_os_str().is_empty());
+        cfg.on_chip("/dev/gpiochip0");
+        assert_eq!(cfg.chip().as_os_str(), "/dev/gpiochip0");
+    }
+
+    #[test]
+    fn on_chip() {
+        let mut cfg = Config::default();
+        cfg.on_chip("/dev/gpiochip0");
+        assert_eq!(cfg.chip.as_os_str(), "/dev/gpiochip0");
+        cfg.on_chip("foo");
+        assert_eq!(cfg.chip.as_os_str(), "foo");
     }
 
     #[test]

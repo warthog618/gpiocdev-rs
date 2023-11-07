@@ -2,6 +2,7 @@
 ## Unreleased
 
  - rework README.
+ - add chip path accessors to Request and Config.
 
 <a name="v0.6.0"></a>
 ## v0.6.0 - 2023-07-18

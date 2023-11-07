@@ -6,9 +6,15 @@ Each crate has its own detailed CHANGELOG:
 
 ## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.0...HEAD)
 
+ - add chip path accessors to lib Request and Config.
+
 ## 2023-08-11
 
  - fix issue #11 - cli get panics if request fails
+
+### Crates
+
+ - [cli v0.5.2](cli/CHANGELOG.md)
 
 ## 2023-07-18
 
