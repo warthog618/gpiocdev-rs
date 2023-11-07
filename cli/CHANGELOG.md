@@ -1,6 +1,8 @@
 <a name="unreleased"></a>
 ## Unreleased
 
+- fix clippy 1.75 lints
+
 <a name="v0.5.2"></a>
 ## v0.5.2 - 2023-08-11
 

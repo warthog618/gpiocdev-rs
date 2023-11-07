@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod resolver;
-pub use self::resolver::{ChipInfo, ChipOffset, Resolver};
+pub use self::resolver::{ChipInfo, Resolver};
 
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};

@@ -112,7 +112,7 @@ impl From<&v2::LineInfo> for Info {
         }
         let ed = EdgeDetection::try_from(li.flags).ok();
         let ec = if ed.is_some() {
-            EventClock::try_from(li.flags).ok()
+            Some(EventClock::from(li.flags))
         } else {
             None
         };

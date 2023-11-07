@@ -7,6 +7,7 @@ Each crate has its own detailed CHANGELOG:
 ## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.0...HEAD)
 
  - add chip path accessors to lib Request and Config.
+ - fix clippy 1.75 lints
 
 ## 2023-08-11
 

@@ -3,6 +3,7 @@
 
  - rework README.
  - add chip path accessors to Request and Config.
+ - fix clippy 1.75 lints
 
 <a name="v0.6.0"></a>
 ## v0.6.0 - 2023-07-18
