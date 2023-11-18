@@ -5,7 +5,7 @@
 use bitflags::bitflags;
 use std::fs::File;
 use std::mem;
-use std::os::unix::prelude::{FromRawFd, RawFd};
+use std::os::unix::prelude::{AsRawFd, FromRawFd};
 
 // common to ABI v1 and v2.
 pub use super::common::*;
@@ -82,16 +82,16 @@ bitflags! {
 /// This does not include the line value.
 /// The line must be requested to access the value.
 ///
-/// * 'cfd' - The fd of the open chip.
+/// * 'cf' - The open gpiochip device file.
 /// * `offset` - The offset of the line.
 #[inline]
-pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
+pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
         ..Default::default()
     };
     // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
-    match unsafe { libc::ioctl(cfd, iorw!(Ioctl::GetLineInfo, LineInfo), &li) } {
+    match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineInfo, LineInfo), &li) } {
         0 => Ok(li),
         _ => Err(Error::from_errno()),
     }
@@ -103,16 +103,16 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
 /// This does not include the line value.
 /// The line must be requested to access the value.
 ///
-/// * 'cfd' - The fd of the open chip.
+/// * 'cf' - The open gpiochip device file.
 /// * `offset` - The offset of the line to watch.
 #[inline]
-pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
+pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
         ..Default::default()
     };
     // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
-    match unsafe { libc::ioctl(cfd, iorw!(Ioctl::WatchLineInfo, LineInfo), &li) } {
+    match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::WatchLineInfo, LineInfo), &li) } {
         0 => Ok(li),
         _ => Err(Error::from_errno()),
     }
@@ -243,13 +243,13 @@ bitflags! {
 
 /// Request a line or set of lines for exclusive access.
 ///
-/// * 'cfd' - The fd of the open chip.
+/// * 'cf' - The open gpiochip device file.
 /// * `hr` - The line handle request.
 #[inline]
-pub fn get_line_handle(cfd: RawFd, hr: HandleRequest) -> Result<File> {
+pub fn get_line_handle(cf: &File, hr: HandleRequest) -> Result<File> {
     // SAFETY: hr is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(cfd, iorw!(Ioctl::GetLineHandle, HandleRequest), &hr) {
+        match libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineHandle, HandleRequest), &hr) {
             0 => Ok(File::from_raw_fd(hr.fd)),
             _ => Err(Error::from_errno()),
         }
@@ -278,13 +278,13 @@ pub struct HandleConfig {
 
 /// Update the configuration of an existing handle or event request.
 ///
-/// * `lf` - The file returned by [`get_line_handle`].
+/// * `lf` - The request file returned by [`get_line_handle`].
 /// * `hc` - The configuration to be applied.
 #[inline]
-pub fn set_line_config(cfd: RawFd, hc: HandleConfig) -> Result<()> {
+pub fn set_line_config(lf: &File, hc: HandleConfig) -> Result<()> {
     // SAFETY: hc is consumed.
     unsafe {
-        match libc::ioctl(cfd, iorw!(Ioctl::SetConfig, HandleConfig), &hc) {
+        match libc::ioctl(lf.as_raw_fd(), iorw!(Ioctl::SetConfig, HandleConfig), &hc) {
             0 => Ok(()),
             _ => Err(Error::from_errno()),
         }
@@ -361,14 +361,14 @@ impl Default for LineValues {
 
 /// Read the values of requested lines.
 ///
-/// * `lf` - The file returned by [`get_line_handle`] or [`get_line_event`].
+/// * `lf` - The request file returned by [`get_line_handle`] or [`get_line_event`].
 /// * `vals` - The line values to be populated.
 #[inline]
-pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
+pub fn get_line_values(lf: &File, vals: &mut LineValues) -> Result<()> {
     // SAFETY: vals are raw integers that are safe to decode.
     match unsafe {
         libc::ioctl(
-            lfd,
+            lf.as_raw_fd(),
             iorw!(Ioctl::GetLineValues, LineValues),
             vals.0.as_mut_ptr(),
         )
@@ -380,14 +380,14 @@ pub fn get_line_values(lfd: RawFd, vals: &mut LineValues) -> Result<()> {
 
 /// Set the values of requested lines.
 ///
-/// * `lf` - The file returned by [`get_line_handle`].
+/// * `lf` - The request file returned by [`get_line_handle`].
 /// * `vals` - The line values to be set.
 #[inline]
-pub fn set_line_values(lfd: RawFd, vals: &LineValues) -> Result<()> {
+pub fn set_line_values(lf: &File, vals: &LineValues) -> Result<()> {
     // SAFETY: vals is not modified.
     match unsafe {
         libc::ioctl(
-            lfd,
+            lf.as_raw_fd(),
             iorw!(Ioctl::SetLineValues, LineValues),
             vals.0.as_ptr(),
         )
@@ -442,13 +442,13 @@ bitflags! {
 ///
 /// Detected events can be read from the returned file.
 ///
-/// * 'cfd' - The fd of the open chip.
+/// * 'cf' - The open gpiochip device file.
 /// * `er` - The line event request.
 #[inline]
-pub fn get_line_event(cfd: RawFd, er: EventRequest) -> Result<File> {
+pub fn get_line_event(cf: &File, er: EventRequest) -> Result<File> {
     // SAFETY: er is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(cfd, iorw!(Ioctl::GetLineEvent, EventRequest), &er) {
+        match libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineEvent, EventRequest), &er) {
             0 => Ok(File::from_raw_fd(er.fd)),
             _ => Err(Error::from_errno()),
         }

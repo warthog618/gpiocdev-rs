@@ -11,7 +11,6 @@ use gpiocdev_uapi::v2::set_line_values;
 fn on_output() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let mut lr = LineRequest {
         num_lines: 4,
         consumer: "check_values".into(),
@@ -24,8 +23,7 @@ fn on_output() {
     // doesn't have to be in order, but just keeping it simple...
     lr.offsets.copy_from_slice(&[0, 1, 2, 3]);
 
-    let l = get_line(fd, lr).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line(&f, lr).unwrap();
 
     // uAPI defaults to pulling low
     assert_eq!(s.get_level(0).unwrap(), Level::Low);
@@ -35,7 +33,7 @@ fn on_output() {
 
     let mut values = LineValues::default();
     values.copy_from_slice(&[true, false, false, true]);
-    assert_eq!(set_line_values(lfd, &values), Ok(()));
+    assert_eq!(set_line_values(&l, &values), Ok(()));
     wait_propagation_delay();
     assert_eq!(s.get_level(0).unwrap(), Level::High);
     assert_eq!(s.get_level(1).unwrap(), Level::Low);
@@ -43,7 +41,7 @@ fn on_output() {
     assert_eq!(s.get_level(3).unwrap(), Level::High);
 
     values.copy_from_slice(&[false, true, false, true]);
-    assert_eq!(set_line_values(lfd, &values), Ok(()));
+    assert_eq!(set_line_values(&l, &values), Ok(()));
     wait_propagation_delay();
     assert_eq!(s.get_level(0).unwrap(), Level::Low);
     assert_eq!(s.get_level(1).unwrap(), Level::High);
@@ -55,7 +53,6 @@ fn on_output() {
 fn with_extra_values() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let mut lr = LineRequest {
         num_lines: 2,
         consumer: "with_extra_values".into(),
@@ -68,8 +65,7 @@ fn with_extra_values() {
     // doesn't have to be in order, but just keeping it simple...
     lr.offsets.copy_from_slice(&[0, 1]);
 
-    let l = get_line(fd, lr).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line(&f, lr).unwrap();
 
     // uAPI defaults to pulling low
     assert_eq!(s.get_level(0).unwrap(), Level::Low);
@@ -79,7 +75,7 @@ fn with_extra_values() {
 
     let mut values = LineValues::default();
     values.copy_from_slice(&[true, false, false, true]);
-    assert_eq!(set_line_values(lfd, &values), Ok(()));
+    assert_eq!(set_line_values(&l, &values), Ok(()));
     wait_propagation_delay();
     assert_eq!(s.get_level(0).unwrap(), Level::High);
     assert_eq!(s.get_level(1).unwrap(), Level::Low);
@@ -91,7 +87,6 @@ fn with_extra_values() {
 fn on_input() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let mut lr = LineRequest {
         num_lines: 2,
         consumer: "on_input".into(),
@@ -104,24 +99,10 @@ fn on_input() {
     // doesn't have to be in order, but just keeping it simple...
     lr.offsets.copy_from_slice(&[0, 1]);
 
-    let l = get_line(fd, lr).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line(&f, lr).unwrap();
     let values = LineValues::from_slice(&[true, false]);
     assert_eq!(
-        set_line_values(lfd, &values).unwrap_err(),
+        set_line_values(&l, &values).unwrap_err(),
         Error::Os(Errno(libc::EPERM))
-    );
-}
-
-#[test]
-fn with_bad_fd() {
-    let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
-    drop(f);
-    let values = LineValues::from_slice(&[true, true, true]);
-    assert_eq!(
-        set_line_values(fd, &values),
-        Err(Error::Os(Errno(libc::EBADF)))
     );
 }

@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::fs::File;
 use std::mem;
-use std::os::unix::prelude::{FromRawFd, RawFd};
+use std::os::unix::prelude::{AsRawFd, FromRawFd};
 use std::time::Duration;
 
 // common to ABI v1 and v2.
@@ -164,12 +164,12 @@ impl LineValues {
 
 /// Read values of requested lines.
 ///
-/// * `lfd` - The fd of the file returned by [`get_line`].
+/// * `lf` - The request file returned by [`get_line`].
 /// * `lv` - The line values to be populated.
 #[inline]
-pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
+pub fn get_line_values(lf: &File, lv: &mut LineValues) -> Result<()> {
     // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
-    match unsafe { libc::ioctl(lfd, iorw!(Ioctl::GetLineValues, LineValues), lv) } {
+    match unsafe { libc::ioctl(lf.as_raw_fd(), iorw!(Ioctl::GetLineValues, LineValues), lv) } {
         0 => Ok(()),
         _ => Err(Error::from_errno()),
     }
@@ -179,12 +179,12 @@ pub fn get_line_values(lfd: RawFd, lv: &mut LineValues) -> Result<()> {
 ///
 /// Note that requesting a set on an input line is an error.
 ///
-/// * `lfd` - The fd of the file returned by [`get_line`].
+/// * `lf` - The request file returned by [`get_line`].
 /// * `lv` - The line values to be set.
 #[inline]
-pub fn set_line_values(lfd: RawFd, lv: &LineValues) -> Result<()> {
+pub fn set_line_values(lf: &File, lv: &LineValues) -> Result<()> {
     // SAFETY: lv is not modified.
-    match unsafe { libc::ioctl(lfd, iorw!(Ioctl::SetLineValues, LineValues), lv) } {
+    match unsafe { libc::ioctl(lf.as_raw_fd(), iorw!(Ioctl::SetLineValues, LineValues), lv) } {
         0 => Ok(()),
         _ => Err(Error::from_errno()),
     }
@@ -421,13 +421,13 @@ impl LineConfig {
 
 /// Update the configuration of an existing line request.
 ///
-/// * `lfd` - The fd of the file returned by [`get_line`].
+/// * `lf` - The request file returned by [`get_line`].
 /// * `lc` - The configuration to be applied.
 #[inline]
-pub fn set_line_config(lfd: RawFd, lc: LineConfig) -> Result<()> {
+pub fn set_line_config(lf: &File, lc: LineConfig) -> Result<()> {
     // SAFETY: lc is consumed.
     unsafe {
-        match libc::ioctl(lfd, iorw!(Ioctl::SetLineConfig, LineConfig), &lc) {
+        match libc::ioctl(lf.as_raw_fd(), iorw!(Ioctl::SetLineConfig, LineConfig), &lc) {
             0 => Ok(()),
             _ => Err(Error::from_errno()),
         }
@@ -474,13 +474,13 @@ pub struct LineRequest {
 
 /// Request a line or set of lines for exclusive access.
 ///
-/// * `cfd` - The fd of the open chip.
+/// * `cf` - The open gpiochip device file.
 /// * `lr` - The line request.
 #[inline]
-pub fn get_line(cfd: RawFd, lr: LineRequest) -> Result<File> {
+pub fn get_line(cf: &File, lr: LineRequest) -> Result<File> {
     // SAFETY: lr is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(cfd, iorw!(Ioctl::GetLine, LineRequest), &lr) {
+        match libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLine, LineRequest), &lr) {
             0 => Ok(File::from_raw_fd(lr.fd)),
             _ => Err(Error::from_errno()),
         }
@@ -562,16 +562,16 @@ impl LineInfo {
 /// This does not include the line value.
 /// The line must be requested to access the value.
 ///
-/// * `cfd` - The fd of the open chip.
+/// * `cf` - The open gpiochip device file.
 /// * `offset` - The offset of the line.
 #[inline]
-pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
+pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
         ..Default::default()
     };
     // SAFETY: returned struct is explicitly validated before being returned.
-    match unsafe { libc::ioctl(cfd, iorw!(Ioctl::GetLineInfo, LineInfo), &li) } {
+    match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineInfo, LineInfo), &li) } {
         0 => li.validate().map(|_| li).map_err(Error::from),
         _ => Err(Error::from_errno()),
     }
@@ -584,16 +584,16 @@ pub fn get_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
 /// This does not include the line value.
 /// The line must be requested to access the value.
 ///
-/// * `cfd` - The fd of the open chip.
+/// * `cf` - The open gpiochip device file.
 /// * `offset` - The offset of the line to watch.
 #[inline]
-pub fn watch_line_info(cfd: RawFd, offset: Offset) -> Result<LineInfo> {
+pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
     let li = LineInfo {
         offset,
         ..Default::default()
     };
     // SAFETY: returned struct is explicitly validated before being returned.
-    match unsafe { libc::ioctl(cfd, iorw!(Ioctl::WatchLineInfo, LineInfo), &li) } {
+    match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::WatchLineInfo, LineInfo), &li) } {
         0 => li.validate().map(|_| li).map_err(Error::from),
         _ => Err(Error::from_errno()),
     }

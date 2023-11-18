@@ -9,7 +9,6 @@ use crate::common::{wait_propagation_delay, EVENT_WAIT_TIMEOUT};
 fn as_is() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let er = EventRequest {
         consumer: "as_is".into(),
@@ -19,8 +18,8 @@ fn as_is() {
         ..Default::default()
     };
 
-    let l = get_line_event(fd, er.clone()).unwrap();
-    let info = get_line_info(fd, offset).unwrap();
+    let l = get_line_event(&f, er.clone()).unwrap();
+    let info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, LineInfoFlags::USED);
     // v1 does not report edge flags in the info, so nothing more to check
@@ -34,12 +33,12 @@ fn as_is() {
         ..Default::default()
     };
     hr.offsets.set(0, offset);
-    let l = get_line_handle(fd, hr).unwrap();
+    let l = get_line_handle(&f, hr).unwrap();
     drop(l);
 
     // switched to input
-    let l = get_line_event(fd, er).unwrap();
-    let info = get_line_info(fd, offset).unwrap();
+    let l = get_line_event(&f, er).unwrap();
+    let info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, LineInfoFlags::USED);
     // v1 does not report edge flags in the info, so nothing more to check
@@ -50,7 +49,6 @@ fn as_is() {
 fn as_input() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let er = EventRequest {
         consumer: "as_input".into(),
@@ -60,8 +58,8 @@ fn as_input() {
         ..Default::default()
     };
 
-    let l = get_line_event(fd, er).unwrap();
-    let info = get_line_info(fd, offset).unwrap();
+    let l = get_line_event(&f, er).unwrap();
+    let info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_input");
     assert_eq!(info.flags, LineInfoFlags::USED);
     // v1 does not report edge flags in the info, so nothing more to check
@@ -72,7 +70,6 @@ fn as_input() {
 fn as_output() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let er = EventRequest {
         consumer: "as_output".into(),
@@ -83,7 +80,7 @@ fn as_output() {
     };
 
     assert_eq!(
-        get_line_event(fd, er).unwrap_err(),
+        get_line_event(&f, er).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -92,7 +89,6 @@ fn as_output() {
 fn with_both_edges() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let cfd = f.as_raw_fd();
     let offset = 2;
     let er = EventRequest {
         offset,
@@ -101,8 +97,7 @@ fn with_both_edges() {
         ..Default::default()
     };
 
-    let l = get_line_event(cfd, er).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line_event(&f, er).unwrap();
 
     s.pullup(offset).unwrap();
     wait_propagation_delay();
@@ -110,30 +105,30 @@ fn with_both_edges() {
     wait_propagation_delay();
 
     let mut buf = vec![0_u64; LineEdgeEvent::u64_size()];
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
 
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
 
-    assert!(!wait_event(lfd, EVENT_WAIT_TIMEOUT).unwrap());
+    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
 
     s.pullup(offset).unwrap();
     wait_propagation_delay();
     s.pulldown(offset).unwrap();
     wait_propagation_delay();
 
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
 
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
 
@@ -144,7 +139,6 @@ fn with_both_edges() {
 fn with_rising_edge() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let cfd = f.as_raw_fd();
     let offset = 2;
     let er = EventRequest {
         offset,
@@ -153,8 +147,7 @@ fn with_rising_edge() {
         ..Default::default()
     };
 
-    let l = get_line_event(cfd, er).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line_event(&f, er).unwrap();
 
     s.pullup(offset).unwrap();
     wait_propagation_delay();
@@ -166,29 +159,29 @@ fn with_rising_edge() {
     wait_propagation_delay();
 
     let mut buf = vec![0_u64; LineEdgeEvent::u64_size()];
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
 
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
 
-    assert!(!wait_event(lfd, EVENT_WAIT_TIMEOUT).unwrap());
+    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
 
     s.pullup(offset).unwrap();
     wait_propagation_delay();
     s.pulldown(offset).unwrap();
     wait_propagation_delay();
 
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
 
-    assert!(!has_event(lfd).unwrap());
+    assert!(!has_event(&l).unwrap());
 
     drop(l);
 }
@@ -197,7 +190,6 @@ fn with_rising_edge() {
 fn with_falling_edge() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let cfd = f.as_raw_fd();
     let offset = 2;
     let er = EventRequest {
         offset,
@@ -206,8 +198,7 @@ fn with_falling_edge() {
         ..Default::default()
     };
 
-    let l = get_line_event(cfd, er).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line_event(&f, er).unwrap();
 
     s.pullup(offset).unwrap();
     wait_propagation_delay();
@@ -219,51 +210,31 @@ fn with_falling_edge() {
     wait_propagation_delay();
 
     let mut buf = vec![0_u64; LineEdgeEvent::u64_size()];
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
 
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
 
-    assert!(!wait_event(lfd, EVENT_WAIT_TIMEOUT).unwrap());
+    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
 
     s.pullup(offset).unwrap();
     wait_propagation_delay();
     s.pulldown(offset).unwrap();
     wait_propagation_delay();
 
-    assert!(has_event(lfd).unwrap());
-    assert_eq!(read_event(lfd, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
 
-    assert!(!has_event(lfd).unwrap());
+    assert!(!has_event(&l).unwrap());
 
     drop(l);
-}
-
-#[test]
-fn with_bad_fd() {
-    let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
-    let offset = 2;
-    let er = EventRequest {
-        consumer: "with_bad_fd".into(),
-        offset,
-        handleflags: HandleRequestFlags::INPUT,
-        eventflags: EventRequestFlags::BOTH_EDGES,
-        ..Default::default()
-    };
-    drop(f);
-    assert_eq!(
-        get_line_event(fd, er).unwrap_err(),
-        Error::Os(Errno(libc::EBADF))
-    );
 }
 
 #[test]
@@ -279,7 +250,7 @@ fn with_offset_out_of_range() {
         ..Default::default()
     };
     assert_eq!(
-        get_line_event(f.as_raw_fd(), er).unwrap_err(),
+        get_line_event(&f, er).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -288,7 +259,6 @@ fn with_offset_out_of_range() {
 fn while_busy() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let er = EventRequest {
         consumer: "while_busy".into(),
@@ -298,10 +268,10 @@ fn while_busy() {
         ..Default::default()
     };
 
-    let l: fs::File = get_line_event(fd, er.clone()).unwrap();
+    let l: fs::File = get_line_event(&f, er.clone()).unwrap();
 
     assert_eq!(
-        get_line_event(fd, er).unwrap_err(),
+        get_line_event(&f, er).unwrap_err(),
         Error::Os(Errno(libc::EBUSY))
     );
     drop(l);
@@ -311,7 +281,6 @@ fn while_busy() {
 fn with_multiple_bias_flags() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let er_base = EventRequest {
         consumer: "with_multiple_bias_flags".into(),
@@ -325,7 +294,7 @@ fn with_multiple_bias_flags() {
     er.handleflags |= HandleRequestFlags::BIAS_PULL_UP;
     er.handleflags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        get_line_event(fd, er).unwrap_err(),
+        get_line_event(&f, er).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
@@ -333,7 +302,7 @@ fn with_multiple_bias_flags() {
     er.handleflags |= HandleRequestFlags::BIAS_PULL_UP;
     er.handleflags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        get_line_event(fd, er).unwrap_err(),
+        get_line_event(&f, er).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
@@ -341,7 +310,7 @@ fn with_multiple_bias_flags() {
     er.handleflags |= HandleRequestFlags::BIAS_PULL_DOWN;
     er.handleflags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        get_line_event(fd, er).unwrap_err(),
+        get_line_event(&f, er).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -350,7 +319,6 @@ fn with_multiple_bias_flags() {
 fn with_drive_flags() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let er_base = EventRequest {
         consumer: "with_drive_flags".into(),
@@ -362,14 +330,14 @@ fn with_drive_flags() {
     let mut er = er_base.clone();
     er.handleflags |= HandleRequestFlags::OPEN_DRAIN;
     assert_eq!(
-        get_line_event(fd, er).unwrap_err(),
+        get_line_event(&f, er).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
     er = er_base;
     er.handleflags |= HandleRequestFlags::OPEN_SOURCE;
     assert_eq!(
-        get_line_event(fd, er).unwrap_err(),
+        get_line_event(&f, er).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }

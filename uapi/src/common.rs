@@ -5,15 +5,19 @@
 use libc::{self, c_long, pollfd, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
 use std::mem::{self, MaybeUninit};
-use std::os::unix::prelude::{OsStrExt, RawFd};
+use std::os::unix::prelude::{AsRawFd, OsStrExt};
 use std::ptr;
 use std::slice;
 use std::time::Duration;
+use std::fs::File;
 
 /// Check if the file has an event available to read.
+///
+/// For gpiochip files the events are LineInfoChangeEvent.
+/// For line request files the events are LineEdgeEvent.
 #[inline]
-pub fn has_event(fd: RawFd) -> Result<bool> {
-    wait_event(fd, Duration::ZERO)
+pub fn has_event(f: &File) -> Result<bool> {
+    wait_event(f, Duration::ZERO)
 }
 
 macro_rules! ior {
@@ -34,10 +38,10 @@ pub(crate) use iorw;
 ///
 /// Returns the number of u64 words read.
 #[inline]
-pub fn read_event(fd: RawFd, buf: &mut [u64]) -> Result<usize> {
+pub fn read_event(f: &File, buf: &mut [u64]) -> Result<usize> {
     unsafe {
         let bufptr: *mut libc::c_void = std::ptr::addr_of_mut!(*buf) as *mut libc::c_void;
-        match libc::read(fd, bufptr, buf.len() * 8) {
+        match libc::read(f.as_raw_fd(), bufptr, buf.len() * 8) {
             -1 => Err(Error::from_errno()),
             x => {
                 let size: usize = x.try_into().unwrap();
@@ -56,9 +60,9 @@ pub fn read_event(fd: RawFd, buf: &mut [u64]) -> Result<usize> {
 }
 
 /// Wait for the file to have an event available to read.
-pub fn wait_event(fd: RawFd, d: Duration) -> Result<bool> {
+pub fn wait_event(f: &File, d: Duration) -> Result<bool> {
     let mut pfd = pollfd {
-        fd,
+        fd: f.as_raw_fd(),
         events: POLLIN,
         revents: 0,
     };
@@ -106,12 +110,12 @@ pub struct ChipInfo {
 
 /// Get the publicly available information for a chip.
 ///
-/// * `cf` - The open chip File.
-pub fn get_chip_info(cfd: RawFd) -> Result<ChipInfo> {
+/// * `cf` - The open gpiochip device file.
+pub fn get_chip_info(cf: &File) -> Result<ChipInfo> {
     let mut chip = MaybeUninit::<ChipInfo>::uninit();
     unsafe {
         match libc::ioctl(
-            cfd,
+            cf.as_raw_fd(),
             ior!(Ioctl::GetChipInfo, ChipInfo),
             chip.as_mut_ptr(),
         ) {
@@ -123,14 +127,14 @@ pub fn get_chip_info(cfd: RawFd) -> Result<ChipInfo> {
 
 /// Remove any watch on changes to the [`LineInfo`] for a line.
 ///
-/// * `cfd` - The fd of the open chip.
+/// * `cf` - The open gpiochip device file.
 /// * `offset` - The offset of the line to unwatch.
 ///
 /// [`LineInfo`]: struct.LineInfo.html
-pub fn unwatch_line_info(cfd: RawFd, offset: Offset) -> Result<()> {
+pub fn unwatch_line_info(cf: &File, offset: Offset) -> Result<()> {
     match unsafe {
         libc::ioctl(
-            cfd,
+            cf.as_raw_fd(),
             iorw!(Ioctl::UnwatchLineInfo, u32),
             &offset,
         )

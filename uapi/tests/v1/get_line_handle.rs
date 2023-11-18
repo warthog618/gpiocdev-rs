@@ -8,7 +8,6 @@ use super::*;
 fn as_is() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr_base = HandleRequest {
         num_lines: 1,
@@ -21,8 +20,8 @@ fn as_is() {
 
     // single line
     let mut hr = hr_base.clone();
-    let mut l = get_line_handle(fd, hr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let mut l = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, LineInfoFlags::USED);
     drop(l);
@@ -32,14 +31,14 @@ fn as_is() {
     hr = hr_base.clone();
     hr.num_lines = 3;
     hr.offsets.copy_from_slice(&offsets);
-    l = get_line_handle(fd, hr).unwrap();
-    info = get_line_info(fd, offset).unwrap();
+    l = get_line_handle(&f, hr).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, LineInfoFlags::USED);
-    info = get_line_info(fd, 0).unwrap();
+    info = get_line_info(&f, 0).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, LineInfoFlags::USED);
-    info = get_line_info(fd, 3).unwrap();
+    info = get_line_info(&f, 3).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, LineInfoFlags::USED);
     drop(l);
@@ -49,7 +48,7 @@ fn as_is() {
     hr.num_lines = 3;
     hr.offsets.copy_from_slice(&offsets);
     hr.flags = HandleRequestFlags::OUTPUT;
-    l = get_line_handle(fd, hr).unwrap();
+    l = get_line_handle(&f, hr).unwrap();
     drop(l);
 
     // output
@@ -57,8 +56,8 @@ fn as_is() {
 
     // single line
     let mut hr = hr_base.clone();
-    l = get_line_handle(fd, hr).unwrap();
-    info = get_line_info(fd, offset).unwrap();
+    l = get_line_handle(&f, hr).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, xflags);
     drop(l);
@@ -67,14 +66,14 @@ fn as_is() {
     hr = hr_base.clone();
     hr.num_lines = 3;
     hr.offsets.copy_from_slice(&offsets);
-    l = get_line_handle(fd, hr).unwrap();
-    info = get_line_info(fd, offset).unwrap();
+    l = get_line_handle(&f, hr).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, xflags);
-    info = get_line_info(fd, 0).unwrap();
+    info = get_line_info(&f, 0).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, xflags);
-    info = get_line_info(fd, 3).unwrap();
+    info = get_line_info(&f, 3).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, xflags);
     drop(l);
@@ -84,7 +83,6 @@ fn as_is() {
 fn as_input() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr_base = HandleRequest {
         num_lines: 1,
@@ -96,8 +94,8 @@ fn as_input() {
 
     // single line
     let hr = hr_base.clone();
-    let mut l: fs::File = get_line_handle(fd, hr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let mut l: fs::File = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_input");
     assert_eq!(info.flags, LineInfoFlags::USED);
     drop(l);
@@ -107,14 +105,14 @@ fn as_input() {
     let mut hr = hr_base.clone();
     hr.num_lines = 3;
     hr.offsets.copy_from_slice(&offsets);
-    l = get_line_handle(fd, hr).unwrap();
-    info = get_line_info(fd, offset).unwrap();
+    l = get_line_handle(&f, hr).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_input");
     assert_eq!(info.flags, LineInfoFlags::USED);
-    info = get_line_info(fd, 0).unwrap();
+    info = get_line_info(&f, 0).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_input");
     assert_eq!(info.flags, LineInfoFlags::USED);
-    info = get_line_info(fd, 3).unwrap();
+    info = get_line_info(&f, 3).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_input");
     assert_eq!(info.flags, LineInfoFlags::USED);
     drop(l);
@@ -124,7 +122,6 @@ fn as_input() {
 fn as_output() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr_base = HandleRequest {
         num_lines: 1,
@@ -137,8 +134,8 @@ fn as_output() {
 
     // single line
     let hr = hr_base.clone();
-    let mut l = get_line_handle(fd, hr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let mut l = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_output");
     assert_eq!(info.flags, xflags);
     assert_eq!(s.get_level(offset).unwrap(), Level::Low);
@@ -149,16 +146,16 @@ fn as_output() {
     let mut hr = hr_base.clone();
     hr.num_lines = 3;
     hr.offsets.copy_from_slice(&offsets);
-    l = get_line_handle(fd, hr).unwrap();
-    info = get_line_info(fd, offset).unwrap();
+    l = get_line_handle(&f, hr).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_output");
     assert_eq!(info.flags, xflags);
     assert_eq!(s.get_level(offset).unwrap(), Level::Low);
-    info = get_line_info(fd, 0).unwrap();
+    info = get_line_info(&f, 0).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_output");
     assert_eq!(info.flags, xflags);
     assert_eq!(s.get_level(0).unwrap(), Level::Low);
-    info = get_line_info(fd, 3).unwrap();
+    info = get_line_info(&f, 3).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_output");
     assert_eq!(info.flags, xflags);
     assert_eq!(s.get_level(3).unwrap(), Level::Low);
@@ -169,7 +166,6 @@ fn as_output() {
 fn with_output_values() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr_base = HandleRequest {
         num_lines: 1,
@@ -183,8 +179,8 @@ fn with_output_values() {
 
     // single line
     let hr = hr_base.clone();
-    let mut l = get_line_handle(fd, hr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let mut l = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_output_values"
@@ -199,22 +195,22 @@ fn with_output_values() {
     hr.offsets.set(1, 0);
     hr.offsets.set(2, 3);
     hr.values.set(2, 1);
-    l = get_line_handle(fd, hr).unwrap();
-    info = get_line_info(fd, offset).unwrap();
+    l = get_line_handle(&f, hr).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_output_values"
     );
     assert_eq!(info.flags, xflags);
     assert_eq!(s.get_level(offset).unwrap(), Level::High);
-    info = get_line_info(fd, 0).unwrap();
+    info = get_line_info(&f, 0).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_output_values"
     );
     assert_eq!(info.flags, xflags);
     assert_eq!(s.get_level(0).unwrap(), Level::Low);
-    info = get_line_info(fd, 3).unwrap();
+    info = get_line_info(&f, 3).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_output_values"
@@ -222,25 +218,6 @@ fn with_output_values() {
     assert_eq!(info.flags, xflags);
     assert_eq!(s.get_level(3).unwrap(), Level::High);
     drop(l);
-}
-
-#[test]
-fn with_bad_fd() {
-    let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
-    let offset = 2;
-    let mut hr = HandleRequest {
-        num_lines: 1,
-        consumer: "with_bad_fd".into(),
-        ..Default::default()
-    };
-    hr.offsets.set(0, offset);
-    drop(f);
-    assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
-        Error::Os(Errno(libc::EBADF))
-    );
 }
 
 #[test]
@@ -255,7 +232,7 @@ fn with_offset_out_of_range() {
     };
     hr.offsets.set(0, offset);
     assert_eq!(
-        get_line_handle(f.as_raw_fd(), hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -264,7 +241,6 @@ fn with_offset_out_of_range() {
 fn while_busy() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -272,10 +248,10 @@ fn while_busy() {
         ..Default::default()
     };
     hr.offsets.set(0, offset);
-    let l = get_line_handle(fd, hr.clone());
+    let l = get_line_handle(&f, hr.clone());
 
     assert_eq!(
-        get_line_handle(fd, hr.clone()).unwrap_err(),
+        get_line_handle(&f, hr.clone()).unwrap_err(),
         Error::Os(Errno(libc::EBUSY))
     );
     drop(l);
@@ -285,7 +261,6 @@ fn while_busy() {
 fn with_extra_offsets() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let offsets = [2, 3];
     let mut hr = HandleRequest {
@@ -294,14 +269,14 @@ fn with_extra_offsets() {
         ..Default::default()
     };
     hr.offsets.copy_from_slice(&offsets);
-    let l = get_line_handle(fd, hr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let l = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_extra_offsets"
     );
     assert_eq!(info.flags, LineInfoFlags::USED);
-    info = get_line_info(fd, 3).unwrap();
+    info = get_line_info(&f, 3).unwrap();
     assert!(info.consumer.is_empty());
     assert!(info.flags.is_empty());
     drop(l);
@@ -311,7 +286,6 @@ fn with_extra_offsets() {
 fn with_repeated_offset() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 2,
@@ -321,7 +295,7 @@ fn with_repeated_offset() {
     hr.offsets.set(0, offset);
     hr.offsets.set(1, offset);
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EBUSY))
     );
 }
@@ -330,7 +304,6 @@ fn with_repeated_offset() {
 fn with_multiple_bias_flags() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr_base = HandleRequest {
         num_lines: 1,
@@ -344,7 +317,7 @@ fn with_multiple_bias_flags() {
     hr.flags |= HandleRequestFlags::BIAS_PULL_UP;
     hr.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
@@ -352,7 +325,7 @@ fn with_multiple_bias_flags() {
     hr.flags |= HandleRequestFlags::BIAS_PULL_UP;
     hr.flags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
@@ -360,7 +333,7 @@ fn with_multiple_bias_flags() {
     hr.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
     hr.flags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -369,7 +342,6 @@ fn with_multiple_bias_flags() {
 fn with_multiple_drive_flags() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -381,7 +353,7 @@ fn with_multiple_drive_flags() {
     hr.flags |= HandleRequestFlags::OPEN_DRAIN;
     hr.flags |= HandleRequestFlags::OPEN_SOURCE;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -390,7 +362,6 @@ fn with_multiple_drive_flags() {
 fn with_bias_without_direction() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr_base = HandleRequest {
         num_lines: 1,
@@ -402,21 +373,21 @@ fn with_bias_without_direction() {
     let mut hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::BIAS_PULL_UP;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -425,7 +396,6 @@ fn with_bias_without_direction() {
 fn with_drive_without_output() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr_base = HandleRequest {
         num_lines: 1,
@@ -438,14 +408,14 @@ fn with_drive_without_output() {
     let mut hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::OPEN_DRAIN;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::OPEN_SOURCE;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
@@ -455,14 +425,14 @@ fn with_drive_without_output() {
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::OPEN_DRAIN;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::OPEN_SOURCE;
     assert_eq!(
-        get_line_handle(fd, hr).unwrap_err(),
+        get_line_handle(&f, hr).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }

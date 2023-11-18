@@ -9,7 +9,6 @@ use gpiocdev_uapi::v2::{set_line_config, LineConfig};
 fn check_info() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let cfd = f.as_raw_fd();
     let offset = 2;
     let mut lr = LineRequest {
         num_lines: 1,
@@ -28,9 +27,8 @@ fn check_info() {
     };
 
     // baseline
-    let l = get_line(cfd, lr).unwrap();
-    let lfd = l.as_raw_fd();
-    let mut info = get_line_info(cfd, offset).unwrap();
+    let l = get_line(&f, lr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     let mut xflags = LineFlags::USED | LineFlags::OUTPUT;
     assert_eq!(info.flags, xflags);
@@ -38,53 +36,53 @@ fn check_info() {
     // active low
     let mut lc = lc_base.clone();
     lc.flags |= LineFlags::ACTIVE_LOW;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::ACTIVE_LOW);
 
     // bias
     lc = lc_base.clone();
     lc.flags |= LineFlags::BIAS_DISABLED;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::BIAS_DISABLED);
 
     lc = lc_base.clone();
     lc.flags |= LineFlags::BIAS_PULL_DOWN;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::BIAS_PULL_DOWN);
 
     lc = lc_base.clone();
     lc.flags |= LineFlags::BIAS_PULL_UP;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::BIAS_PULL_UP);
 
     // drive
     lc = lc_base.clone();
     lc.flags |= LineFlags::OPEN_DRAIN;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::OPEN_DRAIN);
 
     lc = lc_base.clone();
     lc.flags |= LineFlags::OPEN_SOURCE;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::OPEN_SOURCE);
 
     // direction
     lc = lc_base.clone();
     lc.flags = LineFlags::INPUT;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, LineFlags::USED | LineFlags::INPUT);
 
@@ -93,29 +91,29 @@ fn check_info() {
     xflags = LineFlags::USED | LineFlags::INPUT;
     lc = lc_base.clone();
     lc.flags |= LineFlags::EDGE_RISING;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::EDGE_RISING);
 
     lc = lc_base.clone();
     lc.flags |= LineFlags::EDGE_RISING;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::EDGE_RISING);
 
     lc = lc_base.clone();
     lc.flags |= LineFlags::EDGE_FALLING;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::EDGE_FALLING);
 
     lc = lc_base.clone();
     lc.flags |= LineFlags::EDGE_RISING | LineFlags::EDGE_FALLING;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(
         info.flags,
@@ -126,8 +124,8 @@ fn check_info() {
     xflags = LineFlags::USED | LineFlags::INPUT | LineFlags::EDGE_RISING;
     lc = lc_base.clone();
     lc.flags |= LineFlags::EDGE_RISING | LineFlags::EVENT_CLOCK_REALTIME;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineFlags::EVENT_CLOCK_REALTIME);
 
@@ -142,8 +140,8 @@ fn check_info() {
     let attr = lc.attr_mut(0);
     attr.mask = 1;
     attr.attr = xattr;
-    assert_eq!(set_line_config(lfd, lc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, lc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(
         info.flags,
@@ -155,23 +153,9 @@ fn check_info() {
 }
 
 #[test]
-fn with_bad_fd() {
-    let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
-    drop(f);
-    let lc = LineConfig {
-        flags: LineFlags::INPUT,
-        ..Default::default()
-    };
-    assert_eq!(set_line_config(fd, lc), Err(Error::Os(Errno(libc::EBADF))));
-}
-
-#[test]
 fn with_multiple_bias_flags() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut lr = LineRequest {
         num_lines: 1,
@@ -190,8 +174,8 @@ fn with_multiple_bias_flags() {
     };
 
     // baseline
-    let l = get_line(fd, lr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let l = get_line(&f, lr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -203,10 +187,10 @@ fn with_multiple_bias_flags() {
     lc.flags |= LineFlags::BIAS_PULL_UP;
     lc.flags |= LineFlags::BIAS_DISABLED;
     assert_eq!(
-        set_line_config(fd, lc).unwrap_err(),
+        set_line_config(&f, lc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -217,10 +201,10 @@ fn with_multiple_bias_flags() {
     lc.flags |= LineFlags::BIAS_PULL_UP;
     lc.flags |= LineFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        set_line_config(fd, lc).unwrap_err(),
+        set_line_config(&f, lc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -231,10 +215,10 @@ fn with_multiple_bias_flags() {
     lc.flags |= LineFlags::BIAS_DISABLED;
     lc.flags |= LineFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        set_line_config(fd, lc).unwrap_err(),
+        set_line_config(&f, lc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -248,7 +232,6 @@ fn with_multiple_bias_flags() {
 fn with_multiple_drive_flags() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut lr = LineRequest {
         num_lines: 1,
@@ -261,8 +244,8 @@ fn with_multiple_drive_flags() {
     };
     lr.offsets.set(0, offset);
 
-    let l = get_line(fd, lr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let l = get_line(&f, lr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_drive_flags"
@@ -275,10 +258,10 @@ fn with_multiple_drive_flags() {
         ..Default::default()
     };
     assert_eq!(
-        set_line_config(fd, lc).unwrap_err(),
+        set_line_config(&f, lc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_drive_flags"
@@ -292,7 +275,6 @@ fn with_multiple_drive_flags() {
 fn without_direction() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut lr = LineRequest {
         num_lines: 1,
@@ -305,8 +287,8 @@ fn without_direction() {
     };
     lr.offsets.set(0, offset);
 
-    let l = get_line(fd, lr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let l = get_line(&f, lr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "without_direction"
@@ -316,10 +298,10 @@ fn without_direction() {
 
     let lc = LineConfig::default();
     assert_eq!(
-        set_line_config(fd, lc).unwrap_err(),
+        set_line_config(&f, lc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "without_direction"

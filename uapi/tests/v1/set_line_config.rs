@@ -9,7 +9,6 @@ use gpiocdev_uapi::v1::{set_line_config, HandleConfig};
 fn check_info() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let cfd = f.as_raw_fd();
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -25,9 +24,8 @@ fn check_info() {
     };
 
     // baseline
-    let l = get_line_handle(cfd, hr).unwrap();
-    let lfd = l.as_raw_fd();
-    let mut info = get_line_info(cfd, offset).unwrap();
+    let l = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     let xflags = LineInfoFlags::USED | LineInfoFlags::OUTPUT;
     assert_eq!(info.flags, xflags);
@@ -35,53 +33,53 @@ fn check_info() {
     // active low
     let mut hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::ACTIVE_LOW;
-    assert_eq!(set_line_config(lfd, hc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, hc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::ACTIVE_LOW);
 
     // bias
     let mut hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::BIAS_DISABLED;
-    assert_eq!(set_line_config(lfd, hc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, hc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::BIAS_DISABLED);
 
     hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
-    assert_eq!(set_line_config(lfd, hc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, hc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::BIAS_PULL_DOWN);
 
     hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::BIAS_PULL_UP;
-    assert_eq!(set_line_config(lfd, hc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, hc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::BIAS_PULL_UP);
 
     // drive
     hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::OPEN_DRAIN;
-    assert_eq!(set_line_config(lfd, hc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, hc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::OPEN_DRAIN);
 
     hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::OPEN_SOURCE;
-    assert_eq!(set_line_config(lfd, hc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, hc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::OPEN_SOURCE);
 
     // direction
     hc = hc_base;
     hc.flags = HandleRequestFlags::INPUT;
-    assert_eq!(set_line_config(lfd, hc), Ok(()));
-    info = get_line_info(cfd, offset).unwrap();
+    assert_eq!(set_line_config(&l, hc), Ok(()));
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, LineInfoFlags::USED);
 
@@ -90,23 +88,9 @@ fn check_info() {
 }
 
 #[test]
-fn with_bad_fd() {
-    let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
-    drop(f);
-    let hc = HandleConfig {
-        flags: HandleRequestFlags::INPUT,
-        ..Default::default()
-    };
-    assert_eq!(set_line_config(fd, hc), Err(Error::Os(Errno(libc::EBADF))));
-}
-
-#[test]
 fn with_multiple_bias_flags() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -122,8 +106,8 @@ fn with_multiple_bias_flags() {
     };
 
     // baseline
-    let l = get_line_handle(fd, hr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let l = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -135,10 +119,10 @@ fn with_multiple_bias_flags() {
     hc.flags |= HandleRequestFlags::BIAS_PULL_UP;
     hc.flags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        set_line_config(fd, hc).unwrap_err(),
+        set_line_config(&f, hc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -149,10 +133,10 @@ fn with_multiple_bias_flags() {
     hc.flags |= HandleRequestFlags::BIAS_PULL_UP;
     hc.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        set_line_config(fd, hc).unwrap_err(),
+        set_line_config(&f, hc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -163,10 +147,10 @@ fn with_multiple_bias_flags() {
     hc.flags |= HandleRequestFlags::BIAS_DISABLED;
     hc.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        set_line_config(fd, hc).unwrap_err(),
+        set_line_config(&f, hc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -180,7 +164,6 @@ fn with_multiple_bias_flags() {
 fn with_multiple_drive_flags() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -190,8 +173,8 @@ fn with_multiple_drive_flags() {
     };
     hr.offsets.set(0, offset);
 
-    let l = get_line_handle(fd, hr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let l = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_drive_flags"
@@ -206,10 +189,10 @@ fn with_multiple_drive_flags() {
         ..Default::default()
     };
     assert_eq!(
-        set_line_config(fd, hc).unwrap_err(),
+        set_line_config(&f, hc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_drive_flags"
@@ -223,7 +206,6 @@ fn with_multiple_drive_flags() {
 fn without_direction() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -233,8 +215,8 @@ fn without_direction() {
     };
     hr.offsets.set(0, offset);
 
-    let l = get_line_handle(fd, hr).unwrap();
-    let mut info = get_line_info(fd, offset).unwrap();
+    let l = get_line_handle(&f, hr).unwrap();
+    let mut info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "without_direction"
@@ -244,10 +226,10 @@ fn without_direction() {
 
     let hc = HandleConfig::default();
     assert_eq!(
-        set_line_config(fd, hc).unwrap_err(),
+        set_line_config(&f, hc).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(fd, offset).unwrap();
+    info = get_line_info(&f, offset).unwrap();
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "without_direction"

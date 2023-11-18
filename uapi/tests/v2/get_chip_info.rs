@@ -15,18 +15,9 @@ fn check_info() {
 
     for sc in s.chips() {
         let f = fs::File::open(sc.dev_path()).unwrap();
-        let info = get_chip_info(f.as_raw_fd()).unwrap();
+        let info = get_chip_info(&f).unwrap();
         assert_eq!(info.num_lines, sc.config().num_lines);
         assert_eq!(info.label.as_os_str().to_string_lossy(), sc.config().label);
         assert_eq!(info.name.as_os_str().to_string_lossy(), sc.chip_name);
     }
-}
-
-#[test]
-fn with_bad_fd() {
-    let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
-    drop(f);
-    assert_eq!(get_chip_info(fd), Err(Error::Os(Errno(libc::EBADF))));
 }

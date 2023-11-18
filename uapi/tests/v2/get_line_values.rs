@@ -10,7 +10,6 @@ use gpiocdev_uapi::v2::{get_line_values, set_line_values};
 fn on_input() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let mut lr = LineRequest {
         num_lines: 4,
         consumer: "on_input".into(),
@@ -23,12 +22,11 @@ fn on_input() {
     // doesn't have to be in order, but just keeping it simple...
     lr.offsets.copy_from_slice(&[0, 1, 2, 3]);
 
-    let l = get_line(fd, lr).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line(&f, lr).unwrap();
 
     // sim defaults to pulling low
     let mut values = LineValues::from_slice(&[true, true, true, true]);
-    get_line_values(lfd, &mut values).unwrap();
+    get_line_values(&l, &mut values).unwrap();
     assert_eq!(values.get(0), Some(false));
     assert_eq!(values.get(1), Some(false));
     assert_eq!(values.get(2), Some(false));
@@ -37,7 +35,7 @@ fn on_input() {
     s.set_pull(0, Level::High).unwrap();
     s.set_pull(3, Level::High).unwrap();
     wait_propagation_delay();
-    get_line_values(lfd, &mut values).unwrap();
+    get_line_values(&l, &mut values).unwrap();
     assert_eq!(values.get(0), Some(true));
     assert_eq!(values.get(1), Some(false));
     assert_eq!(values.get(2), Some(false));
@@ -46,7 +44,7 @@ fn on_input() {
     s.set_pull(0, Level::Low).unwrap();
     s.set_pull(1, Level::High).unwrap();
     wait_propagation_delay();
-    get_line_values(lfd, &mut values).unwrap();
+    get_line_values(&l, &mut values).unwrap();
     assert_eq!(values.get(0), Some(false));
     assert_eq!(values.get(1), Some(true));
     assert_eq!(values.get(2), Some(false));
@@ -67,7 +65,7 @@ fn on_input() {
     s.set_pull(2, Level::High).unwrap();
     s.set_pull(3, Level::Low).unwrap();
     wait_propagation_delay();
-    assert_eq!(get_line_values(lfd, &mut values), Ok(()));
+    assert_eq!(get_line_values(&l, &mut values), Ok(()));
     assert_eq!(values.get(0), Some(true));
     assert_eq!(values.bits & 0x02, 0); // reset to 0 by the kernel despite the mask being clear.
     assert_eq!(values.bits & 0x04, 0); // also reset to 0, not reflecting the value of the line.
@@ -78,7 +76,6 @@ fn on_input() {
 fn on_output() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let mut lr = LineRequest {
         num_lines: 4,
         consumer: "check_values".into(),
@@ -91,8 +88,7 @@ fn on_output() {
     // doesn't have to be in order, but just keeping it simple...
     lr.offsets.copy_from_slice(&[0, 1, 2, 3]);
 
-    let l = get_line(fd, lr).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line(&f, lr).unwrap();
     let mut values = LineValues::from_slice(&[true, true, true, true]);
 
     // uAPI defaults to pulling low
@@ -100,33 +96,33 @@ fn on_output() {
     assert_eq!(s.get_level(1).unwrap(), Level::Low);
     assert_eq!(s.get_level(2).unwrap(), Level::Low);
     assert_eq!(s.get_level(3).unwrap(), Level::Low);
-    get_line_values(lfd, &mut values).unwrap();
+    get_line_values(&l, &mut values).unwrap();
     assert_eq!(values.get(0), Some(false));
     assert_eq!(values.get(1), Some(false));
     assert_eq!(values.get(2), Some(false));
     assert_eq!(values.get(3), Some(false));
 
     values.copy_from_slice(&[true, false, false, true]);
-    assert_eq!(set_line_values(lfd, &values), Ok(()));
+    assert_eq!(set_line_values(&l, &values), Ok(()));
     wait_propagation_delay();
     assert_eq!(s.get_level(0).unwrap(), Level::High);
     assert_eq!(s.get_level(1).unwrap(), Level::Low);
     assert_eq!(s.get_level(2).unwrap(), Level::Low);
     assert_eq!(s.get_level(3).unwrap(), Level::High);
-    get_line_values(lfd, &mut values).unwrap();
+    get_line_values(&l, &mut values).unwrap();
     assert_eq!(values.get(0), Some(true));
     assert_eq!(values.get(1), Some(false));
     assert_eq!(values.get(2), Some(false));
     assert_eq!(values.get(3), Some(true));
 
     values.copy_from_slice(&[false, true, false, true]);
-    assert_eq!(set_line_values(lfd, &values), Ok(()));
+    assert_eq!(set_line_values(&l, &values), Ok(()));
     wait_propagation_delay();
     assert_eq!(s.get_level(0).unwrap(), Level::Low);
     assert_eq!(s.get_level(1).unwrap(), Level::High);
     assert_eq!(s.get_level(2).unwrap(), Level::Low);
     assert_eq!(s.get_level(3).unwrap(), Level::High);
-    get_line_values(lfd, &mut values).unwrap();
+    get_line_values(&l, &mut values).unwrap();
     assert_eq!(values.get(0), Some(false));
     assert_eq!(values.get(1), Some(true));
     assert_eq!(values.get(2), Some(false));
@@ -137,7 +133,6 @@ fn on_output() {
 fn with_no_values() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let mut lr = LineRequest {
         num_lines: 4,
         consumer: "with_no_values".into(),
@@ -150,12 +145,11 @@ fn with_no_values() {
     // doesn't have to be in order, but just keeping it simple...
     lr.offsets.copy_from_slice(&[0, 1, 2, 3]);
 
-    let l = get_line(fd, lr).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line(&f, lr).unwrap();
 
     let mut values = LineValues::default();
     assert_eq!(
-        get_line_values(lfd, &mut values).unwrap_err(),
+        get_line_values(&l, &mut values).unwrap_err(),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -164,7 +158,6 @@ fn with_no_values() {
 fn with_extra_bits() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
     let mut lr = LineRequest {
         num_lines: 4,
         consumer: "with_extra_bits".into(),
@@ -177,28 +170,14 @@ fn with_extra_bits() {
     // doesn't have to be in order, but just keeping it simple...
     lr.offsets.copy_from_slice(&[0, 1, 2, 3]);
 
-    let l = get_line(fd, lr).unwrap();
-    let lfd = l.as_raw_fd();
+    let l = get_line(&f, lr).unwrap();
 
     let mut values = LineValues::from_slice(&[true, true, true, true, true, true]);
-    get_line_values(lfd, &mut values).unwrap();
+    get_line_values(&l, &mut values).unwrap();
     assert_eq!(values.get(0), Some(false));
     assert_eq!(values.get(1), Some(false));
     assert_eq!(values.get(2), Some(false));
     assert_eq!(values.get(3), Some(false));
     assert_eq!(values.get(4), Some(false)); // ignored in the request but cleared in the return
     assert_eq!(values.get(5), Some(false)); // ignored in the request but cleared in the return
-}
-
-#[test]
-fn with_bad_fd() {
-    let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
-    let fd = f.as_raw_fd();
-    drop(f);
-    let mut values = LineValues::from_slice(&[true, true, true]);
-    assert_eq!(
-        get_line_values(fd, &mut values),
-        Err(Error::Os(Errno(libc::EBADF)))
-    );
 }

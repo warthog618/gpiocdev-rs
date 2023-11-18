@@ -10,7 +10,6 @@ mod v2 {
     use gpiocdev_uapi::v2::*;
     use gpiosim::{Bank, Direction, Level, Simpleton};
     use std::fs;
-    use std::os::unix::prelude::AsRawFd;
 
     mod get_chip_info;
     mod get_line;
