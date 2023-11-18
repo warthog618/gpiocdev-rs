@@ -6,6 +6,7 @@
  - fix clippy 1.75 lints
  - add AsFd support to Chip and Request (bumps MSRV to 1.63).
  - update to gpiocdev-uapi 0.6 (io safety)
+ - update to async-io 2.2
 
 <a name="v0.6.0"></a>
 ## v0.6.0 - 2023-07-18
