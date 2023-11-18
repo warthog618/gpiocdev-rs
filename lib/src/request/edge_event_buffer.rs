@@ -108,6 +108,7 @@ impl<'a> EdgeEventBuffer<'a> {
 impl<'a> Iterator for EdgeEventBuffer<'a> {
     type Item = Result<EdgeEvent>;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.read_event())
     }
