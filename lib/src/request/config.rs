@@ -639,9 +639,9 @@ impl<'a> Iterator for SelectedIterator<'a> {
         if self.cfg.selected.is_empty() {
             match self.index {
                 0 => {
-                    // Safety: always safe as base config guaranteed to exist.
                     let cfg_ptr: *mut line::Config = &mut self.cfg.base;
                     self.index += 1;
+                    // SAFETY: always safe as base config guaranteed to exist.
                     Some(unsafe { &mut *cfg_ptr })
                 }
                 _ => None,
@@ -650,16 +650,15 @@ impl<'a> Iterator for SelectedIterator<'a> {
             if self.index >= self.cfg.selected.len() {
                 return None;
             }
-            // Safety:
             // Index valid as long as selected and lcfg keys are not mutated from
-            // within the iteration.
-            // Else will panic.
+            // within the iteration. Else will panic.
             let cfg_ptr: *mut line::Config = &mut *self
                 .cfg
                 .lcfg
                 .get_mut(self.cfg.selected.get(self.index).unwrap())
                 .unwrap();
             self.index += 1;
+            // SAFETY: cfg_ptr valid as checked selected.
             Some(unsafe { &mut *cfg_ptr })
         }
     }
@@ -1303,6 +1302,7 @@ mod tests {
         let lca = lc.attrs.0[0];
         assert_eq!(lca.mask, 0b0100);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
+        // SAFETY: already checked kind before accessing value
         unsafe {
             assert!(lca
                 .attr
@@ -1315,6 +1315,7 @@ mod tests {
         let lca = lc.attrs.0[1];
         assert_eq!(lca.mask, 0b1011);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
+        // SAFETY: already checked kind before accessing value
         unsafe {
             assert_eq!(lca.attr.value.values, 0b1001);
         }
@@ -1323,6 +1324,7 @@ mod tests {
         let lca = lc.attrs.0[2];
         assert_eq!(lca.mask, 0b0100);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Debounce);
+        // SAFETY: already checked kind before accessing value
         unsafe {
             assert_eq!(lca.attr.value.debounce_period_us, 10000);
         }

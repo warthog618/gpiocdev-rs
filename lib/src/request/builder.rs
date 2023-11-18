@@ -1185,6 +1185,7 @@ mod tests {
             let lca = lr.config.attrs.0[0];
             assert_eq!(lca.mask, 0b000111);
             assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
+            // SAFETY: already checked kind before accessing value
             unsafe {
                 assert!(lca
                     .attr
@@ -1196,6 +1197,7 @@ mod tests {
             let lca = lr.config.attrs.0[1];
             assert_eq!(lca.mask, 0b1111000);
             assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
+            // SAFETY: already checked kind before accessing value
             unsafe {
                 // inputs should be inactive, outputs as per config
                 assert_eq!(lca.attr.value.values, 0b0011000);
