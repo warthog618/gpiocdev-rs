@@ -15,7 +15,6 @@ use gpiocdev_uapi::NUM_LINES_MAX;
 use std::cmp::max;
 use std::collections::HashMap;
 use std::fs::File;
-use std::os::unix::prelude::AsRawFd;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
@@ -121,23 +120,23 @@ impl Builder {
             self.abiv = Some(chip.detect_abi_version()?);
         }
         match self.to_uapi()? {
-            UapiRequest::Handle(hr) => v1::get_line_handle(chip.fd, hr)
+            UapiRequest::Handle(hr) => v1::get_line_handle(&chip.f, hr)
                 .map_err(|e| Error::Uapi(UapiCall::GetLineHandle, e)),
             UapiRequest::Event(er) => {
-                v1::get_line_event(chip.fd, er).map_err(|e| Error::Uapi(UapiCall::GetLineEvent, e))
+                v1::get_line_event(&chip.f, er).map_err(|e| Error::Uapi(UapiCall::GetLineEvent, e))
             }
             UapiRequest::Line(lr) => {
-                v2::get_line(chip.fd, lr).map_err(|e| Error::Uapi(UapiCall::GetLine, e))
+                v2::get_line(&chip.f, lr).map_err(|e| Error::Uapi(UapiCall::GetLine, e))
             }
         }
     }
     #[cfg(not(feature = "uapi_v2"))]
     fn do_request(&self, chip: &Chip) -> Result<File> {
         match self.to_uapi()? {
-            UapiRequest::Handle(hr) => v1::get_line_handle(chip.fd, hr)
+            UapiRequest::Handle(hr) => v1::get_line_handle(&chip.f, hr)
                 .map_err(|e| Error::Uapi(UapiCall::GetLineHandle, e)),
             UapiRequest::Event(er) => {
-                v1::get_line_event(chip.fd, er).map_err(|e| Error::Uapi(UapiCall::GetLineEvent, e))
+                v1::get_line_event(&chip.f, er).map_err(|e| Error::Uapi(UapiCall::GetLineEvent, e))
             }
         }
     }
@@ -145,16 +144,14 @@ impl Builder {
     fn do_request(&self, chip: &Chip) -> Result<File> {
         match self.to_uapi()? {
             UapiRequest::Line(lr) => {
-                v2::get_line(chip.fd, lr).map_err(|e| Error::Uapi(UapiCall::GetLine, e))
+                v2::get_line(&chip.f, lr).map_err(|e| Error::Uapi(UapiCall::GetLine, e))
             }
         }
     }
 
     fn to_request(&self, f: File) -> Request {
-        let fd = f.as_raw_fd();
         Request {
-            _f: f,
-            fd,
+            f,
             offsets: self.cfg.offsets.clone(),
             cfg: Arc::new(RwLock::new(self.cfg.clone())),
             user_event_buffer_size: max(self.user_event_buffer_size, 1),

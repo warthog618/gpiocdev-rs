@@ -11,14 +11,14 @@ keywords = ["linux", "gpio", "gpiochip", "libgpiod", "chardev"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-rust-version = "1.62"
+rust-version = "1.63"
 version = "0.6.0"
 
 [dependencies]
 async-io = {version = "1.9.0", optional = true}
 chrono = "0.4"
 futures = {version = "0.3", optional = true}
-gpiocdev-uapi = {version = "0.5", path = "../uapi", default-features = false}
+gpiocdev-uapi = {version = "0.6", path = "../uapi", default-features = false}
 nohash-hasher = "0.2"
 serde = {version = "1.0", optional = true}
 serde_derive = {version = "1.0", optional = true}

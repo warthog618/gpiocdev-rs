@@ -21,7 +21,7 @@ use std::fs;
 use std::mem;
 use std::ops::Range;
 use std::os::linux::fs::MetadataExt;
-use std::os::unix::prelude::{AsRawFd, OsStrExt, RawFd};
+use std::os::unix::prelude::{AsFd, AsRawFd, BorrowedFd, OsStrExt};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -99,7 +99,9 @@ impl<'a> Iterator for LineInfoIterator<'a> {
     type Item = Result<line::Info>;
 
     fn next(&mut self) -> Option<Result<line::Info>> {
-        self.offsets.next().map(|offset| self.chip.line_info(offset))
+        self.offsets
+            .next()
+            .map(|offset| self.chip.line_info(offset))
     }
 }
 
@@ -108,9 +110,8 @@ impl<'a> Iterator for LineInfoIterator<'a> {
 pub struct Chip {
     /// The resolved path of the GPIO character device.
     path: PathBuf,
-    _f: fs::File,
-    /// Cached copy of _f.as_raw_fd() for syscalls, to avoid Arc<Mutex<>> overheads for ops.
-    pub(crate) fd: RawFd,
+    /// The open GPIO character device file.
+    pub(crate) f: fs::File,
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     abiv: Cell<Option<AbiVersion>>,
 }
@@ -131,11 +132,9 @@ impl Chip {
     pub fn from_path<P: AsRef<Path>>(p: P) -> Result<Chip> {
         let path = is_chip(p.as_ref())?;
         let f = fs::File::open(&path)?;
-        let fd = f.as_raw_fd();
         Ok(Chip {
             path,
-            _f: f,
-            fd,
+            f,
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             abiv: Default::default(),
         })
@@ -156,11 +155,9 @@ impl Chip {
     pub fn from_name(n: &str) -> Result<Chip> {
         let path = is_chip(format!("/dev/{}", n))?;
         let f = fs::File::open(&path)?;
-        let fd = f.as_raw_fd();
         Ok(Chip {
             path,
-            _f: f,
-            fd,
+            f,
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             abiv: Default::default(),
         })
@@ -169,7 +166,7 @@ impl Chip {
     /// Get the information for the chip.
     pub fn info(&self) -> Result<Info> {
         Ok(Info::from(
-            uapi::get_chip_info(self.fd).map_err(|e| Error::Uapi(UapiCall::GetChipInfo, e))?,
+            uapi::get_chip_info(&self.f).map_err(|e| Error::Uapi(UapiCall::GetChipInfo, e))?,
         ))
     }
 
@@ -218,14 +215,14 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
         match self.actual_abi_version()? {
-            V1 => v1::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
-            V2 => v2::get_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
+            V1 => v1::get_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
+            V2 => v2::get_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
         }
         .map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
-        uapi::get_line_info(self.fd, offset)
+        uapi::get_line_info(&self.f, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e))
     }
@@ -251,14 +248,14 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
         match self.actual_abi_version()? {
-            V1 => v1::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
-            V2 => v2::watch_line_info(self.fd, offset).map(|li| line::Info::from(&li)),
+            V1 => v1::watch_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
+            V2 => v2::watch_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
         }
         .map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e))
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
-        uapi::watch_line_info(self.fd, offset)
+        uapi::watch_line_info(&self.f, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e))
     }
@@ -267,18 +264,18 @@ impl Chip {
     ///
     /// This is a null operation if there is no existing watch on the line.
     pub fn unwatch_line_info(&self, offset: Offset) -> Result<()> {
-        uapi::unwatch_line_info(self.fd, offset)
+        uapi::unwatch_line_info(&self.f, offset)
             .map_err(|e| Error::Uapi(UapiCall::UnwatchLineInfo, e))
     }
 
     /// Check if the request has at least one info change event available to read.
     pub fn has_line_info_change_event(&self) -> Result<bool> {
-        gpiocdev_uapi::has_event(self.fd).map_err(|e| Error::Uapi(UapiCall::HasEvent, e))
+        gpiocdev_uapi::has_event(&self.f).map_err(|e| Error::Uapi(UapiCall::HasEvent, e))
     }
 
     /// Wait for an info change event to be available.
     pub fn wait_line_info_change_event(&self, timeout: Duration) -> Result<bool> {
-        gpiocdev_uapi::wait_event(self.fd, timeout).map_err(|e| Error::Uapi(UapiCall::WaitEvent, e))
+        gpiocdev_uapi::wait_event(&self.f, timeout).map_err(|e| Error::Uapi(UapiCall::WaitEvent, e))
     }
 
     /// Read a single line info change event from the chip.
@@ -298,14 +295,14 @@ impl Chip {
         let evt_u64_size = self.line_info_change_event_u64_size();
         // and dynamically sliced down to the required size, if necessary
         let buf = &mut bbuf[0..evt_u64_size];
-        let n = gpiocdev_uapi::read_event(self.fd, buf)
+        let n = gpiocdev_uapi::read_event(&self.f, buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
         self.line_info_change_event_from_slice(&buf[0..n])
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn do_read_line_info_change_event(&self) -> Result<InfoChangeEvent> {
         let mut buf = [0_u64; mem::size_of::<uapi::LineInfoChangeEvent>() / 8];
-        let n = gpiocdev_uapi::read_event(self.fd, &mut buf)
+        let n = gpiocdev_uapi::read_event(&self.f, &mut buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
         self.line_info_change_event_from_slice(&buf[0..n])
     }
@@ -336,15 +333,15 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         let res = match abiv {
-            V1 => v1::get_line_info(self.fd, 0).map(|_| ()),
-            V2 => v2::get_line_info(self.fd, 0).map(|_| ()),
+            V1 => v1::get_line_info(&self.f, 0).map(|_| ()),
+            V2 => v2::get_line_info(&self.f, 0).map(|_| ()),
         };
         res.map_err(|_| Error::UnsupportedAbi(abiv, AbiSupportKind::Kernel))
     }
     #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         match abiv {
-            V1 => uapi::get_line_info(self.fd, 0)
+            V1 => uapi::get_line_info(&self.f, 0)
                 .map(|_| ())
                 .map_err(|_| Error::UnsupportedAbi(V1, AbiSupportKind::Kernel)),
             V2 => Err(Error::UnsupportedAbi(AbiVersion::V2, AbiSupportKind::Build)),
@@ -353,7 +350,7 @@ impl Chip {
     #[cfg(not(feature = "uapi_v1"))]
     fn do_supports_abi_version(&self, abiv: AbiVersion) -> Result<()> {
         match abiv {
-            V2 => uapi::get_line_info(self.fd, 0)
+            V2 => uapi::get_line_info(&self.f, 0)
                 .map(|_| ())
                 .map_err(|_| Error::UnsupportedAbi(V2, AbiSupportKind::Kernel)),
             V1 => Err(Error::UnsupportedAbi(AbiVersion::V1, AbiSupportKind::Build)),
@@ -406,9 +403,16 @@ impl Chip {
         mem::size_of::<uapi::LineInfoChangeEvent>()
     }
 }
+impl AsFd for Chip {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.f.as_fd()
+    }
+}
 impl AsRawFd for Chip {
+    #[inline]
     fn as_raw_fd(&self) -> i32 {
-        self.fd
+        self.f.as_raw_fd()
     }
 }
 
@@ -453,7 +457,7 @@ pub struct InfoChangeIterator<'a> {
 
 impl<'a> InfoChangeIterator<'a> {
     fn read_event(&mut self) -> Result<InfoChangeEvent> {
-        let n = gpiocdev_uapi::read_event(self.chip.fd, &mut self.buf)
+        let n = gpiocdev_uapi::read_event(&self.chip.f, &mut self.buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
         self.chip.line_info_change_event_from_slice(&self.buf[0..n])
     }

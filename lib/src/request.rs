@@ -23,7 +23,7 @@ use gpiocdev_uapi::v1;
 use gpiocdev_uapi::{v2, v2 as uapi};
 use std::fs::File;
 use std::mem;
-use std::os::unix::prelude::{AsRawFd, RawFd};
+use std::os::unix::prelude::{AsFd, AsRawFd, BorrowedFd};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -79,10 +79,7 @@ use std::time::Duration;
 #[derive(Debug)]
 pub struct Request {
     /// The request file.
-    _f: File,
-
-    /// Cached copy of _f.as_raw_fd() for syscalls, to avoid Arc<Mutex<>> overheads for ops.
-    fd: RawFd,
+    f: File,
 
     /// The offsets of the requested lines.
     offsets: Vec<Offset>,
@@ -186,14 +183,14 @@ impl Request {
     #[cfg(feature = "uapi_v1")]
     fn do_values_v1(&self, values: &mut Values) -> Result<()> {
         let mut vals = v1::LineValues::default();
-        v1::get_line_values(self.fd, &mut vals)
+        v1::get_line_values(&self.f, &mut vals)
             .map(|_| values.update_from_v1(&self.offsets, &vals))
             .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))
     }
     #[cfg(feature = "uapi_v2")]
     fn do_values_v2(&self, values: &mut Values) -> Result<()> {
         let mut vals = values.to_v2(&self.offsets);
-        v2::get_line_values(self.fd, &mut vals)
+        v2::get_line_values(&self.f, &mut vals)
             .map(|_| values.update_from_v2(&self.offsets, &vals))
             .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))
     }
@@ -239,7 +236,7 @@ impl Request {
     #[cfg(feature = "uapi_v1")]
     fn do_value_v1(&self, idx: usize) -> Result<Value> {
         let mut vals = v1::LineValues::default();
-        v1::get_line_values(self.fd, &mut vals)
+        v1::get_line_values(&self.f, &mut vals)
             .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))?;
         Ok(vals.get(idx).into())
     }
@@ -249,7 +246,7 @@ impl Request {
             mask: 0x01 << idx,
             ..Default::default()
         };
-        v2::get_line_values(self.fd, &mut vals)
+        v2::get_line_values(&self.f, &mut vals)
             .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))?;
         Ok(vals.get(idx).unwrap().into())
     }
@@ -296,7 +293,7 @@ impl Request {
                 "requires all requested lines".to_string(),
             ));
         }
-        v1::set_line_values(self.fd, &values.to_v1(&self.offsets))
+        v1::set_line_values(&self.f, &values.to_v1(&self.offsets))
             .map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
     #[cfg(feature = "uapi_v2")]
@@ -307,7 +304,7 @@ impl Request {
                 "no requested lines in set values.".to_string(),
             ));
         }
-        v2::set_line_values(self.fd, lv).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
+        v2::set_line_values(&self.f, lv).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
 
     /// Set the value for one line in the request.
@@ -359,7 +356,7 @@ impl Request {
         }
         let mut vals = v1::LineValues::default();
         vals.set(idx, value.into());
-        v1::set_line_values(self.fd, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
+        v1::set_line_values(&self.f, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
     #[cfg(feature = "uapi_v2")]
     fn do_set_value_v2(&self, idx: usize, value: Value) -> Result<()> {
@@ -369,7 +366,7 @@ impl Request {
             vals.bits |= mask;
         }
         vals.mask |= mask;
-        v2::set_line_values(self.fd, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
+        v2::set_line_values(&self.f, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
     }
 
     /// Return the path of the chip for this request.
@@ -444,10 +441,10 @@ impl Request {
                         "cannot reconfigure edge detection".to_string(),
                     ));
                 }
-                v1::set_line_config(self.fd, cfg.to_v1()?)
+                v1::set_line_config(&self.f, cfg.to_v1()?)
                     .map_err(|e| Error::Uapi(UapiCall::SetLineConfig, e))
             }
-            AbiVersion::V2 => v2::set_line_config(self.fd, cfg.to_v2()?)
+            AbiVersion::V2 => v2::set_line_config(&self.f, cfg.to_v2()?)
                 .map_err(|e| Error::Uapi(UapiCall::SetLineConfig, e)),
         }
     }
@@ -472,12 +469,12 @@ impl Request {
                 "cannot reconfigure edge detection".to_string(),
             ));
         }
-        v1::set_line_config(self.fd, cfg.to_v1()?)
+        v1::set_line_config(&self.f, cfg.to_v1()?)
             .map_err(|e| Error::Uapi(UapiCall::SetLineConfig, e))
     }
     #[cfg(not(feature = "uapi_v1"))]
     fn do_reconfigure(&self, cfg: &Config) -> Result<()> {
-        v2::set_line_config(self.fd, cfg.to_v2()?)
+        v2::set_line_config(&self.f, cfg.to_v2()?)
             .map_err(|e| Error::Uapi(UapiCall::SetLineConfig, e))
     }
 
@@ -516,7 +513,7 @@ impl Request {
     ///
     /// [`read_edge_event`]: #method.read_edge_event
     pub fn has_edge_event(&self) -> Result<bool> {
-        gpiocdev_uapi::has_event(self.fd).map_err(|e| Error::Uapi(UapiCall::HasEvent, e))
+        gpiocdev_uapi::has_event(&self.f).map_err(|e| Error::Uapi(UapiCall::HasEvent, e))
     }
 
     /// Wait for an edge event to be available.
@@ -525,7 +522,7 @@ impl Request {
     ///
     /// [`read_edge_event`]: #method.read_edge_event
     pub fn wait_edge_event(&self, timeout: Duration) -> Result<bool> {
-        gpiocdev_uapi::wait_event(self.fd, timeout).map_err(|e| Error::Uapi(UapiCall::WaitEvent, e))
+        gpiocdev_uapi::wait_event(&self.f, timeout).map_err(|e| Error::Uapi(UapiCall::WaitEvent, e))
     }
 
     /// Read a single edge event from the request.
@@ -585,7 +582,7 @@ impl Request {
     ///
     /// [`edge_event_size`]: #method.edge_event_size
     pub fn read_edge_events_into_slice(&self, buf: &mut [u64]) -> Result<usize> {
-        gpiocdev_uapi::read_event(self.fd, buf).map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))
+        gpiocdev_uapi::read_event(&self.f, buf).map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))
     }
 
     /// Read an edge event from a `[u64]` slice.
@@ -666,9 +663,16 @@ impl Request {
         mem::size_of::<uapi::LineEdgeEvent>()
     }
 }
+impl AsFd for Request {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.f.as_fd()
+    }
+}
 impl AsRawFd for Request {
+    #[inline]
     fn as_raw_fd(&self) -> i32 {
-        self.fd
+        self.f.as_raw_fd()
     }
 }
 

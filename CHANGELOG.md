@@ -8,6 +8,7 @@ Each crate has its own detailed CHANGELOG:
 
  - add chip path accessors to lib Request and Config.
  - fix clippy 1.75 lints
+ - support io safety
 
 ## 2023-08-11
 
