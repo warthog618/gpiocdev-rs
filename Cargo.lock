@@ -794,7 +794,7 @@ dependencies = [
 
 [[package]]
 name = "gpiocdev"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "async-io 2.2.0",
@@ -834,7 +834,7 @@ dependencies = [
 
 [[package]]
 name = "gpiocdev-uapi"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bitflags 2.4.1",
  "criterion",
