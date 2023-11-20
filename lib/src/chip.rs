@@ -119,6 +119,15 @@ impl Chip {
     /// Constructs a Chip using the given path.
     ///
     /// The path must resolve to a valid GPIO character device.
+    ///
+    /// # Examples
+    ///```no_run
+    /// # use gpiocdev::Chip;
+    /// # fn example() -> gpiocdev::Result<Chip>{
+    /// let chip = Chip::from_path("/dev/gpiochip0")?;
+    /// # Ok(chip)
+    /// # }
+    ///```
     pub fn from_path<P: AsRef<Path>>(p: P) -> Result<Chip> {
         let path = is_chip(p.as_ref())?;
         let f = fs::File::open(&path)?;
@@ -135,6 +144,15 @@ impl Chip {
     /// Constructs a Chip using the given name.
     ///
     /// The name must resolve to a valid GPIO character device.
+    ///
+    /// # Examples
+    ///```no_run
+    /// # use gpiocdev::Chip;
+    /// # fn example() -> gpiocdev::Result<Chip>{
+    /// let chip = Chip::from_name("gpiochip0")?;
+    /// # Ok(chip)
+    /// # }
+    ///```
     pub fn from_name(n: &str) -> Result<Chip> {
         let path = is_chip(format!("/dev/{}", n))?;
         let f = fs::File::open(&path)?;
