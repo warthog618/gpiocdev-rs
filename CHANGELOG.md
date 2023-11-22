@@ -4,11 +4,19 @@ Each crate has its own detailed CHANGELOG:
 - [lib](lib/CHANGELOG.md)
 - [uapi](uapi/CHANGELOG.md)
 
-## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.0...HEAD)
+## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.1...HEAD)
+
+
+## 2023-11-22
 
  - add chip path accessors to lib Request and Config.
  - fix clippy 1.75 lints
  - support io safety
+
+### Crates
+
+ - [lib v0.6.1](lib/CHANGELOG.md)
+ - [uapi v0.6.0](uapi/CHANGELOG.md)
 
 ## 2023-08-11
 
