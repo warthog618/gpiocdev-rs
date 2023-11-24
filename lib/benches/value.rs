@@ -37,7 +37,7 @@ fn v2_benchmarks(c: &mut Criterion) {
     c.bench_function("uapi_v2 set maxlen", |b| set_maxlen(b, V2));
 }
 #[cfg(not(feature = "uapi_v2"))]
-fn v1_benchmarks(_c: &mut Criterion) {}
+fn v2_benchmarks(_c: &mut Criterion) {}
 
 // determine time taken to get one line
 #[allow(unused_variables)]

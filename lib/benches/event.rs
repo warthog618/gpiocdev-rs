@@ -31,7 +31,7 @@ fn v2_benchmarks(c: &mut Criterion) {
     c.bench_function("uapi_v2 edge event object", |b| edge_event_object(b, V2));
 }
 #[cfg(not(feature = "uapi_v2"))]
-fn v1_benchmarks(_c: &mut Criterion) {}
+fn v2_benchmarks(_c: &mut Criterion) {}
 
 // determine the interrupt latency.
 // overheads are toggle time.
