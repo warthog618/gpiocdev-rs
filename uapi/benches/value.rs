@@ -17,7 +17,6 @@ mod v1 {
     };
     use gpiosim::Simpleton;
     use std::fs;
-    use std::os::unix::prelude::AsRawFd;
 
     pub fn bench(c: &mut Criterion) {
         c.bench_function("uapi_v1 get one", get_one);
@@ -31,8 +30,7 @@ mod v1 {
     // determine time taken to get one line
     fn get_one(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = HandleRequest {
             num_lines: 1,
             consumer: "get_one".into(),
@@ -42,22 +40,20 @@ mod v1 {
         // doesn't have to be in order, but just keeping it simple...
         hr.offsets.copy_from_slice(&[1]);
 
-        let l = get_line_handle(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_handle(&cf, hr).unwrap();
 
         // sim defaults to pulling low
         let mut values = LineValues::default();
 
         b.iter(|| {
-            get_line_values(lfd, &mut values).unwrap();
+            get_line_values(&l, &mut values).unwrap();
         });
     }
 
     // determine time taken to get ten lines
     fn get_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = HandleRequest {
             num_lines: 10,
             consumer: "get_ten".into(),
@@ -68,22 +64,20 @@ mod v1 {
         let offsets: Vec<Offset> = (0..10).collect();
         hr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line_handle(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_handle(&cf, hr).unwrap();
 
         // sim defaults to pulling low
         let mut values = LineValues::default();
 
         b.iter(|| {
-            get_line_values(lfd, &mut values).unwrap();
+            get_line_values(&l, &mut values).unwrap();
         });
     }
 
     // determine time taken to get ten lines
     fn get_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = HandleRequest {
             num_lines: 64,
             consumer: "get_ten".into(),
@@ -94,22 +88,20 @@ mod v1 {
         let offsets: Vec<Offset> = (0..64).collect();
         hr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line_handle(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_handle(&cf, hr).unwrap();
 
         // sim defaults to pulling low
         let mut values = LineValues::default();
 
         b.iter(|| {
-            get_line_values(lfd, &mut values).unwrap();
+            get_line_values(&l, &mut values).unwrap();
         });
     }
 
     // determine time taken to set one line
     fn set_one(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = HandleRequest {
             num_lines: 1,
             consumer: "set_one".into(),
@@ -119,22 +111,20 @@ mod v1 {
         // doesn't have to be in order, but just keeping it simple...
         hr.offsets.copy_from_slice(&[1]);
 
-        let l = get_line_handle(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_handle(&cf, hr).unwrap();
 
         // sim defaults to pulling low
         let values = LineValues::default();
 
         b.iter(|| {
-            set_line_values(lfd, &values).unwrap();
+            set_line_values(&l, &values).unwrap();
         });
     }
 
     // determine time taken to set multiple lines
     fn set_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = HandleRequest {
             num_lines: 10,
             consumer: "set_ten".into(),
@@ -145,22 +135,20 @@ mod v1 {
         let offsets: Vec<Offset> = (0..10).collect();
         hr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line_handle(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_handle(&cf, hr).unwrap();
 
         // sim defaults to pulling low
         let values = LineValues::default();
 
         b.iter(|| {
-            set_line_values(lfd, &values).unwrap();
+            set_line_values(&l, &values).unwrap();
         });
     }
 
     // determine time taken to set multiple lines
     fn set_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = HandleRequest {
             num_lines: 64,
             consumer: "set_maxlen".into(),
@@ -171,14 +159,13 @@ mod v1 {
         let offsets: Vec<Offset> = (0..64).collect();
         hr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line_handle(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_handle(&cf, hr).unwrap();
 
         // sim defaults to pulling low
         let values = LineValues::default();
 
         b.iter(|| {
-            set_line_values(lfd, &values).unwrap();
+            set_line_values(&l, &values).unwrap();
         });
     }
 }
@@ -196,7 +183,6 @@ mod v2 {
     };
     use gpiosim::Simpleton;
     use std::fs;
-    use std::os::unix::prelude::AsRawFd;
 
     pub fn bench(c: &mut Criterion) {
         c.bench_function("uapi_v2 get one", get_one);
@@ -210,8 +196,7 @@ mod v2 {
     // determine time taken to get one line
     fn get_one(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
         let mut lr = LineRequest {
             num_lines: 1,
@@ -225,22 +210,20 @@ mod v2 {
         // doesn't have to be in order, but just keeping it simple...
         lr.offsets.copy_from_slice(&[offset]);
 
-        let l = get_line(cfd, lr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, lr).unwrap();
 
         // sim defaults to pulling low
         let mut values = LineValues::from_slice(&[true]);
 
         b.iter(|| {
-            get_line_values(lfd, &mut values).unwrap();
+            get_line_values(&l, &mut values).unwrap();
         });
     }
 
     // determine time taken to get ten lines
     fn get_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = LineRequest {
             num_lines: 10,
             consumer: "get_ten".into(),
@@ -254,21 +237,19 @@ mod v2 {
         let offsets: Vec<Offset> = (0..10).collect();
         hr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, hr).unwrap();
 
         let mut values = LineValues::from_slice(&[false; 10]);
 
         b.iter(|| {
-            get_line_values(lfd, &mut values).unwrap();
+            get_line_values(&l, &mut values).unwrap();
         });
     }
 
     // determine time taken to get ten lines
     fn get_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = LineRequest {
             num_lines: 64,
             consumer: "get_maxlen".into(),
@@ -282,21 +263,19 @@ mod v2 {
         let offsets: Vec<Offset> = (0..64).collect();
         hr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, hr).unwrap();
 
         let mut values = LineValues::from_slice(&[false; 64]);
 
         b.iter(|| {
-            get_line_values(lfd, &mut values).unwrap();
+            get_line_values(&l, &mut values).unwrap();
         });
     }
 
     // determine time taken to set one line
     fn set_one(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
         let mut hr = LineRequest {
             num_lines: 1,
@@ -310,22 +289,20 @@ mod v2 {
         // doesn't have to be in order, but just keeping it simple...
         hr.offsets.copy_from_slice(&[offset]);
 
-        let l = get_line(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, hr).unwrap();
 
         // sim defaults to pulling low
         let values = LineValues::from_slice(&[true]);
 
         b.iter(|| {
-            set_line_values(lfd, &values).unwrap();
+            set_line_values(&l, &values).unwrap();
         });
     }
 
     // determine time taken to set multiple lines
     fn set_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = LineRequest {
             num_lines: 10,
             consumer: "set_ten".into(),
@@ -339,21 +316,19 @@ mod v2 {
         let offsets: Vec<Offset> = (0..10).collect();
         hr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, hr).unwrap();
 
         let values = LineValues::from_slice(&[true; 10]);
 
         b.iter(|| {
-            set_line_values(lfd, &values).unwrap();
+            set_line_values(&l, &values).unwrap();
         });
     }
 
     // determine time taken to set multiple lines
     fn set_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let mut hr = LineRequest {
             num_lines: 64,
             consumer: "set_maxlen".into(),
@@ -367,13 +342,12 @@ mod v2 {
         let offsets: Vec<Offset> = (0..64).collect();
         hr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line(cfd, hr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, hr).unwrap();
 
         let values = LineValues::from_slice(&[true; 64]);
 
         b.iter(|| {
-            set_line_values(lfd, &values).unwrap();
+            set_line_values(&l, &values).unwrap();
         });
     }
 }

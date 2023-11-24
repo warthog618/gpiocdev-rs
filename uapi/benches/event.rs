@@ -16,7 +16,6 @@ mod v1 {
     };
     use gpiosim::{Level, Simpleton};
     use std::fs;
-    use std::os::unix::prelude::AsRawFd;
 
     pub fn bench(c: &mut Criterion) {
         c.bench_function("uapi_v1 edge latency", edge_latency);
@@ -28,8 +27,7 @@ mod v1 {
     // overheads are toggle time.
     fn edge_latency(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
         let er = EventRequest {
             offset,
@@ -38,8 +36,7 @@ mod v1 {
             ..Default::default()
         };
 
-        let l = get_line_event(cfd, er).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_event(&cf, er).unwrap();
 
         let mut pull = Level::High;
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
@@ -50,7 +47,7 @@ mod v1 {
                 Level::High => Level::Low,
                 Level::Low => Level::High,
             };
-            let _ = read_event(lfd, &mut buf).unwrap();
+            let _ = read_event(&l, &mut buf).unwrap();
         });
     }
 
@@ -58,8 +55,7 @@ mod v1 {
     // overheads are 10 * toggle time and 1 * latency.
     fn ten_edge_events(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
         let er = EventRequest {
             offset,
@@ -68,8 +64,7 @@ mod v1 {
             ..Default::default()
         };
 
-        let l = get_line_event(cfd, er).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_event(&cf, er).unwrap();
 
         let mut pull = Level::High;
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size() * 10];
@@ -82,15 +77,14 @@ mod v1 {
                     Level::Low => Level::High,
                 };
             }
-            let _ = read_event(lfd, &mut buf).unwrap();
+            let _ = read_event(&l, &mut buf).unwrap();
         });
     }
 
     // determine the time taken to read an event from a buffer
     fn edge_event_object(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
         let er = EventRequest {
             offset,
@@ -99,14 +93,13 @@ mod v1 {
             ..Default::default()
         };
 
-        let l = get_line_event(cfd, er).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line_event(&cf, er).unwrap();
 
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
 
         s.pullup(offset).unwrap();
         assert_eq!(
-            read_event(lfd, &mut buf).unwrap(),
+            read_event(&l, &mut buf).unwrap(),
             LineEdgeEvent::u64_size()
         );
 
@@ -128,7 +121,6 @@ mod v2 {
     };
     use gpiosim::{Level, Simpleton};
     use std::fs;
-    use std::os::unix::prelude::AsRawFd;
 
     pub fn bench(c: &mut Criterion) {
         c.bench_function("uapi_v2 edge latency", edge_latency);
@@ -140,8 +132,7 @@ mod v2 {
     // overheads are toggle time.
     fn edge_latency(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
         let mut lr = LineRequest {
             num_lines: 1,
@@ -154,8 +145,7 @@ mod v2 {
         };
         lr.offsets.set(0, offset);
 
-        let l = get_line(cfd, lr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, lr).unwrap();
 
         let mut pull = Level::High;
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
@@ -166,7 +156,7 @@ mod v2 {
                 Level::High => Level::Low,
                 Level::Low => Level::High,
             };
-            let _ = read_event(lfd, &mut buf).unwrap();
+            let _ = read_event(&l, &mut buf).unwrap();
         });
     }
 
@@ -174,8 +164,7 @@ mod v2 {
     // overheads are 10 * toggle time and 1 * latency.
     fn ten_edge_events(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
         let mut lr = LineRequest {
             num_lines: 1,
@@ -188,8 +177,7 @@ mod v2 {
         };
         lr.offsets.set(0, offset);
 
-        let l = get_line(cfd, lr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, lr).unwrap();
 
         let mut pull = Level::High;
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size() * 10];
@@ -202,15 +190,14 @@ mod v2 {
                     Level::Low => Level::High,
                 };
             }
-            let _ = read_event(lfd, &mut buf).unwrap();
+            let _ = read_event(&l, &mut buf).unwrap();
         });
     }
 
     // determine the time taken to read an event from a buffer
     fn edge_event_object(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let f = fs::File::open(s.dev_path()).unwrap();
-        let cfd = f.as_raw_fd();
+        let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
         let mut lr = LineRequest {
             num_lines: 1,
@@ -223,14 +210,13 @@ mod v2 {
         };
         lr.offsets.set(0, offset);
 
-        let l = get_line(cfd, lr).unwrap();
-        let lfd = l.as_raw_fd();
+        let l = get_line(&cf, lr).unwrap();
 
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
 
         s.pullup(offset).unwrap();
         assert_eq!(
-            read_event(lfd, &mut buf).unwrap(),
+            read_event(&l, &mut buf).unwrap(),
             LineEdgeEvent::u64_size()
         );
 
