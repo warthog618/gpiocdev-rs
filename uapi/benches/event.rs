@@ -98,10 +98,7 @@ mod v1 {
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
 
         s.pullup(offset).unwrap();
-        assert_eq!(
-            read_event(&l, &mut buf).unwrap(),
-            LineEdgeEvent::u64_size()
-        );
+        assert_eq!(read_event(&l, &mut buf).unwrap(), LineEdgeEvent::u64_size());
 
         b.iter(|| {
             let _ = LineEdgeEvent::from_slice(&buf).unwrap();
@@ -215,10 +212,7 @@ mod v2 {
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
 
         s.pullup(offset).unwrap();
-        assert_eq!(
-            read_event(&l, &mut buf).unwrap(),
-            LineEdgeEvent::u64_size()
-        );
+        assert_eq!(read_event(&l, &mut buf).unwrap(), LineEdgeEvent::u64_size());
 
         b.iter(|| {
             let _ = LineEdgeEvent::from_slice(&buf).unwrap();
