@@ -39,6 +39,10 @@ name = "event"
 
 [[bench]]
 harness = false
+name = "reconfigure"
+
+[[bench]]
+harness = false
 name = "request"
 
 [[bench]]
