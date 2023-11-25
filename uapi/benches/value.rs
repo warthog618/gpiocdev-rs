@@ -74,7 +74,7 @@ mod v1 {
         });
     }
 
-    // determine time taken to get ten lines
+    // determine time taken to get the maximum number of lines
     fn get_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
         let cf = fs::File::open(s.dev_path()).unwrap();
@@ -121,7 +121,7 @@ mod v1 {
         });
     }
 
-    // determine time taken to set multiple lines
+    // determine time taken to set ten lines
     fn set_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
         let cf = fs::File::open(s.dev_path()).unwrap();
@@ -145,7 +145,7 @@ mod v1 {
         });
     }
 
-    // determine time taken to set multiple lines
+    // determine time taken to set the maximum number of lines
     fn set_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
         let cf = fs::File::open(s.dev_path()).unwrap();
@@ -246,7 +246,7 @@ mod v2 {
         });
     }
 
-    // determine time taken to get ten lines
+    // determine time taken to get the maximum number of lines
     fn get_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
         let cf = fs::File::open(s.dev_path()).unwrap();
@@ -299,7 +299,7 @@ mod v2 {
         });
     }
 
-    // determine time taken to set multiple lines
+    // determine time taken to set ten lines
     fn set_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
         let cf = fs::File::open(s.dev_path()).unwrap();
@@ -325,7 +325,7 @@ mod v2 {
         });
     }
 
-    // determine time taken to set multiple lines
+    // determine time taken to set the maximum number of lines
     fn set_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
         let cf = fs::File::open(s.dev_path()).unwrap();
