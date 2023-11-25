@@ -224,7 +224,7 @@ mod v2 {
     fn get_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
         let cf = fs::File::open(s.dev_path()).unwrap();
-        let mut hr = LineRequest {
+        let mut lr = LineRequest {
             num_lines: 10,
             consumer: "get_ten".into(),
             config: LineConfig {
@@ -235,9 +235,9 @@ mod v2 {
         };
         // doesn't have to be in order, but just keeping it simple...
         let offsets: Vec<Offset> = (0..10).collect();
-        hr.offsets.copy_from_slice(&offsets);
+        lr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line(&cf, hr).unwrap();
+        let l = get_line(&cf, lr).unwrap();
 
         let mut values = LineValues::from_slice(&[false; 10]);
 
@@ -250,7 +250,7 @@ mod v2 {
     fn get_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
         let cf = fs::File::open(s.dev_path()).unwrap();
-        let mut hr = LineRequest {
+        let mut lr = LineRequest {
             num_lines: 64,
             consumer: "get_maxlen".into(),
             config: LineConfig {
@@ -261,9 +261,9 @@ mod v2 {
         };
         // doesn't have to be in order, but just keeping it simple...
         let offsets: Vec<Offset> = (0..64).collect();
-        hr.offsets.copy_from_slice(&offsets);
+        lr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line(&cf, hr).unwrap();
+        let l = get_line(&cf, lr).unwrap();
 
         let mut values = LineValues::from_slice(&[false; 64]);
 
@@ -277,7 +277,7 @@ mod v2 {
         let s = Simpleton::new(10);
         let cf = fs::File::open(s.dev_path()).unwrap();
         let offset = 2;
-        let mut hr = LineRequest {
+        let mut lr = LineRequest {
             num_lines: 1,
             consumer: "set_one".into(),
             config: LineConfig {
@@ -287,9 +287,9 @@ mod v2 {
             ..Default::default()
         };
         // doesn't have to be in order, but just keeping it simple...
-        hr.offsets.copy_from_slice(&[offset]);
+        lr.offsets.copy_from_slice(&[offset]);
 
-        let l = get_line(&cf, hr).unwrap();
+        let l = get_line(&cf, lr).unwrap();
 
         // sim defaults to pulling low
         let values = LineValues::from_slice(&[true]);
@@ -303,7 +303,7 @@ mod v2 {
     fn set_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
         let cf = fs::File::open(s.dev_path()).unwrap();
-        let mut hr = LineRequest {
+        let mut lr = LineRequest {
             num_lines: 10,
             consumer: "set_ten".into(),
             config: LineConfig {
@@ -314,9 +314,9 @@ mod v2 {
         };
         // doesn't have to be in order, but just keeping it simple...
         let offsets: Vec<Offset> = (0..10).collect();
-        hr.offsets.copy_from_slice(&offsets);
+        lr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line(&cf, hr).unwrap();
+        let l = get_line(&cf, lr).unwrap();
 
         let values = LineValues::from_slice(&[true; 10]);
 
@@ -329,7 +329,7 @@ mod v2 {
     fn set_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
         let cf = fs::File::open(s.dev_path()).unwrap();
-        let mut hr = LineRequest {
+        let mut lr = LineRequest {
             num_lines: 64,
             consumer: "set_maxlen".into(),
             config: LineConfig {
@@ -340,9 +340,9 @@ mod v2 {
         };
         // doesn't have to be in order, but just keeping it simple...
         let offsets: Vec<Offset> = (0..64).collect();
-        hr.offsets.copy_from_slice(&offsets);
+        lr.offsets.copy_from_slice(&offsets);
 
-        let l = get_line(&cf, hr).unwrap();
+        let l = get_line(&cf, lr).unwrap();
 
         let values = LineValues::from_slice(&[true; 64]);
 
