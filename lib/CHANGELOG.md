@@ -1,6 +1,11 @@
 <a name="unreleased"></a>
 ## Unreleased
 
+ - assume /dev/gpiochipXX are valid gpiochips without explicit checking
+
+<a name="v0.6.1"></a>
+## v0.6.1 - 2023-11-22
+
  - rework README.
  - add chip path accessors to Request and Config.
  - fix clippy 1.75 lints

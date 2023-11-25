@@ -32,7 +32,17 @@ const CHARDEV_MODE: u32 = 0x2000;
 /// Returns the resolved path to the character device.
 pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     let pb = fs::canonicalize(&path)?;
-    let m = fs::symlink_metadata(&pb)?;
+    // if canonical path is of form /dev/gpiochipXX assume we are good
+    if let Some(pbstr) = pb.to_str() {
+        if let Some(num) = pbstr.strip_prefix("/dev/gpiochip") {
+            if num.chars().all(|c| char::is_digit(c, 10)) {
+                return Ok(pb);
+            }
+        }
+    }
+
+    // else take a more detailed look...
+    let m = fs::metadata(&pb)?;
     if m.st_mode() & CHARDEV_MODE == 0 {
         return Err(Error::GpioChip(pb, ErrorKind::NotCharacterDevice));
     }
