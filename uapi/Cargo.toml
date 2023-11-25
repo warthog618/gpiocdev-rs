@@ -39,4 +39,8 @@ name = "event"
 
 [[bench]]
 harness = false
+name = "request"
+
+[[bench]]
+harness = false
 name = "value"
