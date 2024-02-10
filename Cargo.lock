@@ -799,7 +799,6 @@ dependencies = [
  "anyhow",
  "async-io 2.2.0",
  "async-std",
- "chrono",
  "criterion",
  "futures",
  "gpiocdev-uapi",

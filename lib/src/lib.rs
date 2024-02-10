@@ -61,7 +61,6 @@
 #[cfg(not(any(feature = "uapi_v1", feature = "uapi_v2")))]
 compile_error!("Either feature \"uapi_v1\" or \"uapi_v2\" must be enabled for this crate.");
 
-use chrono::{DateTime, TimeZone, Utc};
 #[cfg(any(feature = "uapi_v1", feature = "uapi_v2"))]
 use gpiocdev_uapi as uapi;
 #[cfg(feature = "serde")]
@@ -407,27 +406,6 @@ impl fmt::Display for AbiVersion {
     }
 }
 
-/// A moment in time in UTC.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Timestamp(DateTime<Utc>);
-
-impl Timestamp {
-    /// Create a Timestamp from the number of nanoseconds.
-    ///
-    /// Suitable for **CLOCK_REALTIME** clock sources.
-    pub fn from_nanos(t: u64) -> Self {
-        let sec = (t / 1000000000) as i64;
-        let nsec = (t as u32) % 1000000000;
-        Timestamp(Utc.timestamp_opt(sec, nsec).unwrap())
-    }
-}
-
-impl From<Timestamp> for DateTime<Utc> {
-    fn from(ts: Timestamp) -> Self {
-        ts.0
-    }
-}
-
 /// Errors returned by [`gpiocdev`] functions.
 ///
 /// [`gpiocdev`]: crate
@@ -574,24 +552,6 @@ pub fn supports_abi_version(abiv: AbiVersion) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    mod timestamp {
-        use crate::Timestamp;
-        use chrono::{DateTime, Utc};
-
-        #[test]
-        fn from_nanos() {
-            let t = Timestamp::from_nanos(123);
-            assert_eq!(t.0.timestamp_nanos_opt(), Some(123));
-        }
-
-        #[test]
-        fn into_datetime() {
-            let t = Timestamp::from_nanos(678);
-            let dt: DateTime<Utc> = t.into();
-            assert_eq!(dt.timestamp_nanos_opt(), Some(678));
-        }
-    }
 
     mod uapi_call {
 

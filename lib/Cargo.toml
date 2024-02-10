@@ -16,7 +16,6 @@ version = "0.6.1"
 
 [dependencies]
 async-io = {version = "2.2", optional = true}
-chrono = "0.4"
 futures = {version = "0.3", optional = true}
 gpiocdev-uapi = {version = "0.6", path = "../uapi", default-features = false}
 nohash-hasher = "0.2"
