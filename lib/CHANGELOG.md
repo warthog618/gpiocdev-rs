@@ -4,6 +4,7 @@
 
 - assume /dev/gpiochipXX are valid gpiochips without explicit checking
 - fix issue #14 - drop Timestamp class and dependency on chrono - was only for CLOCK_REALTIME helper.
+- impl From for async wrappers
 
 <a name="v0.6.1"></a>
 

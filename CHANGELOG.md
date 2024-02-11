@@ -7,6 +7,7 @@ Each crate has its own detailed CHANGELOG:
 ## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.1...HEAD)
 
 - fix issue #14 - drop Timestamp class and chrono dependency from lib.
+- impl From for async wrappers
 
 ## 2023-11-22
 

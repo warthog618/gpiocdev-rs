@@ -92,6 +92,12 @@ impl AsRef<Chip> for AsyncChip {
     }
 }
 
+impl From<AsyncChip> for Chip {
+    fn from(c: AsyncChip) -> Chip {
+        c.0.into_inner()
+    }
+}
+
 /// Async form of [`InfoChangeIterator`].
 ///
 /// Created by [`AsyncChip::info_change_events`].
@@ -280,6 +286,12 @@ impl AsyncRequest {
 impl AsRef<Request> for AsyncRequest {
     fn as_ref(&self) -> &Request {
         self.0.get_ref()
+    }
+}
+
+impl From<AsyncRequest> for Request {
+    fn from(r: AsyncRequest) -> Request {
+        r.0.into_inner()
     }
 }
 
