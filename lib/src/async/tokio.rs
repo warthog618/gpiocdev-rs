@@ -27,6 +27,7 @@ use tokio_stream::Stream;
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct AsyncChip(AsyncFd<Chip>);
 
 impl AsyncChip {
@@ -140,6 +141,7 @@ impl<'a> Stream for InfoChangeStream<'a> {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct AsyncRequest(AsyncFd<Request>);
 
 impl AsyncRequest {

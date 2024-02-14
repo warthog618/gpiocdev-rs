@@ -26,6 +26,7 @@ use std::pin::Pin;
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct AsyncChip(Async<Chip>);
 
 impl AsyncChip {
@@ -133,6 +134,7 @@ impl<'a> Stream for InfoChangeStream<'a> {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct AsyncRequest(Async<Request>);
 
 impl AsyncRequest {
