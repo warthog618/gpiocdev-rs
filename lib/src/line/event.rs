@@ -23,7 +23,8 @@ pub struct EdgeEvent {
     /// The interpretation of this field depends on line [`EventClock`](super::EventClock)
     /// configuration and uAPI ABI version, and so is left raw here.
     ///
-    /// **CLOCK_REALTIME** can be converted to [`Timestamp`](crate::Timestamp).
+    /// **CLOCK_REALTIME** is a Unix UTC timestamp that can be converted to
+    /// [`SystemTime`](std::time::SystemTime) or equivalent.
     ///
     /// **CLOCK_MONOTONIC** is intended for comparing times between events and
     /// should be converted to [`Duration`](std::time::Duration).
