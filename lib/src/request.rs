@@ -679,7 +679,7 @@ impl AsRawFd for Request {
 impl AsRef<Request> for Request {
     #[inline]
     fn as_ref(&self) -> &Request {
-        &self
+        self
     }
 }
 
