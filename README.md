@@ -17,6 +17,11 @@ This is the equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpio
 
 You probably want this one.
 
+[gpiocdev-embedded-hal](https://github.com/warthog618/gpiocdev-rs/tree/master/embedded-hal) provides
+[embedded_hal](https://crates.io/crates/embedded-hal) traits for [gpiocdev](https://github.com/warthog618/gpiocdev-rs/tree/master/lib) Requests.
+
+Also provides a simplified interface that may be useful for basic use cases.
+
 [gpiocdev-cli](https://github.com/warthog618/gpiocdev-rs/tree/master/cli) provides a command line tool to access and control GPIO lines.
 
 The tool can be useful for writing scripts accessing the GPIOs, and for debugging GPIO setups.

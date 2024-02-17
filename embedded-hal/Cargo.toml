@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2024 Kent Gibson <warthog618@gmail.com>
+#
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+authors = ["Kent Gibson <warthog618@gmail.com>"]
+categories = ["hardware-support", "api-bindings", "os::linux-apis", "embedded"]
+description = "A library providing embedded-hal wrappers around gpiocdev Requests"
+edition = "2021"
+keywords = ["linux", "gpio", "gpiochip", "embedded-hal", "chardev"]
+license = "Apache-2.0 OR MIT"
+name = "gpiocdev-embedded-hal"
+repository = "https://github.com/warthog618/gpiocdev-rs"
+rust-version = "1.63"
+version = "0.1.0"
+
+[dependencies]
+embedded-hal = {version = "1.0"}
+embedded-hal-async = {version = "1.0", optional = true}
+gpiocdev = {version = "0.6", path = "../lib", default-features = false}
+thiserror = "1.0"
+
+[dev-dependencies]
+anyhow = "1.0"
+async-io = "2"
+async-std = "1"
+gpiosim = "0.3"
+tokio = {version = "1", features = ["macros", "rt", "time"]}
+
+[features]
+async_io = ["gpiocdev/async_io", "embedded-hal-async"]
+async_tokio = ["gpiocdev/async_tokio", "embedded-hal-async"]
+default = ["uapi_v2"]
+uapi_v1 = ["gpiocdev/uapi_v1"]
+uapi_v2 = ["gpiocdev/uapi_v2"]
+
+[package.metadata.docs.rs]
+all-features = true
+targets = []
+
+[[example]]
+name = "tokio_wait_for_edges"
+required-features = ["async_tokio"]
+
+[[example]]
+name = "async_io_wait_for_edges"
+required-features = ["async_io"]
+
+[[example]]
+name = "async_std_wait_for_edges"
+required-features = ["async_io"]

@@ -16,7 +16,11 @@ This is the equivalent of [libgpiod](https://git.kernel.org/pub/scm/libs/libgpio
 
 ## Companion Crates
 
-The [gpiocdev-uapi](https://crates.io/crates/gpiocdev-uapi) crate provides a lower level safe wrapper around the GPIO uAPI, while this crate provides a higher level abstraction and unified interface for both uAPI v1 and v2.  You almost certainly want to use the higher level abstraction.
+The [gpiocdev-embedded-hal](https://crates.io/crates/gpiocdev-embedded-hal) crate provides
+[embedded_hal](https://crates.io/crates/embedded-hal) traits for `Requests`, and provides
+a simplified interface that may be useful for basic use cases.
+
+The [gpiocdev-uapi](https://crates.io/crates/gpiocdev-uapi) crate provides a lower level safe wrapper around the GPIO uAPI, while this crate provides a higher level abstraction and unified interface for both uAPI v1 and v2.  You almost certainly want to use a higher level abstraction.
 
 The [gpiocdev-cli](https://crates.io/crates/gpiocdev-cli) crate provides a command line tool, similar to the **libgpiod** tools, for accessing GPIO lines from shell.
 
@@ -154,7 +158,7 @@ uAPI v2 specific features include:
 
 Compatibility with either uAPI version can be selected via features, with the default being uAPI v2.  If built with both, the library can automatically detect and use the most current available version, so defaulting to v2 and falling back to v1 if that is unavailable.
 
-**gpiocdev** does not use the slower and deprecated **sysfs** GPIO API.
+**gpiocdev** does not use the slower and obsoleted **sysfs** GPIO API.
 
 ## Async Compatibility
 
