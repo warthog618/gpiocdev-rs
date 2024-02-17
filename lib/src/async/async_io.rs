@@ -96,6 +96,12 @@ impl From<AsyncChip> for Chip {
     }
 }
 
+impl From<Request> for AsyncRequest {
+    fn from(r: Request) -> AsyncRequest {
+        AsyncRequest::new(r)
+    }
+}
+
 /// Async form of [`InfoChangeIterator`].
 ///
 /// Created by [`AsyncChip::info_change_events`].

@@ -297,6 +297,12 @@ impl From<AsyncRequest> for Request {
     }
 }
 
+impl From<Request> for AsyncRequest {
+    fn from(r: Request) -> AsyncRequest {
+        AsyncRequest::new(r)
+    }
+}
+
 /// Async form of [`EdgeEventBuffer`] in its role as an iterator.
 ///
 /// Created by [`AsyncRequest::new_edge_event_stream`] or [`AsyncRequest::edge_events`].
