@@ -103,10 +103,7 @@ impl Config {
     /// [`with_direction(Input)`]: #method.with_direction
     pub fn as_input(&mut self) -> &mut Self {
         for cfg in self.selected_iter() {
-            cfg.direction = Some(Direction::Input);
-            // set output specific options back to default
-            cfg.drive = None;
-            cfg.value = None;
+            cfg.as_input();
         }
         self
     }
@@ -114,12 +111,7 @@ impl Config {
     /// Do not set the direction of the selected lines.
     pub fn as_is(&mut self) -> &mut Self {
         for cfg in self.selected_iter() {
-            cfg.direction = None;
-            // set input/output specific options back to default
-            cfg.drive = None;
-            cfg.value = None;
-            cfg.edge_detection = None;
-            cfg.debounce_period = None;
+            cfg.as_is();
         }
         self
     }
@@ -132,11 +124,7 @@ impl Config {
     /// [`with_direction(Output)`]: #method.with_direction
     pub fn as_output(&mut self, value: Value) -> &mut Self {
         for cfg in self.selected_iter() {
-            cfg.direction = Some(Direction::Output);
-            cfg.value = Some(value);
-            // set input specific options back to default
-            cfg.edge_detection = None;
-            cfg.debounce_period = None;
+            cfg.as_output(value);
         }
         self
     }
@@ -173,12 +161,8 @@ impl Config {
     /// Implicitly selects the lines as inputs, if they weren't already, and removes
     /// any output specific settings.
     pub fn with_debounce_period(&mut self, period: Duration) -> &mut Self {
-        let dp = if period.is_zero() { None } else { Some(period) };
         for cfg in self.selected_iter() {
-            cfg.debounce_period = dp;
-            cfg.direction = Some(Direction::Input);
-            cfg.drive = None;
-            cfg.value = None;
+            cfg.with_debounce_period(period);
         }
         self
     }
@@ -200,17 +184,12 @@ impl Config {
     /// [`as_is`]: #method.as_is
     pub fn with_direction(&mut self, direction: Direction) -> &mut Self {
         for cfg in self.selected_iter() {
-            cfg.direction = Some(direction);
             match direction {
                 Direction::Output => {
-                    // set input specific options back to default
-                    cfg.edge_detection = None;
-                    cfg.debounce_period = None;
+                    cfg.as_output(Value::Inactive);
                 }
                 Direction::Input => {
-                    // set output specific options back to default
-                    cfg.drive = None;
-                    cfg.value = None;
+                    cfg.as_input();
                 }
             }
         }
@@ -223,12 +202,7 @@ impl Config {
     /// input specific settings.
     pub fn with_drive(&mut self, drive: Drive) -> &mut Self {
         for cfg in self.selected_iter() {
-            cfg.drive = Some(drive);
-            // driven lines imply output
-            cfg.direction = Some(Direction::Output);
-            // set input specific options back to default
-            cfg.edge_detection = None;
-            cfg.debounce_period = None;
+            cfg.with_drive(drive);
         }
         self
     }
@@ -239,12 +213,7 @@ impl Config {
     pub fn with_edge_detection<E: Into<Option<EdgeDetection>>>(&mut self, edge: E) -> &mut Self {
         let edge = edge.into();
         for cfg in self.selected_iter() {
-            cfg.edge_detection = edge;
-            // edge detection implies input
-            cfg.direction = Some(Direction::Input);
-            // set output specific options back to default
-            cfg.drive = None;
-            cfg.value = None;
+            cfg.with_edge_detection(edge);
         }
         self
     }
@@ -372,11 +341,7 @@ impl Config {
         for lv in values.iter() {
             self.select_line(&lv.offset);
             let cfg = self.lcfg.get_mut(&lv.offset).unwrap();
-            cfg.direction = Some(Direction::Output);
-            cfg.value = Some(lv.value);
-            // set input specific options back to default
-            cfg.edge_detection = None;
-            cfg.debounce_period = None;
+            cfg.as_output(lv.value);
         }
         self
     }

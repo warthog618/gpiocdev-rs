@@ -55,6 +55,66 @@ pub struct Config {
 }
 
 impl Config {
+    /// Set the line to input.
+    ///
+    /// This is the default direction setting.
+    pub fn as_input(&mut self) -> &mut Self {
+        self.direction = Some(Direction::Input);
+        self.sanitize_input();
+        self
+    }
+
+    /// Do not set the direction of the line.
+    pub fn as_is(&mut self) -> &mut Self {
+        self.direction = None;
+        self.sanitize_input();
+        self.sanitize_output();
+        self
+    }
+
+    /// Set the line to output with the given value.
+    pub fn as_output(&mut self, value: Value) -> &mut Self {
+        self.direction = Some(Direction::Output);
+        self.value = Some(value);
+        self.sanitize_output();
+        self
+    }
+
+    /// Set the debounce period.
+    ///
+    /// Implicitly selects the line as an input, if it wasn't already, and removes
+    /// any output specific settings.
+    pub fn with_debounce_period(&mut self, period: Duration) -> &mut Self {
+        let dp = if period.is_zero() { None } else { Some(period) };
+        self.debounce_period = dp;
+        self.direction = Some(Direction::Input);
+        self.sanitize_input();
+        self
+    }
+
+    /// Set the drive setting.
+    ///
+    /// Implicitly sets the line as an output, if it wasn't already, and removes any
+    /// input specific settings.
+    pub fn with_drive(&mut self, drive: Drive) -> &mut Self {
+        self.drive = Some(drive);
+        // driven lines imply output
+        self.direction = Some(Direction::Output);
+        self.sanitize_output();
+        self
+    }
+
+    /// Set the edge detection.
+    ///
+    /// Implicitly sets the line as an input and removes any output specific settings.
+    pub fn with_edge_detection<E: Into<Option<EdgeDetection>>>(&mut self, edge: E) -> &mut Self {
+        self.edge_detection = edge.into();
+        // edge detection implies input
+        self.direction = Some(Direction::Input);
+        self.sanitize_input();
+        self
+    }
+
     /// Check that two configs are equivalent, ignoring the line value.
     #[cfg(feature = "uapi_v1")]
     pub(crate) fn equivalent(&self, right: &Config) -> bool {
@@ -77,6 +137,18 @@ impl Config {
             None => Value::Inactive,
             Some(x) => x,
         }
+    }
+
+    // set output specific options back to default
+    fn sanitize_input(&mut self) {
+        self.drive = None;
+        self.value = None;
+    }
+
+    // set input specific options back to default
+    fn sanitize_output(&mut self) {
+        self.edge_detection = None;
+        self.debounce_period = None;
     }
 }
 
@@ -179,6 +251,11 @@ impl From<&Config> for v1::HandleRequestFlags {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use Bias::*;
+    use Direction::*;
+    use Drive::*;
+    use EdgeDetection::*;
+    use Value::*;
 
     #[test]
     fn default() {
@@ -191,6 +268,97 @@ mod tests {
         assert!(cfg.event_clock.is_none());
         assert!(cfg.debounce_period.is_none());
         assert!(cfg.value.is_none());
+    }
+
+    #[test]
+    fn as_input() {
+        let mut cfg = Config::default();
+        cfg.as_output(Active).with_drive(OpenDrain);
+        assert_eq!(cfg.direction, Some(Output));
+        assert_eq!(cfg.value, Some(Active));
+        assert_eq!(cfg.drive, Some(OpenDrain));
+
+        cfg.as_input();
+        assert_eq!(cfg.direction, Some(Input));
+        assert_eq!(cfg.value, None);
+        assert_eq!(cfg.drive, None);
+    }
+
+    #[test]
+    fn as_output() {
+        let mut cfg = Config::default();
+        cfg.as_input().with_edge_detection(RisingEdge);
+        assert_eq!(cfg.direction, Some(Input));
+        assert_eq!(cfg.value, None);
+        assert_eq!(cfg.edge_detection, Some(RisingEdge));
+
+        cfg.as_output(Active);
+        assert_eq!(cfg.direction, Some(Output));
+        assert_eq!(cfg.value, Some(Active));
+        assert_eq!(cfg.edge_detection, None);
+    }
+
+    #[test]
+    fn with_debounce_period() {
+        let d_us = Duration::from_micros(1234);
+        let d_ns = Duration::from_nanos(234);
+        let mut cfg = Config::default();
+        cfg.with_drive(OpenSource);
+        assert_eq!(cfg.direction, Some(Output));
+
+        cfg.with_debounce_period(Duration::from_micros(1234));
+        assert_eq!(cfg.debounce_period, Some(d_us));
+        assert_eq!(cfg.direction, Some(Input));
+
+        cfg.with_debounce_period(Duration::from_nanos(234));
+        assert_eq!(cfg.debounce_period, Some(d_ns));
+
+        cfg.with_debounce_period(Duration::ZERO);
+        assert!(cfg.debounce_period.is_none());
+    }
+
+    #[test]
+    fn with_drive() {
+        let mut cfg = Config {
+            bias: Some(PullUp),
+            ..Default::default()
+        };
+        cfg.with_debounce_period(Duration::from_millis(10))
+            .with_edge_detection(RisingEdge);
+        assert_eq!(cfg.direction, Some(Input));
+        assert_eq!(cfg.bias, Some(PullUp));
+        assert_eq!(cfg.debounce_period, Some(Duration::from_millis(10)));
+        assert_eq!(cfg.edge_detection, Some(RisingEdge));
+
+        cfg.with_drive(PushPull);
+        assert_eq!(cfg.direction, Some(Output));
+        assert_eq!(cfg.drive, Some(PushPull));
+        assert_eq!(cfg.bias, Some(PullUp));
+        assert!(cfg.debounce_period.is_none());
+        assert_eq!(cfg.edge_detection, None);
+
+        cfg.with_drive(OpenDrain);
+        assert_eq!(cfg.drive, Some(OpenDrain));
+
+        cfg.with_drive(OpenSource);
+        assert_eq!(cfg.drive, Some(OpenSource));
+    }
+
+    #[test]
+    fn with_edge_detection() {
+        let mut cfg = Config::default();
+        cfg.with_drive(OpenSource);
+        assert_eq!(cfg.direction, Some(Output));
+        cfg.with_edge_detection(RisingEdge);
+        assert_eq!(cfg.edge_detection, Some(RisingEdge));
+        assert_eq!(cfg.drive, None);
+        assert_eq!(cfg.direction, Some(Input));
+        cfg.with_edge_detection(FallingEdge);
+        assert_eq!(cfg.edge_detection, Some(FallingEdge));
+        cfg.with_edge_detection(BothEdges);
+        assert_eq!(cfg.edge_detection, Some(BothEdges));
+        cfg.with_edge_detection(None);
+        assert_eq!(cfg.edge_detection, None);
     }
 
     #[test]
