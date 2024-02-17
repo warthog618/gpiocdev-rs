@@ -101,10 +101,9 @@ impl Request {
     /// # Examples
     ///
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Values;
-    /// # fn main() -> Result<()> {
-    /// let req = Request::builder()
+    /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5])
     ///     .request()?;
@@ -122,13 +121,12 @@ impl Request {
     /// # Examples
     ///
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Value;
     /// # use gpiocdev::request::Config;
-    /// # fn main() -> Result<()> {
+    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// let mut cfg = Config::default();
     /// cfg.with_line(5).as_output(Value::Active);
-    /// let req = Request::from_config(cfg)
+    /// let req = gpiocdev::Request::from_config(cfg)
     ///     .on_chip("/dev/gpiochip0")
     ///     .request()?;
     /// # req.set_value(5,Value::Inactive)?;
@@ -146,10 +144,9 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Values;
-    /// # fn main() -> Result<()> {
-    /// let req = Request::builder()
+    /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5,6,8])
     ///     .request()?;
@@ -199,10 +196,9 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Values;
-    /// # fn main() -> Result<()> {
-    /// let req = Request::builder()
+    /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5])
     ///     .request()?;
@@ -254,10 +250,9 @@ impl Request {
     /// Set the values for a subset of the requested lines.
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::{Value::{Active, Inactive}, Values};
-    /// # fn main() -> Result<()> {
-    /// let req = Request::builder()
+    /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5,6,8])
     ///     .as_output(Active)
@@ -311,13 +306,12 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Value;
     /// # use gpiocdev::request::Config;
-    /// # fn main() -> Result<()> {
+    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// let mut cfg = Config::default();
     /// cfg.with_line(5).as_output(Value::Active);
-    /// let req = Request::from_config(cfg)
+    /// let req = gpiocdev::Request::from_config(cfg)
     ///     .on_chip("/dev/gpiochip0")
     ///     .request()?;
     /// req.set_value(5,Value::Inactive)?;
@@ -489,7 +483,7 @@ impl Request {
     /// ```no_run
     /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::{EdgeDetection, Value};
-    /// # fn main() -> Result<()> {
+    /// # fn example() -> Result<()> {
     /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_consumer("watcher")

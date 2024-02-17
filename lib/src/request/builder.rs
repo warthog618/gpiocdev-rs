@@ -29,9 +29,8 @@ use std::time::Duration;
 /// # Examples
 /// Request and read a basic input line:
 /// ```no_run
-/// # use gpiocdev::{Request, Result};
-/// # fn main() -> Result<()> {
-/// let l3 = Request::builder()
+/// # fn example() -> Result<(), gpiocdev::Error> {
+/// let l3 = gpiocdev::Request::builder()
 ///     .on_chip("/dev/gpiochip0")
 ///     .with_line(3)
 ///     .request()?;
@@ -43,11 +42,10 @@ use std::time::Duration;
 /// Several lines in one request:
 ///
 /// ```no_run
-/// # use gpiocdev::{Request, Result};
 /// # use gpiocdev::line::Values;
-/// # fn main() -> Result<()> {
+/// # fn example() -> Result<(), gpiocdev::Error> {
 /// let offsets = &[3,5];
-/// let req = Request::builder()
+/// let req = gpiocdev::Request::builder()
 ///     .on_chip("/dev/gpiochip0")
 ///     .with_lines(offsets)
 ///     .request()?;
@@ -61,13 +59,12 @@ use std::time::Duration;
 /// to the `Builder`:
 ///
 /// ```no_run
-/// # use gpiocdev::Result;
-/// # use gpiocdev::request::{Config, Request};
+/// # use gpiocdev::request::Config;
 /// # use gpiocdev::line::Value;
-/// # fn main() -> Result<()> {
+/// # fn example() -> Result<(), gpiocdev::Error> {
 /// let mut cfg = Config::default();
 /// cfg.with_line(5).as_output(Value::Active);
-/// let req = Request::from_config(cfg)
+/// let req = gpiocdev::Request::from_config(cfg)
 ///     .on_chip("/dev/gpiochip0")
 ///     .request()?;
 /// req.set_value(5,Value::Inactive)?;
@@ -188,7 +185,7 @@ impl Builder {
     /// ```no_run
     /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Values;
-    /// # fn main() -> Result<()> {
+    /// # fn example() -> Result<()> {
     /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5])
@@ -388,11 +385,10 @@ impl Builder {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::Value;
-    /// # fn main() -> Result<()> {
+    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
-    /// let req = Request::builder()
+    /// let req = gpiocdev::Request::builder()
     ///     .with_found_line(&led0)
     ///     .as_output(Value::Active)
     ///     .request()?;
@@ -415,11 +411,10 @@ impl Builder {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
     /// # use gpiocdev::line::EdgeDetection;
-    /// # fn main() -> Result<()> {
+    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// let buttons = gpiocdev::find_named_lines(&["BUTTON0","BUTTON1"], true)?;
-    /// let req = Request::builder()
+    /// let req = gpiocdev::Request::builder()
     ///     .with_found_lines(&buttons)
     ///     .with_edge_detection(EdgeDetection::BothEdges)
     ///     .request()?;

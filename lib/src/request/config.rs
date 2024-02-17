@@ -236,10 +236,9 @@ impl Config {
     /// Note that all configuration mutators applied subsequently only apply to this line.
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
     /// # use gpiocdev::request::Config;
     /// # use gpiocdev::line::Value;
-    /// # fn main() -> Result<()> {
+    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
     /// let mut cfg = Config::default();
     /// cfg.with_found_line(&led0)?
@@ -269,10 +268,9 @@ impl Config {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::Result;
     /// # use gpiocdev::request::Config;
     /// # use gpiocdev::line::EdgeDetection;
-    /// # fn main() -> Result<()> {
+    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// let buttons = gpiocdev::find_named_lines(&["BUTTON0","BUTTON1"], true)?;
     /// let mut cfg = Config::default();
     /// cfg.with_found_lines(&buttons)?
