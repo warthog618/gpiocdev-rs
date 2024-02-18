@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-// max time to allow events to propagate fromn the sim to cdev
+// max time to allow events to propagate from the sim to cdev
 const PROPAGATION_DELAY: Duration = Duration::from_millis(10);
 
 pub fn wait_propagation_delay() {
