@@ -255,7 +255,7 @@ impl Config {
             Ok(self)
         } else {
             Err(Error::InvalidArgument(
-                "Multiple chips requested.".to_string(),
+                "Multiple chips requested.".into(),
             ))
         }
     }
@@ -403,7 +403,7 @@ impl Config {
                 if !lcfg.equivalent(self.lcfg.get(offset).unwrap()) {
                     return Err(Error::AbiLimitation(
                         AbiVersion::V1,
-                        "requires all lines to share the same configuration".to_string(),
+                        "requires all lines to share the same configuration".into(),
                     ));
                 }
             }

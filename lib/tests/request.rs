@@ -70,7 +70,7 @@ mod builder {
                 .request();
             assert_eq!(
                 res.unwrap_err(),
-                gpiocdev::Error::AbiLimitation(V1, "does not support debounce".to_string(),)
+                gpiocdev::Error::AbiLimitation(V1, "does not support debounce".into(),)
             );
         }
 
@@ -93,7 +93,7 @@ mod builder {
                 res.unwrap_err(),
                 gpiocdev::Error::AbiLimitation(
                     V1,
-                    "does not support selecting the event clock source".to_string(),
+                    "does not support selecting the event clock source".into(),
                 )
             );
         }
@@ -117,7 +117,7 @@ mod builder {
                 res.unwrap_err(),
                 gpiocdev::Error::AbiLimitation(
                     V1,
-                    "does not support setting event buffer size".to_string(),
+                    "does not support setting event buffer size".into(),
                 )
             );
         }
@@ -680,7 +680,7 @@ mod builder {
                 .as_input()
                 .request()
                 .unwrap_err(),
-            gpiocdev::Error::InvalidArgument("Multiple chips requested.".to_string())
+            gpiocdev::Error::InvalidArgument("Multiple chips requested.".into())
         );
     }
 
@@ -828,7 +828,7 @@ mod builder {
             .request();
         assert_eq!(
             res.unwrap_err(),
-            gpiocdev::Error::InvalidArgument("Multiple chips requested.".to_string())
+            gpiocdev::Error::InvalidArgument("Multiple chips requested.".into())
         );
     }
 
@@ -1285,7 +1285,7 @@ mod request {
         let res = req.value(3);
         assert_eq!(
             res.unwrap_err(),
-            gpiocdev::Error::InvalidArgument("offset is not a requested line.".to_string())
+            gpiocdev::Error::InvalidArgument("offset is not a requested line.".into())
         );
     }
 
@@ -1415,7 +1415,7 @@ mod request {
                     req.set_value(*offset, Value::Active).unwrap_err(),
                     gpiocdev::Error::AbiLimitation(
                         AbiVersion::V1,
-                        "requires all requested lines".to_string(),
+                        "requires all requested lines".into(),
                     )
                 );
             }
@@ -1425,7 +1425,7 @@ mod request {
         let res = req.set_value(3, Value::Active);
         assert_eq!(
             res.unwrap_err(),
-            gpiocdev::Error::InvalidArgument("offset is not a requested line.".to_string())
+            gpiocdev::Error::InvalidArgument("offset is not a requested line.".into())
         );
     }
 
@@ -1501,7 +1501,7 @@ mod request {
                 req.set_values(&vals).unwrap_err(),
                 gpiocdev::Error::AbiLimitation(
                     AbiVersion::V1,
-                    "requires all requested lines".to_string(),
+                    "requires all requested lines".into(),
                 )
             );
 
@@ -1512,7 +1512,7 @@ mod request {
                 req.set_values(&vals).unwrap_err(),
                 gpiocdev::Error::AbiLimitation(
                     AbiVersion::V1,
-                    "requires all requested lines".to_string(),
+                    "requires all requested lines".into(),
                 )
             );
 
@@ -1522,7 +1522,7 @@ mod request {
                 req.set_values(&vals),
                 Err(gpiocdev::Error::AbiLimitation(
                     AbiVersion::V1,
-                    "requires all requested lines".to_string()
+                    "requires all requested lines".into()
                 ))
             );
         }

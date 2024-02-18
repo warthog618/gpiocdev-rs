@@ -105,7 +105,7 @@ impl Builder {
             return Err(e.clone());
         }
         if self.cfg.chip.as_os_str().is_empty() {
-            return Err(Error::InvalidArgument("No chip specified.".to_string()));
+            return Err(Error::InvalidArgument("No chip specified.".into()));
         }
         let chip = Chip::from_path(&self.cfg.chip)?;
         self.cfg.offsets.sort_unstable();
@@ -274,7 +274,7 @@ impl Builder {
             self.cfg.on_chip(path);
         } else if self.cfg.chip != path.into() {
             self.err = Some(Error::InvalidArgument(
-                "Multiple chips requested.".to_string(),
+                "Multiple chips requested.".into(),
             ))
         }
         self
@@ -482,7 +482,7 @@ impl Builder {
     // Conversions into uAPI types.
     fn to_uapi(&self) -> Result<UapiRequest> {
         if self.cfg.num_lines() == 0 {
-            return Err(Error::InvalidArgument("No lines specified.".to_string()));
+            return Err(Error::InvalidArgument("No lines specified.".into()));
         }
         if self.cfg.offsets.len() > NUM_LINES_MAX {
             return Err(Error::InvalidArgument(format!(
@@ -514,20 +514,20 @@ impl Builder {
         if self.kernel_event_buffer_size != 0 {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
-                "does not support setting event buffer size".to_string(),
+                "does not support setting event buffer size".into(),
             ));
         }
         let lcfg = self.cfg.unique()?;
         if lcfg.debounce_period.is_some() {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
-                "does not support debounce".to_string(),
+                "does not support debounce".into(),
             ));
         }
         if lcfg.event_clock.is_some() {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
-                "does not support selecting the event clock source".to_string(),
+                "does not support selecting the event clock source".into(),
             ));
         }
         let consumer = if self.consumer.is_empty() {
@@ -539,7 +539,7 @@ impl Builder {
             if self.cfg.offsets.len() != 1 {
                 return Err(Error::AbiLimitation(
                     AbiVersion::V1,
-                    "only supports edge detection on single line requests".to_string(),
+                    "only supports edge detection on single line requests".into(),
                 ));
             }
             Ok(UapiRequest::Event(v1::EventRequest {

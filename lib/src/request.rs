@@ -211,7 +211,7 @@ impl Request {
             .offsets
             .iter()
             .position(|v| v == &offset)
-            .ok_or_else(|| Error::InvalidArgument("offset is not a requested line.".to_string()))?;
+            .ok_or_else(|| Error::InvalidArgument("offset is not a requested line.".into()))?;
         self.do_value(idx)
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -285,7 +285,7 @@ impl Request {
         if !values.contains_keys(&self.offsets) {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
-                "requires all requested lines".to_string(),
+                "requires all requested lines".into(),
             ));
         }
         v1::set_line_values(&self.f, &values.to_v1(&self.offsets))
@@ -296,7 +296,7 @@ impl Request {
         let lv = &values.to_v2(&self.offsets);
         if lv.mask == 0 {
             return Err(Error::InvalidArgument(
-                "no requested lines in set values.".to_string(),
+                "no requested lines in set values.".into(),
             ));
         }
         v2::set_line_values(&self.f, lv).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
@@ -322,7 +322,7 @@ impl Request {
             .offsets
             .iter()
             .position(|v| v == &offset)
-            .ok_or_else(|| Error::InvalidArgument("offset is not a requested line.".to_string()))?;
+            .ok_or_else(|| Error::InvalidArgument("offset is not a requested line.".into()))?;
         self.do_set_value(idx, value)
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
@@ -345,7 +345,7 @@ impl Request {
         if self.offsets.len() > 1 {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
-                "requires all requested lines".to_string(),
+                "requires all requested lines".into(),
             ));
         }
         let mut vals = v1::LineValues::default();
@@ -426,13 +426,13 @@ impl Request {
                 {
                     return Err(Error::AbiLimitation(
                         AbiVersion::V1,
-                        "cannot reconfigure lines with edge detection".to_string(),
+                        "cannot reconfigure lines with edge detection".into(),
                     ));
                 }
                 if cfg.unique()?.edge_detection.is_some() {
                     return Err(Error::AbiLimitation(
                         AbiVersion::V1,
-                        "cannot reconfigure edge detection".to_string(),
+                        "cannot reconfigure edge detection".into(),
                     ));
                 }
                 v1::set_line_config(&self.f, cfg.to_v1()?)
@@ -454,13 +454,13 @@ impl Request {
         {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
-                "cannot reconfigure lines with edge detection".to_string(),
+                "cannot reconfigure lines with edge detection".into(),
             ));
         }
         if cfg.unique()?.edge_detection.is_some() {
             return Err(Error::AbiLimitation(
                 AbiVersion::V1,
-                "cannot reconfigure edge detection".to_string(),
+                "cannot reconfigure edge detection".into(),
             ));
         }
         v1::set_line_config(&self.f, cfg.to_v1()?)
