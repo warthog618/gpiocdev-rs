@@ -17,7 +17,7 @@ version = "0.1.0"
 [dependencies]
 embedded-hal = {version = "1.0"}
 embedded-hal-async = {version = "1.0", optional = true}
-gpiocdev = {version = "0.6", path = "../lib", default-features = false}
+gpiocdev = {version = "0.7", path = "../lib", default-features = false}
 thiserror = "1.0"
 
 [dev-dependencies]

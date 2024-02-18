@@ -2,7 +2,12 @@
 
 ## Unreleased
 
+<a name="v0.5.3"></a>
+
+## v0.5.3 - 2024-02-20
+
 - fix clippy 1.75 lints
+- update dependencies
 
 <a name="v0.5.2"></a>
 

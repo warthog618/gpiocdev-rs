@@ -1,18 +1,29 @@
 Each crate has its own detailed CHANGELOG:
 
 - [cli](cli/CHANGELOG.md)
+- [embedded-hal](embedded-hal/CHANGELOG.md)
 - [lib](lib/CHANGELOG.md)
 - [uapi](uapi/CHANGELOG.md)
 
-## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.6.1...HEAD)
+## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.7.0...HEAD)
 
-- fix issue #14 - drop Timestamp class and chrono dependency from lib.
-- impl From for async wrappers
-- impl AsRef for Request and Chip to simplify usage of async wrappers.
+## 2024-02-20
+
+- fix issue #14 - drop `Timestamp` class and `chrono` dependency from lib.
+- impl `From` for async wrappers
+- impl `AsRef` for `Request` and `Chip` to simplify usage of async wrappers.
+- add embedded-hal crate.
+
+### Crates
+
+- [cli v0.5.3](cli/CHANGELOG.md)
+- [embedded-hal v0.1.0](embedded-hal/CHANGELOG.md)
+- [lib v0.7.0](lib/CHANGELOG.md)
+- [uapi v0.6.1](uapi/CHANGELOG.md)
 
 ## 2023-11-22
 
-- add chip path accessors to lib Request and Config.
+- add chip path accessors to lib `Request` and `Config`.
 - fix clippy 1.75 lints
 - support io safety
 
@@ -75,7 +86,7 @@ Each crate has its own detailed CHANGELOG:
 
 ## 2022-11-30
 
-- fix issue #1 - losing sync between fd and AsyncFd.
+- fix issue #1 - losing sync between `fd` and `AsyncFd`.
 
 ### Crates
 

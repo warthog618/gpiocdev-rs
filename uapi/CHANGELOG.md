@@ -2,13 +2,17 @@
 
 ## Unreleased
 
+<a name="v0.6.1"></a>
+
+## v0.6.1 - 2024-02-20
+
 - fix and extend benchmarks
 
 <a name="v0.6.0"></a>
 
 ## v0.6.0 - 2023-11-22
 
-- change API from RawFd to &File for io safety.
+- change API from `RawFd` to `&File` for io safety.
 
 <a name="v0.5.0"></a>
 

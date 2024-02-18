@@ -12,7 +12,7 @@ license = "Apache-2.0 OR MIT"
 name = "gpiocdev-cli"
 repository = "https://github.com/warthog618/gpiocdev-rs"
 rust-version = "1.70"
-version = "0.5.2"
+version = "0.5.3"
 
 [[bin]]
 name = "gpiocdev"
@@ -23,7 +23,7 @@ anyhow = "1.0"
 chrono = "0.4"
 clap = {version = "4", features = ["derive", "env", "cargo"]}
 daemonize = "0.5"
-gpiocdev = {version = "0.6", path = "../lib", default-features = false}
+gpiocdev = {version = "0.7", path = "../lib", default-features = false}
 libc = "0.2"
 mio = {version = "0.8", features = ["os-ext"]}
 nohash-hasher = "0.2"

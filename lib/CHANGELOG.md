@@ -2,11 +2,15 @@
 
 ## Unreleased
 
-- assume /dev/gpiochipXX are valid gpiochips without explicit checking.
-- fix issue #14 - drop Timestamp class and dependency on chrono - was only for CLOCK_REALTIME helper.
+<a name="v0.7.0"></a>
+
+## v0.7.0 - 2024-02-20
+
+- assume `/dev/gpiochipXX` are valid gpiochips without explicit checking.
+- fix issue #14 - drop Timestamp class and dependency on `chrono` - was only for **CLOCK_REALTIME** helper.
 - impl From for async wrappers - both ways.
-- move input/output sanitization from request::Config to line::Config.
-- impl AsRef for Request and Chip to simplify usage of async wrappers.
+- move input/output sanitization from `request::Config` to `line::Config`.
+- impl `AsRef` for `Request` and `Chip` to simplify usage of async wrappers.
 - add reconfigure bench.
 
 <a name="v0.6.1"></a>
@@ -16,7 +20,7 @@
 - rework README.
 - add chip path accessors to Request and Config.
 - fix clippy 1.75 lints
-- add AsFd support to Chip and Request (bumps MSRV to 1.63).
+- add AsFd support to `Chip` and `Request` (bumps MSRV to 1.63).
 - update to gpiocdev-uapi 0.6 (io safety)
 - update to async-io 2.2
 
