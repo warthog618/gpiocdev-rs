@@ -105,7 +105,6 @@ mod chip {
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
             assert_eq!(evt.info.edge_detection, None);
-            assert_eq!(evt.info.edge_detection, None);
             assert_eq!(evt.info.debounce_period, None);
 
             // reconfigure
