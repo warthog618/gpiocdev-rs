@@ -426,6 +426,13 @@ impl AsRawFd for Chip {
     }
 }
 
+impl AsRef<Chip> for Chip {
+    #[inline]
+    fn as_ref(&self) -> &Chip {
+        self
+    }
+}
+
 /// The publicly available information for a GPIO chip.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(
