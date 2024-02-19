@@ -16,11 +16,10 @@
 //!
 //! Request an input line and output line, and read from the input and change the output to that value:
 //! ```no_run
-//! use gpiocdev::Request;
+//! # fn example() -> Result<(), gpiocdev::Error> {
 //! use gpiocdev::line::{Bias, Value};
 //!
-//! # fn example() -> Result<(), gpiocdev::Error> {
-//! let req = Request::builder()
+//! let req = gpiocdev::Request::builder()
 //!     .on_chip("/dev/gpiochip0")
 //!     .with_line(3)
 //!     .as_input()
@@ -35,15 +34,12 @@
 //! ```
 //! Monitor a line for debounced edges:
 //! ```no_run
-//! use gpiocdev::line::EdgeDetection;
-//! use std::time::Duration;
-//!
 //! # fn example() -> Result<(), gpiocdev::Error> {
 //! let req = gpiocdev::Request::builder()
 //!     .on_chip("/dev/gpiochip0")
 //!     .with_line(5)
-//!     .with_edge_detection(EdgeDetection::BothEdges)
-//!     .with_debounce_period(Duration::from_millis(5))
+//!     .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
+//!     .with_debounce_period(std::time::Duration::from_millis(5))
 //!     .request()?;
 //! for edge in req.edge_events() {
 //!     println!("{:?}", edge);
@@ -102,8 +98,8 @@ pub fn lines() -> Result<LineIterator> {
 /// # Examples
 /// The found line can be used to request the line:
 /// ```no_run
-/// # use gpiocdev::line::Value;
 /// # fn example() -> Result<(), gpiocdev::Error> {
+/// # use gpiocdev::line::Value;
 /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
 /// let req = gpiocdev::Request::builder()
 ///     .with_found_line(&led0)
@@ -115,8 +111,8 @@ pub fn lines() -> Result<LineIterator> {
 ///
 /// Using the chip and offset from the found line to request the line:
 /// ```no_run
-/// # use gpiocdev::line::Value;
 /// # fn example() -> Result<(), gpiocdev::Error> {
+/// # use gpiocdev::line::Value;
 /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
 /// let req = gpiocdev::Request::builder()
 ///     .on_chip(&led0.chip)
@@ -146,8 +142,8 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 /// # Examples
 /// Adding the found lines to the request directly:
 /// ```no_run
-/// # use gpiocdev::line::Value;
 /// # fn example() -> Result<(), gpiocdev::Error> {
+/// # use gpiocdev::line::Value;
 /// let sensors = gpiocdev::find_named_lines(&["SENSOR0", "SENSOR1"], true)?;
 /// let req = gpiocdev::Request::builder()
 ///     .with_found_lines(&sensors)
@@ -162,8 +158,8 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 /// Using the individual found lines to request the lines with different
 /// configuration for each line:
 /// ```no_run
-/// # use gpiocdev::line::Value;
 /// # fn example() -> Result<(), gpiocdev::Error> {
+/// # use gpiocdev::line::Value;
 /// let lines = gpiocdev::find_named_lines(&["SENSOR0", "LED0"], true)?;
 /// let sensor0 = lines.get("SENSOR0").unwrap();
 /// let led0 = lines.get("LED0").unwrap();
@@ -208,8 +204,8 @@ pub fn find_named_lines<'a>(
 ///
 /// The discovered line can be used to request the line:
 /// ```no_run
-/// # use gpiocdev::line::Value;
 /// # fn example() -> Result<(), gpiocdev::Error> {
+/// # use gpiocdev::line::Value;
 /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
 /// let req = gpiocdev::Request::builder()
 ///     .with_found_line(&led0)
@@ -240,8 +236,8 @@ impl From<line::Offset> for FoundLine {
 ///
 /// Used by [`find_named_line`] and [`find_named_lines`] to find lines based on line name.
 /// ```no_run
-/// # use gpiocdev::line::Value;
 /// # fn example() -> Result<(), gpiocdev::Error> {
+/// # use gpiocdev::line::Value;
 /// // replicating find_named_line...
 /// let led2 = gpiocdev::LineIterator::new()?.find(|l| l.info.name == "LED2").unwrap();
 /// let req = gpiocdev::Request::builder()

@@ -133,9 +133,8 @@ impl Chip {
     ///
     /// # Examples
     ///```no_run
-    /// # use gpiocdev::Chip;
-    /// # fn example() -> gpiocdev::Result<Chip>{
-    /// let chip = Chip::from_path("/dev/gpiochip0")?;
+    /// # fn example() -> gpiocdev::Result<gpiocdev::Chip>{
+    /// let chip = gpiocdev::Chip::from_path("/dev/gpiochip0")?;
     /// # Ok(chip)
     /// # }
     ///```
@@ -156,9 +155,8 @@ impl Chip {
     ///
     /// # Examples
     ///```no_run
-    /// # use gpiocdev::Chip;
-    /// # fn example() -> gpiocdev::Result<Chip>{
-    /// let chip = Chip::from_name("gpiochip0")?;
+    /// # fn example() -> gpiocdev::Result<gpiocdev::Chip>{
+    /// let chip = gpiocdev::Chip::from_name("gpiochip0")?;
     /// # Ok(chip)
     /// # }
     ///```
@@ -413,12 +411,14 @@ impl Chip {
         mem::size_of::<uapi::LineInfoChangeEvent>()
     }
 }
+
 impl AsFd for Chip {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.f.as_fd()
     }
 }
+
 impl AsRawFd for Chip {
     #[inline]
     fn as_raw_fd(&self) -> i32 {
@@ -452,6 +452,7 @@ pub struct Info {
     /// The number of lines provided by the chip.
     pub num_lines: u32,
 }
+
 impl From<uapi::ChipInfo> for Info {
     fn from(ci: uapi::ChipInfo) -> Self {
         Info {

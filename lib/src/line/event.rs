@@ -90,6 +90,7 @@ pub enum EdgeKind {
     /// Indicates the line transitioned from active to inactive.
     Falling = 2,
 }
+
 impl From<uapi::LineEdgeEventKind> for EdgeKind {
     fn from(kind: uapi::LineEdgeEventKind) -> Self {
         match kind {
@@ -149,6 +150,7 @@ pub enum InfoChangeKind {
     /// Line has been reconfigured.
     Reconfigured = 3,
 }
+
 impl From<uapi::LineInfoChangeKind> for InfoChangeKind {
     fn from(kind: uapi::LineInfoChangeKind) -> Self {
         match kind {

@@ -30,6 +30,7 @@ pub enum Value {
     /// The line is active.
     Active,
 }
+
 impl Value {
     /// The value opposite the current value.
     pub fn not(&self) -> Value {
@@ -58,6 +59,7 @@ impl From<Value> for bool {
         }
     }
 }
+
 impl From<Value> for u8 {
     fn from(l: Value) -> u8 {
         match l {
@@ -66,6 +68,7 @@ impl From<Value> for u8 {
         }
     }
 }
+
 impl From<bool> for Value {
     fn from(b: bool) -> Value {
         match b {
@@ -74,6 +77,7 @@ impl From<bool> for Value {
         }
     }
 }
+
 impl From<u8> for Value {
     fn from(i: u8) -> Value {
         match i {
@@ -373,6 +377,7 @@ impl Values {
         true
     }
 }
+
 impl<'a> FromIterator<&'a Offset> for Values {
     fn from_iter<I: IntoIterator<Item = &'a Offset>>(iter: I) -> Self {
         let mut values = Values::default();
@@ -383,6 +388,7 @@ impl<'a> FromIterator<&'a Offset> for Values {
         values
     }
 }
+
 impl FromIterator<(Offset, Value)> for Values {
     fn from_iter<I: IntoIterator<Item = (Offset, Value)>>(iter: I) -> Self {
         let mut values = Values::default();

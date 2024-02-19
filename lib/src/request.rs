@@ -101,8 +101,8 @@ impl Request {
     /// # Examples
     ///
     /// ```no_run
-    /// # use gpiocdev::line::Values;
     /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// # use gpiocdev::line::Values;
     /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5])
@@ -121,9 +121,9 @@ impl Request {
     /// # Examples
     ///
     /// ```no_run
+    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// # use gpiocdev::line::Value;
     /// # use gpiocdev::request::Config;
-    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// let mut cfg = Config::default();
     /// cfg.with_line(5).as_output(Value::Active);
     /// let req = gpiocdev::Request::from_config(cfg)
@@ -144,8 +144,8 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::line::Values;
     /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// # use gpiocdev::line::Values;
     /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5,6,8])
@@ -196,8 +196,8 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::line::Values;
     /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// # use gpiocdev::line::Values;
     /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5])
@@ -250,8 +250,8 @@ impl Request {
     /// Set the values for a subset of the requested lines.
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::line::{Value::{Active, Inactive}, Values};
     /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// # use gpiocdev::line::{Value::{Active, Inactive}, Values};
     /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_lines(&[3,5,6,8])
@@ -306,9 +306,9 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
+    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// # use gpiocdev::line::Value;
     /// # use gpiocdev::request::Config;
-    /// # fn example() -> Result<(), gpiocdev::Error> {
     /// let mut cfg = Config::default();
     /// cfg.with_line(5).as_output(Value::Active);
     /// let req = gpiocdev::Request::from_config(cfg)
@@ -481,9 +481,9 @@ impl Request {
     ///
     /// # Examples
     /// ```no_run
-    /// # use gpiocdev::{Request, Result};
+    /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// # use gpiocdev::Request;
     /// # use gpiocdev::line::{EdgeDetection, Value};
-    /// # fn example() -> Result<()> {
     /// let req = Request::builder()
     ///     .on_chip("/dev/gpiochip0")
     ///     .with_consumer("watcher")
@@ -657,12 +657,14 @@ impl Request {
         mem::size_of::<uapi::LineEdgeEvent>()
     }
 }
+
 impl AsFd for Request {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.f.as_fd()
     }
 }
+
 impl AsRawFd for Request {
     #[inline]
     fn as_raw_fd(&self) -> i32 {
