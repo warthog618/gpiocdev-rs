@@ -35,9 +35,19 @@ mod chip {
     mod uapi_v2 {
         common_tests! {
             gpiocdev::AbiVersion::V2,
+            from_chip,
             read_line_info_change_event,
             info_change_events
         }
+    }
+
+    fn from_chip(abiv: gpiocdev::AbiVersion) {
+        let s = gpiosim::Simpleton::new(4);
+        let c = new_chip(s.dev_path(), abiv);
+        let ac = gpiocdev::async_io::AsyncChip::from(c);
+        assert_eq!(ac.as_ref().path(), s.dev_path());
+        let c = Chip::from(ac);
+        assert_eq!(c.path(), s.dev_path());
     }
 
     fn info_change_events(abiv: gpiocdev::AbiVersion) {
@@ -169,14 +179,16 @@ mod request {
     use async_std::future;
     use futures::StreamExt;
     use gpiocdev::async_io::AsyncRequest;
-    use gpiocdev::line::EdgeKind;
+    use gpiocdev::line::{EdgeKind, Offset};
     use gpiocdev::Request;
+    use std::path::Path;
     use std::time::Duration;
 
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
         common_tests! {
             gpiocdev::AbiVersion::V1,
+            from_request,
             read_edge_event,
             read_edge_events_into_slice,
             new_edge_event_stream,
@@ -188,27 +200,31 @@ mod request {
     mod uapi_v2 {
         common_tests! {
             gpiocdev::AbiVersion::V2,            read_edge_event,
+            from_request,
             read_edge_events_into_slice,
             new_edge_event_stream,
             edge_events
         }
     }
 
+    fn from_request(abiv: gpiocdev::AbiVersion) {
+        use std::os::fd::AsRawFd as _;
+        let s = gpiosim::Simpleton::new(4);
+        let offset = 2;
+
+        let req = new_request(s.dev_path(), offset, abiv);
+        let fd = req.as_raw_fd();
+        let req = AsyncRequest::from(req);
+        assert_eq!(req.as_ref().as_raw_fd(), fd);
+        let req = Request::from(req);
+        assert_eq!(req.as_ref().as_raw_fd(), fd);
+    }
+
     fn read_edge_event(abiv: gpiocdev::AbiVersion) {
         let s = gpiosim::Simpleton::new(4);
         let offset = 2;
 
-        let mut builder = Request::builder();
-        builder
-            .on_chip(s.dev_path())
-            .with_line(offset)
-            .as_input()
-            .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
-
-        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        builder.using_abi_version(abiv);
-
-        let req = AsyncRequest::new(builder.request().unwrap());
+        let req = AsyncRequest::new(new_request(s.dev_path(), offset, abiv));
 
         async_io::block_on(async {
             let res = future::timeout(Duration::from_millis(10), req.read_edge_event()).await;
@@ -246,16 +262,7 @@ mod request {
         let s = gpiosim::Simpleton::new(3);
         let offset = 1;
 
-        let mut builder = Request::builder();
-        builder
-            .on_chip(s.dev_path())
-            .with_line(offset)
-            .as_input()
-            .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
-
-        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        builder.using_abi_version(abiv);
-        let req = AsyncRequest::new(builder.request().unwrap());
+        let req = AsyncRequest::new(new_request(s.dev_path(), offset, abiv));
 
         let evt_u64_size = req.as_ref().edge_event_u64_size();
         let mut buf = vec![0_u64; evt_u64_size * 3];
@@ -341,17 +348,7 @@ mod request {
         let s = gpiosim::Simpleton::new(4);
         let offset = 2;
 
-        let mut builder = Request::builder();
-        builder
-            .on_chip(s.dev_path())
-            .with_line(offset)
-            .as_input()
-            .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
-
-        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        builder.using_abi_version(abiv);
-
-        let req = AsyncRequest::new(builder.request().unwrap());
+        let req = AsyncRequest::new(new_request(s.dev_path(), offset, abiv));
 
         // create four events
         s.toggle(offset).unwrap();
@@ -416,17 +413,8 @@ mod request {
         let s = gpiosim::Simpleton::new(4);
         let offset = 0;
 
-        let mut builder = Request::builder();
-        builder
-            .on_chip(s.dev_path())
-            .with_line(offset)
-            .as_input()
-            .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
+        let req = AsyncRequest::new(new_request(s.dev_path(), offset, abiv));
 
-        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-        builder.using_abi_version(abiv);
-
-        let req = AsyncRequest::new(builder.request().unwrap());
         // create four events
         s.toggle(offset).unwrap();
         wait_propagation_delay();
@@ -484,5 +472,30 @@ mod request {
                 assert_eq!(evt.seqno, 0);
             }
         })
+    }
+
+    #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+    fn new_request(path: &Path, offset: Offset, abiv: gpiocdev::AbiVersion) -> gpiocdev::Request {
+        let mut builder = Request::builder();
+        builder
+            .on_chip(path)
+            .with_line(offset)
+            .as_input()
+            .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
+
+        builder.using_abi_version(abiv);
+
+        builder.request().unwrap()
+    }
+    #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
+    fn new_request(path: &Path, offset: Offset, _abiv: gpiocdev::AbiVersion) -> gpiocdev::Request {
+        let mut builder = Request::builder();
+        builder
+            .on_chip(path)
+            .with_line(offset)
+            .as_input()
+            .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
+            .request()
+            .unwrap()
     }
 }
