@@ -99,6 +99,12 @@ impl From<AsyncChip> for Chip {
     }
 }
 
+impl From<Chip> for AsyncChip {
+    fn from(c: Chip) -> AsyncChip {
+        AsyncChip::new(c)
+    }
+}
+
 /// Async form of [`InfoChangeIterator`].
 ///
 /// Created by [`AsyncChip::info_change_events`].

@@ -96,9 +96,9 @@ impl From<AsyncChip> for Chip {
     }
 }
 
-impl From<Request> for AsyncRequest {
-    fn from(r: Request) -> AsyncRequest {
-        AsyncRequest::new(r)
+impl From<Chip> for AsyncChip {
+    fn from(c: Chip) -> AsyncChip {
+        AsyncChip::new(c)
     }
 }
 
@@ -286,6 +286,12 @@ impl AsRef<Request> for AsyncRequest {
 impl From<AsyncRequest> for Request {
     fn from(r: AsyncRequest) -> Request {
         r.0.into_inner().unwrap()
+    }
+}
+
+impl From<Request> for AsyncRequest {
+    fn from(r: Request) -> AsyncRequest {
+        AsyncRequest::new(r)
     }
 }
 
