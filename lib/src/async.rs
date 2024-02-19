@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-/// Wrappers around the Tokio reactor.
+/// Asynchronous wrappers for the Tokio reactor.
 #[cfg(feature = "async_tokio")]
 pub mod tokio;
 
-/// Wrappers around the async-io reactor.
+/// Asynchronous wrappers for the async-io reactor.
 #[cfg(feature = "async_io")]
 pub mod async_io;
