@@ -8,6 +8,7 @@ Each crate has its own detailed CHANGELOG:
 
 - fix issue #14 - drop Timestamp class and chrono dependency from lib.
 - impl From for async wrappers
+- impl AsRef for Request and Chip to simplify usage of async wrappers.
 
 ## 2023-11-22
 

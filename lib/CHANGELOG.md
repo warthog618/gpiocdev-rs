@@ -2,9 +2,12 @@
 
 ## Unreleased
 
-- assume /dev/gpiochipXX are valid gpiochips without explicit checking
+- assume /dev/gpiochipXX are valid gpiochips without explicit checking.
 - fix issue #14 - drop Timestamp class and dependency on chrono - was only for CLOCK_REALTIME helper.
-- impl From for async wrappers
+- impl From for async wrappers - both ways.
+- move input/output sanitization from request::Config to line::Config.
+- impl AsRef for Request and Chip to simplify usage of async wrappers.
+- add reconfigure bench.
 
 <a name="v0.6.1"></a>
 
