@@ -176,7 +176,6 @@ fn as_output() {
 
 #[test]
 fn with_output_values() {
-
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
     let offset = 2;

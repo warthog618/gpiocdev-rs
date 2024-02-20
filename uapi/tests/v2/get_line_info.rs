@@ -185,8 +185,5 @@ fn check_info() {
 fn with_offset_out_of_range() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();
-    assert_eq!(
-        get_line_info(&f, 4),
-        Err(Error::Os(Errno(libc::EINVAL)))
-    );
+    assert_eq!(get_line_info(&f, 4), Err(Error::Os(Errno(libc::EINVAL))));
 }

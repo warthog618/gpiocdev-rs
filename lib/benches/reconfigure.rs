@@ -18,7 +18,9 @@ fn v1_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V1;
     c.bench_function("uapi_v1 reconfigure input", |b| reconfigure_input(b, V1));
     c.bench_function("uapi_v1 reconfigure output", |b| reconfigure_output(b, V1));
-    c.bench_function("uapi_v1 reconfigure input and output", |b| reconfigure_input_output(b, V1));
+    c.bench_function("uapi_v1 reconfigure input and output", |b| {
+        reconfigure_input_output(b, V1)
+    });
 }
 #[cfg(not(feature = "uapi_v1"))]
 fn v1_benchmarks(_c: &mut Criterion) {}
@@ -28,7 +30,9 @@ fn v2_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V2;
     c.bench_function("uapi_v2 reconfigure input", |b| reconfigure_input(b, V2));
     c.bench_function("uapi_v2 reconfigure output", |b| reconfigure_output(b, V2));
-    c.bench_function("uapi_v2 reconfigure input and output", |b| reconfigure_input_output(b, V2));
+    c.bench_function("uapi_v2 reconfigure input and output", |b| {
+        reconfigure_input_output(b, V2)
+    });
 }
 #[cfg(not(feature = "uapi_v2"))]
 fn v2_benchmarks(_c: &mut Criterion) {}
@@ -43,7 +47,11 @@ fn reconfigure_input(b: &mut Bencher, abiv: AbiVersion) {
     builder.on_chip(s.dev_path());
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     builder.using_abi_version(abiv);
-    let req = builder.with_line(offset).as_output(Value::Active).request().unwrap();
+    let req = builder
+        .with_line(offset)
+        .as_output(Value::Active)
+        .request()
+        .unwrap();
     let mut cfg = req.config();
     cfg.as_input();
 

@@ -26,7 +26,10 @@ impl Editor {
             .build();
         let mut rl = rustyline::Editor::with_config(config)?;
         rl.set_helper(Some(helper));
-        Ok(Editor { rl, prompt: prompt.to_string() })
+        Ok(Editor {
+            rl,
+            prompt: prompt.to_string(),
+        })
     }
 
     pub(super) fn readline(&mut self) -> Result<String> {

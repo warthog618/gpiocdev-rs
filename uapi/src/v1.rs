@@ -249,7 +249,11 @@ bitflags! {
 pub fn get_line_handle(cf: &File, hr: HandleRequest) -> Result<File> {
     // SAFETY: hr is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineHandle, HandleRequest), &hr) {
+        match libc::ioctl(
+            cf.as_raw_fd(),
+            iorw!(Ioctl::GetLineHandle, HandleRequest),
+            &hr,
+        ) {
             0 => Ok(File::from_raw_fd(hr.fd)),
             _ => Err(Error::from_errno()),
         }
@@ -448,7 +452,11 @@ bitflags! {
 pub fn get_line_event(cf: &File, er: EventRequest) -> Result<File> {
     // SAFETY: er is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineEvent, EventRequest), &er) {
+        match libc::ioctl(
+            cf.as_raw_fd(),
+            iorw!(Ioctl::GetLineEvent, EventRequest),
+            &er,
+        ) {
             0 => Ok(File::from_raw_fd(er.fd)),
             _ => Err(Error::from_errno()),
         }

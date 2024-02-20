@@ -759,18 +759,14 @@ mod tests {
                 .0
                 .iter()
                 .eq([Duration::new(4, 0)].iter()));
-            assert!(parse_time_sequence("1,2ms,3us,4s,0")
-                .unwrap()
-                .0
-                .iter()
-                .eq([
-                    Duration::from_millis(1),
-                    Duration::from_millis(2),
-                    Duration::from_micros(3),
-                    Duration::new(4, 0),
-                    Duration::ZERO
-                ]
-                .iter()));
+            assert!(parse_time_sequence("1,2ms,3us,4s,0").unwrap().0.iter().eq([
+                Duration::from_millis(1),
+                Duration::from_millis(2),
+                Duration::from_micros(3),
+                Duration::new(4, 0),
+                Duration::ZERO
+            ]
+            .iter()));
             assert_eq!(
                 parse_time_sequence("5ns").unwrap_err(),
                 ParseDurationError::Units("5ns".to_string())

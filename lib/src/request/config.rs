@@ -254,9 +254,7 @@ impl Config {
             self.with_line(line.info.offset);
             Ok(self)
         } else {
-            Err(Error::InvalidArgument(
-                "Multiple chips requested.".into(),
-            ))
+            Err(Error::InvalidArgument("Multiple chips requested.".into()))
         }
     }
 

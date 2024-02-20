@@ -4,12 +4,12 @@
 
 use libc::{self, c_long, pollfd, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
+use std::fs::File;
 use std::mem::{self, MaybeUninit};
 use std::os::unix::prelude::{AsRawFd, OsStrExt};
 use std::ptr;
 use std::slice;
 use std::time::Duration;
-use std::fs::File;
 
 /// Check if the file has an event available to read.
 ///
@@ -132,13 +132,7 @@ pub fn get_chip_info(cf: &File) -> Result<ChipInfo> {
 ///
 /// [`LineInfo`]: struct.LineInfo.html
 pub fn unwatch_line_info(cf: &File, offset: Offset) -> Result<()> {
-    match unsafe {
-        libc::ioctl(
-            cf.as_raw_fd(),
-            iorw!(Ioctl::UnwatchLineInfo, u32),
-            &offset,
-        )
-    } {
+    match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::UnwatchLineInfo, u32), &offset) } {
         0 => Ok(()),
         _ => Err(Error::from_errno()),
     }

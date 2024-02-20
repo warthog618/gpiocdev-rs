@@ -167,7 +167,7 @@ mod chip {
 
 #[cfg(feature = "async_tokio")]
 mod request {
-    use gpiocdev::line::{Offset, EdgeKind};
+    use gpiocdev::line::{EdgeKind, Offset};
     use gpiocdev::tokio::AsyncRequest;
     use gpiocdev::Request;
     use std::path::Path;

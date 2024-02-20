@@ -273,9 +273,7 @@ impl Builder {
         if self.cfg.chip.as_os_str().is_empty() {
             self.cfg.on_chip(path);
         } else if self.cfg.chip != path.into() {
-            self.err = Some(Error::InvalidArgument(
-                "Multiple chips requested.".into(),
-            ))
+            self.err = Some(Error::InvalidArgument("Multiple chips requested.".into()))
         }
         self
     }
