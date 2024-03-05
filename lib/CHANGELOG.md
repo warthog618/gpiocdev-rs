@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- remove dependency on `nohash-hasher`.
+
 <a name="v0.7.0"></a>
 
 ## v0.7.0 - 2024-02-20

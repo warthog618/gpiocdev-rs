@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::line::{
-    self, Bias, Direction, Drive, EdgeDetection, EventClock, Offset, Offsets, Value, Values,
+    self, Bias, Direction, Drive, EdgeDetection, EventClock, Offset, OffsetMap, Offsets, Value,
+    Values,
 };
 use crate::{AbiVersion, Error, Result};
 #[cfg(feature = "uapi_v1")]
 use gpiocdev_uapi::v1;
 #[cfg(feature = "uapi_v2")]
 use gpiocdev_uapi::v2;
-use nohash_hasher::IntMap;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -56,7 +56,7 @@ pub struct Config {
     pub(super) base: line::Config,
 
     /// The configuration for the lines.
-    pub(super) lcfg: IntMap<Offset, line::Config>,
+    pub(super) lcfg: OffsetMap<line::Config>,
 
     /// The set of lines described by this configuration, in order added.
     pub(super) offsets: Vec<Offset>,
@@ -411,11 +411,11 @@ impl Config {
 
     fn remove_line(&mut self, offset: &Offset) {
         self.lcfg.remove(offset);
-        if let Some(index) = self.selected.iter().position(|x| *x == *offset) {
-            self.selected.remove(index);
+        if let Some(idx) = self.selected.iter().position(|x| *x == *offset) {
+            self.selected.swap_remove(idx);
         }
-        if let Some(index) = self.offsets.iter().position(|x| *x == *offset) {
-            self.offsets.remove(index);
+        if let Some(idx) = self.offsets.iter().position(|x| *x == *offset) {
+            self.offsets.remove(idx);
         }
     }
 
@@ -423,10 +423,10 @@ impl Config {
         if !self.lcfg.contains_key(offset) {
             self.lcfg.insert(*offset, self.base.clone());
         }
-        if self.selected.iter().all(|x| *x != *offset) {
+        if !self.selected.contains(offset) {
             self.selected.push(*offset);
         }
-        if self.offsets.iter().all(|x| *x != *offset) {
+        if !self.offsets.contains(offset) {
             self.offsets.push(*offset);
         }
     }
@@ -480,33 +480,25 @@ impl Config {
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     pub(crate) fn to_v2(&self) -> Result<v2::LineConfig> {
         // debounced and flags provide maps from attr values to bitmap of lines using those values.
-        let mut debounced: IntMap<u32, LineSet> = IntMap::default();
-        let mut flags: HashMap<v2::LineFlags, LineSet> = HashMap::default();
-        let mut values: v2::LineValues = Default::default();
+        let mut debounced = HashMap::new();
+        let mut flags = HashMap::new();
+        let mut values = v2::LineValues::default();
         for (idx, offset) in self.offsets.iter().enumerate() {
             // unwrap is safe here as offsets match lcfg keys
             let lcfg = self.lcfg.get(offset).unwrap();
             let mask = 0x01 << idx;
-            let lflags: v2::LineFlags = lcfg.into();
-            match flags.get_mut(&lflags) {
-                Some(bits) => {
-                    *bits |= mask;
-                }
-                None => {
-                    flags.insert(lflags, mask);
-                }
-            };
+            let lflags = v2::LineFlags::from(lcfg);
+            flags
+                .entry(lflags)
+                .and_modify(|b| *b |= mask)
+                .or_insert(mask);
             if let Some(dp) = lcfg.debounce_period {
                 // convert to usec, adding 999ns to round up to the next microsecond.
                 let dp_us = (dp + Duration::from_nanos(999)).as_micros() as u32;
-                match debounced.get_mut(&dp_us) {
-                    Some(bits) => {
-                        *bits |= mask;
-                    }
-                    None => {
-                        debounced.insert(dp_us, mask);
-                    }
-                };
+                debounced
+                    .entry(dp_us)
+                    .and_modify(|b| *b |= mask)
+                    .or_insert(mask);
             }
             if lcfg.direction == Some(Direction::Output) {
                 values.mask |= mask;
@@ -579,9 +571,6 @@ impl Config {
         Ok(cfg)
     }
 }
-
-#[cfg(feature = "uapi_v2")]
-type LineSet = u64;
 
 /// An iterator over the currently selected lines in a Config.
 // This is strictly internal as external usage could invalidate the safety contract.

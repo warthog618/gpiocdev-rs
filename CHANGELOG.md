@@ -7,6 +7,8 @@ Each crate has its own detailed CHANGELOG:
 
 ## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.7.0...HEAD)
 
+- remove dependencies on `nohash-hasher`.
+
 ## 2024-02-20
 
 - fix issue #14 - drop `Timestamp` class and `chrono` dependency from lib.

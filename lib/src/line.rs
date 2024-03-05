@@ -20,11 +20,34 @@ use gpiocdev_uapi::v1;
 use gpiocdev_uapi::v2;
 #[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::hash::{BuildHasherDefault, Hasher};
 
 /// An identifier for a line on a particular chip.
 ///
 /// Valid offsets are in the range 0..`num_lines` as reported in the chip [`Info`](super::chip::Info).
 pub type Offset = u32;
+
+/// A map from offset to T.
+pub type OffsetMap<T> = HashMap<Offset, T, BuildHasherDefault<OffsetHasher>>;
+
+/// A simple identity hasher for maps using Offsets as keys.
+#[derive(Default)]
+pub struct OffsetHasher(u64);
+
+impl Hasher for OffsetHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, _: &[u8]) {
+        panic!("OffsetHasher key must be u32")
+    }
+
+    fn write_u32(&mut self, n: u32) {
+        self.0 = n.into()
+    }
+}
 
 /// A collection of line offsets.
 pub type Offsets = Vec<Offset>;
@@ -385,5 +408,39 @@ mod tests {
                 EventClock::Realtime
             );
         }
+    }
+
+    mod offset_hasher {
+        use super::OffsetHasher;
+        use std::hash::Hasher;
+
+        #[test]
+        fn write_u32() {
+            let mut h = OffsetHasher::default();
+            h.write_u32(2042);
+            assert_eq!(2042, h.finish());
+        }
+
+        #[test]
+        #[should_panic]
+        fn write() {
+            let mut h = OffsetHasher::default();
+            h.write(&[42]);
+        }
+
+        #[test]
+        #[should_panic]
+        fn write_u64() {
+            let mut h = OffsetHasher::default();
+            h.write_u64(2042);
+        }
+
+        #[test]
+        #[should_panic]
+        fn write_u8() {
+            let mut h = OffsetHasher::default();
+            h.write_u8(42);
+        }
+
     }
 }

@@ -5,9 +5,8 @@
 use super::{actual_abi_version, Error, LineOpts, UapiOpts};
 use anyhow::anyhow;
 use gpiocdev::chip::Chip;
-use gpiocdev::line::{Info, Offset};
+use gpiocdev::line::{Info, Offset, OffsetMap};
 use gpiocdev::AbiVersion;
-use nohash_hasher::IntMap;
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 
@@ -23,7 +22,7 @@ pub struct ChipInfo {
     pub path: PathBuf,
     pub name: String,
     pub num_lines: usize,
-    named_lines: IntMap<Offset, String>,
+    named_lines: OffsetMap<String>,
 }
 
 impl ChipInfo {
@@ -131,7 +130,7 @@ impl Resolver {
                 path: chip.path().to_owned(),
                 name: kci.name,
                 num_lines: kci.num_lines as usize,
-                named_lines: IntMap::default(),
+                named_lines: OffsetMap::default(),
             };
 
             // first match line by offset - but only when id by offset is possible
@@ -242,13 +241,9 @@ impl Resolver {
     fn validate(&mut self, lines: &[String], chip: &Option<String>, by_name: bool) {
         let mut lines = lines.to_vec();
         lines.sort_unstable();
-        let mut lids: HashMap<&String, usize> = HashMap::new();
+        let mut lids: HashMap<&String, usize> = HashMap::with_capacity(lines.len());
         for line in &lines {
-            if let Some(lid) = lids.get_mut(line) {
-                *lid += 1
-            } else {
-                lids.insert(line, 1);
-            }
+            lids.entry(line).and_modify(|c| *c += 1).or_insert(1);
         }
         for (id, count) in lids {
             if count > 1 {
