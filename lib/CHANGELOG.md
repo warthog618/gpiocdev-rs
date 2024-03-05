@@ -3,6 +3,7 @@
 ## Unreleased
 
 - remove dependency on `nohash-hasher`.
+- move adding attributes to v2::LineConfig to uapi.
 
 <a name="v0.7.0"></a>
 

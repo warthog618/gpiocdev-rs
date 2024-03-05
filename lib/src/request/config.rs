@@ -536,36 +536,22 @@ impl Config {
         }
         let mut cfg = v2::LineConfig {
             flags: base_flags,
-            num_attrs: num_attrs as u32,
             ..Default::default()
         };
 
         // remaining flags
-        num_attrs = 0;
-        for (flg, mask) in flags.iter() {
-            if *flg == base_flags {
-                continue;
-            }
-            let attr = cfg.attr_mut(num_attrs);
-            attr.mask = *mask;
-            attr.attr.set_flags(*flg);
-            num_attrs += 1;
+        for (lf, mask) in flags.iter().filter(|f| *f.0 != base_flags) {
+            cfg.add_flags(*lf, *mask);
         }
 
         // outputs values, if any
         if values.bits != 0 {
-            let attr = cfg.attr_mut(num_attrs);
-            attr.mask = values.mask;
-            attr.attr.set_values(values.bits);
-            num_attrs += 1;
+            cfg.add_values(&values);
         }
 
-        // debounced
-        for (dp, mask) in debounced.iter() {
-            let attr = cfg.attr_mut(num_attrs);
-            attr.mask = *mask;
-            attr.attr.set_debounce_period_us(*dp);
-            num_attrs += 1;
+        // debounced lines
+        for (period, mask) in debounced.iter() {
+            cfg.add_debounce(*period, *mask);
         }
 
         Ok(cfg)

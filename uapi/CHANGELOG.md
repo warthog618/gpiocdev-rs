@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- add methods to add attributes to v2::LineConfig.
+
 <a name="v0.6.1"></a>
 
 ## v0.6.1 - 2024-02-20

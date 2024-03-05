@@ -417,6 +417,30 @@ impl LineConfig {
     pub fn attr_mut(&mut self, idx: usize) -> &mut LineConfigAttribute {
         &mut self.attrs.0[idx]
     }
+
+    /// Add a debounce attribute to the config.
+    pub fn add_debounce(&mut self, period: u32, mask: u64) {
+        let lca = &mut self.attrs.0[self.num_attrs as usize];
+        lca.mask = mask;
+        lca.attr.set_debounce_period_us(period);
+        self.num_attrs += 1;
+    }
+
+    /// Add a flags attribute to the config.
+    pub fn add_flags(&mut self, lf: LineFlags, mask: u64) {
+        let lca = &mut self.attrs.0[self.num_attrs as usize];
+        lca.mask = mask;
+        lca.attr.set_flags(lf);
+        self.num_attrs += 1;
+    }
+
+    /// Add a line values attribute to the config.
+    pub fn add_values(&mut self, values: &LineValues) {
+        let lca = &mut self.attrs.0[self.num_attrs as usize];
+        lca.mask = values.mask;
+        lca.attr.set_values(values.bits);
+        self.num_attrs += 1;
+    }
 }
 
 /// Update the configuration of an existing line request.
