@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .context("Failed to request line")?;
 
     loop {
-        println!("{:?}", values);
+        println!("{values:?}");
         thread::sleep(Duration::from_millis(500));
         values.not();
         req.set_values(&values).context("Failed to set values")?;

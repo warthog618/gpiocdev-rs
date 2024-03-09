@@ -70,7 +70,7 @@ impl Platform {
     fn print(&self) {
         println!("Kernel {}", self.kernel.version);
         for e in &self.errors {
-            eprintln!("{}", e);
+            eprintln!("{e}");
         }
         for abi in &self.abis {
             match abi.unsupported_by {
@@ -82,7 +82,7 @@ impl Platform {
                     println!("Kernel supports all {} features.", abi.version);
                 }
                 for f in &abi.missing_features {
-                    println!("Kernel version does not support {}", f);
+                    println!("Kernel version does not support {f}");
                 }
             }
         }

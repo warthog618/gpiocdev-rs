@@ -7,7 +7,6 @@
 use gpiocdev::line::{Value, Values};
 use gpiocdev::Request;
 use std::result::Result;
-use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .request()?;
 
     // some time later...
-    thread::sleep(Duration::from_secs(2));
+    std::thread::sleep(Duration::from_secs(2));
 
     // change the values at once...
     let mut values = Values::default();

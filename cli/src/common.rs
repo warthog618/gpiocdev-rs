@@ -172,10 +172,10 @@ pub fn emit_error(opts: &EmitOpts, e: &anyhow::Error) {
     let e_str = format_error(opts, e);
     #[cfg(feature = "json")]
     if opts.json {
-        println!("{{\"error\":\"{}\"}}", e_str);
+        println!("{{\"error\":\"{e_str}\"}}");
         return;
     }
-    eprintln!("{}", e_str);
+    eprintln!("{e_str}");
 }
 
 pub fn format_error(opts: &EmitOpts, e: &anyhow::Error) -> String {

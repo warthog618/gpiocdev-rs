@@ -284,15 +284,15 @@ impl Setter {
         loop {
             match self.parse_command(&mut clcmd, &rl.readline()?) {
                 Ok(am) => {
-                    if let Err(err) = self.do_command(am, opts) {
-                        println!("{}", err);
+                    if let Err(e) = self.do_command(am, opts) {
+                        println!("{e}");
                         // clean in case the error leaves dirty lines.
                         self.clean();
                         return Ok(true);
                     }
                 }
-                Err(err) => {
-                    println!("{}", err);
+                Err(e) => {
+                    println!("{e}");
                 }
             }
         }

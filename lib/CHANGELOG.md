@@ -4,6 +4,8 @@
 
 - remove dependency on `nohash-hasher`.
 - move adding attributes to v2::LineConfig to uapi.
+- use local var println formatting.
+
 
 <a name="v0.7.0"></a>
 

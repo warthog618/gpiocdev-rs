@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         tokio::select! {
             Some(Ok(event)) = events.next() => {
-                println!("{:?}", event);
+                println!("{event:?}");
             }
             _ = ticker.tick() => {
                 let elapsed_time = now.elapsed();

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - remove dependency on nohash-hasher.
+- use local var println formatting.
 
 <a name="v0.5.3"></a>
 

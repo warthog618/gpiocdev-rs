@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     async_std::task::block_on(async {
         while let Ok(event) = req.read_edge_event().await {
-            println!("{:?}", event);
+            println!("{event:?}");
         }
     });
     Ok(())

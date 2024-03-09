@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .request()?;
 
     let value = req.value(offset)?;
-    println!("{}={:?}", offset, value);
+    println!("{offset}={value}");
 
     Ok(())
 }

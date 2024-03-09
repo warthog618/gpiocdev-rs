@@ -104,7 +104,7 @@ impl CmdResults {
             );
         }
         for e in &self.errors {
-            eprintln!("{}", e);
+            eprintln!("{e}");
         }
     }
 }

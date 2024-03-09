@@ -248,7 +248,7 @@ impl CmdResults {
             return;
         }
         for e in &self.errors {
-            eprintln!("{}", e);
+            eprintln!("{e}");
         }
     }
 
@@ -328,9 +328,9 @@ impl Event {
                 print!("{} {} ", ci.name, self.change.info.offset);
             }
             if opts.emit.quoted {
-                println!("\"{}\"", lname);
+                println!("\"{lname}\"");
             } else {
-                println!("{}", lname);
+                println!("{lname}");
             }
         } else {
             println!("{} {}", ci.name, self.change.info.offset);

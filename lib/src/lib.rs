@@ -42,7 +42,7 @@
 //!     .with_debounce_period(std::time::Duration::from_millis(5))
 //!     .request()?;
 //! for edge in req.edge_events() {
-//!     println!("{:?}", edge);
+//!     println!("{edge:?}");
 //! }
 //! # Ok(())
 //! # }

@@ -8,7 +8,6 @@ use anyhow::Context;
 use gpiocdev::line::Value;
 use gpiocdev::Request;
 use std::result::Result;
-use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,8 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .context("Failed to request line")?;
 
     loop {
-        println!("{}={:?}", offset, value);
-        thread::sleep(Duration::from_millis(500));
+        println!("{offset}={value}");
+        std::thread::sleep(Duration::from_millis(500));
         value = value.not();
         req.set_value(offset, value)
             .context("Failed to set value")?;

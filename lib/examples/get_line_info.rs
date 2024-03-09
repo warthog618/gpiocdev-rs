@@ -11,6 +11,6 @@ fn main() -> gpiocdev::Result<()> {
 
     let chip = gpiocdev::chip::Chip::from_path(chip_path)?;
     let info = chip.line_info(offset)?;
-    println!("{:?}", info);
+    println!("{info:?}");
     Ok(())
 }

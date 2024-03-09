@@ -34,7 +34,7 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             };
         }
-        Err(e) => eprintln!("{}", e),
+        Err(e) => eprintln!("{e}"),
     }
     ExitCode::FAILURE
 }

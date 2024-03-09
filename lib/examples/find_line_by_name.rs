@@ -9,12 +9,11 @@ fn main() {
     match gpiocdev::find_named_line(line_name) {
         Some(gpio22) => {
             println!(
-                "{}: {} {}",
-                line_name,
+                "{line_name}: {} {}",
                 gpio22.chip.file_name().unwrap().to_string_lossy(),
                 gpio22.info.offset
             )
         }
-        None => println!("line {} not found", line_name),
+        None => println!("line {line_name} not found"),
     }
 }

@@ -20,11 +20,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // get all requested line values at once
     let mut values = Values::default();
     req.values(&mut values)?;
-    println!("all values = {:?}", values);
+    println!("all values = {values:?}");
 
     // or individually
     let mut values = Values::from_offsets(&[23]);
     req.values(&mut values)?;
-    println!("one value = {:?}", values);
+    println!("one value = {values:?}");
     Ok(())
 }
