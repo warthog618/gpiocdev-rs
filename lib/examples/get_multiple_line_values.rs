@@ -6,7 +6,6 @@
 
 use gpiocdev::line::Values;
 use gpiocdev::Request;
-use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // request multiple input lines

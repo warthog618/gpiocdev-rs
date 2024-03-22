@@ -4,7 +4,6 @@
 
 use super::*;
 use crate::common::EVENT_WAIT_TIMEOUT;
-use gpiocdev_uapi::v2::{wait_event, watch_line_info};
 
 #[test]
 fn watch() {

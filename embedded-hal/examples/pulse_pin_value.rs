@@ -5,7 +5,6 @@
 // Basic example of pulsing a single line.
 
 use embedded_hal::digital::{OutputPin, PinState};
-use std::result::Result;
 use std::thread;
 use std::time::Duration;
 

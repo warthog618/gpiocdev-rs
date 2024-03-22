@@ -7,7 +7,6 @@
 use anyhow::Context;
 use embedded_hal_async::digital::Wait;
 use gpiocdev_embedded_hal::tokio::InputPin;
-use std::result::Result;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

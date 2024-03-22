@@ -8,7 +8,6 @@ use anyhow::Context;
 use gpiocdev::line::{EdgeDetection, Values};
 use gpiocdev::tokio::AsyncRequest;
 use gpiocdev::Request;
-use std::result::Result;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

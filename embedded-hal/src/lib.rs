@@ -62,7 +62,6 @@
 //! # Ok(())
 //! # }
 //! ```
-use std::convert::TryFrom;
 use std::path::Path;
 
 use embedded_hal::digital::PinState;

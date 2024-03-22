@@ -7,7 +7,6 @@
 use anyhow::Context;
 use gpiocdev::line::EdgeDetection;
 use gpiocdev::Request;
-use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let offsets = [23, 12];

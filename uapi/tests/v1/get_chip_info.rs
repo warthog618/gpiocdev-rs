@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use super::*;
-use gpiocdev_uapi::v1::get_chip_info;
 #[test]
 fn check_info() {
     let s = gpiosim::builder()

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use bitflags::bitflags;
-use std::convert::TryFrom;
 use std::fmt;
 use std::fs::File;
 use std::mem;

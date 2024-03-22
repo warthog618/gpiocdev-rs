@@ -8,7 +8,6 @@ use anyhow::Context;
 use gpiocdev::async_io::AsyncRequest;
 use gpiocdev::line::EdgeDetection;
 use gpiocdev::Request;
-use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let req = AsyncRequest::new(

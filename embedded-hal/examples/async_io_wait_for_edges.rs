@@ -7,7 +7,6 @@
 use anyhow::Context;
 use embedded_hal_async::digital::Wait;
 use gpiocdev_embedded_hal::async_io::InputPin;
-use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pin = InputPin::new("/dev/gpiochip0", 23).context("Failed to request line")?;

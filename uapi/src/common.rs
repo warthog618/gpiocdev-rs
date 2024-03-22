@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use libc::{self, c_long, pollfd, time_t, timespec, POLLIN};
+use libc::{c_long, pollfd, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::mem::{self, MaybeUninit};
@@ -25,7 +25,6 @@ macro_rules! ior {
         ioctl_sys::ior!(IOCTL_MAGIC, $nr, mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
     };
 }
-pub(crate) use ior;
 
 macro_rules! iorw {
     ($nr:expr, $dty:ty) => {

@@ -114,7 +114,7 @@ fn find_named_lines() {
         assert_eq!(&l.chip, sim.chips()[1].dev_path());
         assert_eq!(l.info.offset, 5);
     }
-    assert!(found.get(&"fls nada").is_none());
+    assert!(found.contains_key(&"fls nada"));
 }
 
 #[test]

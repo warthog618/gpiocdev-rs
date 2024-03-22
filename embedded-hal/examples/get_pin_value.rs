@@ -5,7 +5,6 @@
 // Basic example of reading a single line.
 
 use embedded_hal::digital::InputPin;
-use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pin = gpiocdev_embedded_hal::InputPin::new("/dev/gpiochip0", 22)?;

@@ -7,7 +7,6 @@
 use anyhow::Context;
 use gpiocdev::line::Value;
 use gpiocdev::Request;
-use std::result::Result;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

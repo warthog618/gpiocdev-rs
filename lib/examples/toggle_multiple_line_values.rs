@@ -7,7 +7,6 @@
 use anyhow::Context;
 use gpiocdev::line::Value;
 use gpiocdev::Request;
-use std::result::Result;
 use std::thread;
 use std::time::Duration;
 

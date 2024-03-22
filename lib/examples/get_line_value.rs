@@ -6,7 +6,6 @@
 
 use gpiocdev::line::Bias;
 use gpiocdev::Request;
-use std::result::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let offset = 22;

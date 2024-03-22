@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use super::*;
-use gpiocdev_uapi::v2::{get_line_info, LineFlags};
 
 #[test]
 fn check_info() {

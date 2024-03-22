@@ -5,7 +5,6 @@
 // Basic example of toggling a single line.
 
 use embedded_hal::digital::{PinState, StatefulOutputPin};
-use std::result::Result;
 use std::thread;
 use std::time::Duration;
 

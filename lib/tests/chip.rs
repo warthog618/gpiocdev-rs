@@ -120,7 +120,7 @@ mod chip {
     use gpiocdev::chip::Chip;
     use gpiocdev::request::Request;
     use gpiocdev::Error::GpioChip as ChipError;
-    use gpiosim::{Bank, Direction, Simpleton};
+    use gpiosim::{Direction, Simpleton};
     use std::time::Duration;
 
     // a collection of chips with named and hogged lines for find and info tests

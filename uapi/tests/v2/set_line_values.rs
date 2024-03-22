@@ -5,7 +5,6 @@
 use super::*;
 
 use crate::common::wait_propagation_delay;
-use gpiocdev_uapi::v2::set_line_values;
 
 #[test]
 fn on_output() {
