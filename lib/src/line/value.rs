@@ -87,7 +87,7 @@ impl From<u8> for Value {
     }
 }
 
-/// The value of a partiuclar line.
+/// The value of a particular line.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LineValue {

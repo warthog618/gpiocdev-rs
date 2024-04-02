@@ -548,7 +548,7 @@ pub struct LineInfo {
     /// The configuration flags for this GPIO line.
     pub flags: LineFlags,
 
-    /// Additilnal configuration attributes associated with the line.
+    /// Additional configuration attributes associated with the line.
     ///
     /// The number of active attributes in the array is specified by `num_attrs`.
     pub attrs: LineAttributes,

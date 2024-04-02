@@ -44,7 +44,7 @@ pub struct Config {
 
     /// The debounce period.
     ///
-    /// Setting the debounce period filters edges occuring at a rate faster than
+    /// Setting the debounce period filters edges occurring at a rate faster than
     /// that period.
     ///
     /// Only relevant for input lines with edge detection enabled.

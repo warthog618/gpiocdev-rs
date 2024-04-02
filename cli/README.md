@@ -137,7 +137,7 @@ $ gpiocdev notify --localtime GPIO23
 2022-10-10T08:03:35.884881408	released	GPIO23
 ```
 
-### plaftorm
+### platform
 
 ```shell
 $ gpiocdev platform

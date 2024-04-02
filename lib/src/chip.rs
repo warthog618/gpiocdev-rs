@@ -567,7 +567,7 @@ mod tests {
             Ordering::Less
         );
         assert_eq!(
-            path_compare(Path::new("/dev/gpiechip0"), Path::new("/dev/gpiochip1")),
+            path_compare(Path::new("/dev/gpiochip0"), Path::new("/dev/gpiochip1")),
             Ordering::Less
         );
     }

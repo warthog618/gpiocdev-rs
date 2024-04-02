@@ -173,7 +173,7 @@ impl LineInfoChangeEvent {
 #[repr(C)]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct HandleRequest {
-    /// An array of requested lines, identitifed by offset on the associated GPIO device.
+    /// An array of requested lines, identified by offset on the associated GPIO device.
     pub offsets: Offsets,
 
     /// The requested flags for the requested GPIO lines.

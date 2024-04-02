@@ -246,7 +246,7 @@ impl Builder {
     /// to force the usage of a particular version at runtime, bypassing the automatic
     /// selection process.
     ///
-    /// The version can be tested for availabilty using [`supports_abi_version`].
+    /// The version can be tested for availability using [`supports_abi_version`].
     ///
     /// [`supports_abi_version`]: fn@crate::supports_abi_version
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
