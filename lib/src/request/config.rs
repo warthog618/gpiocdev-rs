@@ -1238,32 +1238,28 @@ mod tests {
         let lca = lc.attrs.0[0];
         assert_eq!(lca.mask, 0b0100);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
-        // SAFETY: already checked kind before accessing value
-        unsafe {
-            assert!(lca
-                .attr
-                .value
-                .flags
-                .contains(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW));
-        }
+        assert_eq!(
+            lca.attr.to_value().unwrap(),
+            v2::LineAttributeValue::Flags(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW)
+        );
 
         // second is values for outputs
         let lca = lc.attrs.0[1];
         assert_eq!(lca.mask, 0b1011);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
-        // SAFETY: already checked kind before accessing value
-        unsafe {
-            assert_eq!(lca.attr.value.values, 0b1001);
-        }
+        assert_eq!(
+            lca.attr.to_value().unwrap(),
+            v2::LineAttributeValue::Values(0b1001)
+        );
 
         // third is debounce for line 4
         let lca = lc.attrs.0[2];
         assert_eq!(lca.mask, 0b0100);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Debounce);
-        // SAFETY: already checked kind before accessing value
-        unsafe {
-            assert_eq!(lca.attr.value.debounce_period_us, 10000);
-        }
+        assert_eq!(
+            lca.attr.to_value().unwrap(),
+            v2::LineAttributeValue::DebouncePeriod(Duration::from_micros(10000))
+        );
 
         // too many attrs required
         for offset in 10..20 {
