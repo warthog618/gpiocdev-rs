@@ -345,6 +345,7 @@ impl Default for LineAttributeValueUnion {
 }
 
 /// The attribute value contained within a [`LineAttribute`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LineAttributeValue {
     /// The debounce period attribute as a Duration.
     DebouncePeriod(Duration),
