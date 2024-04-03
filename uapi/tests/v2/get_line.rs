@@ -243,6 +243,58 @@ fn with_output_values() {
 }
 
 #[test]
+fn with_both_edges() {
+    let s = Simpleton::new(4);
+    let f = fs::File::open(s.dev_path()).unwrap();
+    let offset = 2;
+    let mut lr = LineRequest {
+        num_lines: 1,
+        // no consumer to test being empty
+        config: LineConfig {
+            flags: LineFlags::INPUT | LineFlags::EDGE_RISING | LineFlags::EDGE_FALLING,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    lr.offsets.set(0, offset);
+
+    let l = get_line(&f, lr).unwrap();
+
+    s.pullup(offset).unwrap();
+    wait_propagation_delay();
+    s.pulldown(offset).unwrap();
+    wait_propagation_delay();
+    s.pullup(offset).unwrap();
+    wait_propagation_delay();
+
+    let mut buf = vec![0_u64; LineEdgeEvent::u64_size()];
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
+    assert_eq!(event.offset, offset);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.seqno, 1);
+
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    assert_eq!(event.offset, offset);
+    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
+    assert_eq!(event.seqno, 2);
+
+    assert!(has_event(&l).unwrap());
+    assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
+    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    assert_eq!(event.offset, offset);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.seqno, 3);
+
+    assert!(!has_event(&l).unwrap());
+
+    drop(l);
+}
+
+#[test]
 fn with_event_buffer_size() {
     let s = Simpleton::new(4);
     let f = fs::File::open(s.dev_path()).unwrap();

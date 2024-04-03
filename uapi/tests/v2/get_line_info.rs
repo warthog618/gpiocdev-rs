@@ -138,9 +138,10 @@ fn check_info() {
 
     lr = lr_base.clone();
     lr.config.flags |= LineFlags::EDGE_RISING | LineFlags::EDGE_FALLING;
+    lr.consumer = "".into();  // without consumer
     l = get_line(&f, lr).unwrap();
     info = get_line_info(&f, offset).unwrap();
-    assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
+    assert_eq!(info.consumer.as_os_str().to_string_lossy(), "?");
     assert_eq!(
         info.flags,
         xflags | LineFlags::EDGE_RISING | LineFlags::EDGE_FALLING
