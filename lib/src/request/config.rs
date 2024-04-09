@@ -480,7 +480,7 @@ impl Config {
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     pub(crate) fn to_v2(&self) -> Result<v2::LineConfig> {
         // debounced and flags provide maps from attr values to bitmap of lines using those values.
-        let mut debounced = HashMap::new();
+        let mut debounced  = OffsetMap::default();
         let mut flags = HashMap::new();
         let mut values = v2::LineValues::default();
         for (idx, offset) in self.offsets.iter().enumerate() {
