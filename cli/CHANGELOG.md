@@ -4,6 +4,7 @@
 
 - remove dependency on nohash-hasher.
 - use local var println formatting.
+- replace now deprecateds chrono function calls.
 
 <a name="v0.5.3"></a>
 
