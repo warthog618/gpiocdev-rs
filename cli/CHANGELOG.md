@@ -5,6 +5,7 @@
 - remove dependency on nohash-hasher.
 - use local var println formatting.
 - replace now deprecateds chrono function calls.
+- improve help for set --interactive get.
 
 <a name="v0.5.3"></a>
 

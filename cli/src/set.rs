@@ -512,7 +512,8 @@ fn interactive_help() -> String {
     let cmds = [
         (
             "get [line]...",
-            "Display the current values of the given requested lines",
+            "Display the current values of the given requested lines\n\
+            Returns the last value set, not the physical value on the lines.",
         ),
         (
             "set <line=value>...",
