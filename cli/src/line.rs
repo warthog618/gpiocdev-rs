@@ -108,7 +108,7 @@ impl<'a> Cmd<'a> {
 
     #[cfg(feature = "json")]
     fn emit_json(&self) {
-        let mut res = CmdResults {
+        let mut res = CmdResult {
             ..Default::default()
         };
         for i in &self.r.info {
@@ -146,7 +146,7 @@ impl<'a> Cmd<'a> {
 #[cfg(feature = "serde")]
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-struct CmdResults<'a> {
+struct CmdResult<'a> {
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
     lines: Vec<LineInfo<'a>>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]

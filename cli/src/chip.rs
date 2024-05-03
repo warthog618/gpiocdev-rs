@@ -30,7 +30,7 @@ pub struct Opts {
 }
 
 pub fn cmd(opts: &Opts) -> bool {
-    let mut res = CmdResults {
+    let mut res = CmdResult {
         opts: opts.emit,
         ..Default::default()
     };
@@ -65,7 +65,7 @@ fn chip_info(p: &Path) -> Result<Info> {
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-struct CmdResults {
+struct CmdResult {
     #[cfg_attr(feature = "serde", serde(skip))]
     opts: EmitOpts,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
@@ -74,7 +74,7 @@ struct CmdResults {
     errors: Vec<String>,
 }
 
-impl CmdResults {
+impl CmdResult {
     fn push(&mut self, r: Result<Info>) {
         match r {
             Ok(i) => self.chips.push(i),

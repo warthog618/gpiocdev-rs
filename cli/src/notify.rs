@@ -124,10 +124,10 @@ pub fn cmd(opts: &Opts) -> bool {
     res.errors.is_empty()
 }
 
-fn do_cmd(opts: &Opts) -> CmdResults {
+fn do_cmd(opts: &Opts) -> CmdResult {
     use std::io::Write;
 
-    let mut res = CmdResults {
+    let mut res = CmdResult {
         opts: opts.emit,
         ..Default::default()
     };
@@ -234,13 +234,13 @@ fn do_cmd(opts: &Opts) -> CmdResults {
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-struct CmdResults {
+struct CmdResult {
     #[cfg_attr(feature = "serde", serde(skip))]
     opts: EmitOpts,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
     errors: Vec<String>,
 }
-impl CmdResults {
+impl CmdResult {
     fn emit(&self) {
         #[cfg(feature = "json")]
         if self.opts.json {
