@@ -164,7 +164,7 @@ impl Completer for InteractiveHelper {
         pos: usize,
         _ctx: &rustyline::Context<'_>,
     ) -> Result<(usize, Vec<Pair>), ReadlineError> {
-        const CMD_SET: [&str; 6] = ["exit", "get", "help", "set", "sleep", "toggle"];
+        const CMD_SET: [&str; 7] = ["exit", "get", "help", "set", "sleep", "toggle", "version"];
         let cmd_pos = line.len() - line.trim_start().len();
         let mut words = CommandWords::new(&line[cmd_pos..pos]);
         Ok(match words.next() {
