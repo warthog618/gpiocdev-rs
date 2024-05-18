@@ -3,6 +3,7 @@
 ## Unreleased
 
 - add methods to add attributes to v2::LineConfig.
+- fix musl build errors and warnings
 
 <a name="v0.6.1"></a>
 

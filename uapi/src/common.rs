@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use libc::{c_long, pollfd, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::os::unix::prelude::{AsRawFd, OsStrExt};
@@ -19,15 +18,21 @@ pub fn has_event(f: &File) -> Result<bool> {
     wait_event(f, Duration::ZERO)
 }
 
+// workaround musl libc::ioctl() having a different signature
+#[cfg(target_env = "musl")]
+pub(crate) type IoctlRequestType = ::libc::c_int;
+#[cfg(not(target_env = "musl"))]
+pub(crate) type IoctlRequestType = ::libc::c_ulong;
+
 macro_rules! ior {
     ($nr:expr, $dty:ty) => {
-        ioctl_sys::ior!(IOCTL_MAGIC, $nr, std::mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
+        ioctl_sys::ior!(IOCTL_MAGIC, $nr, std::mem::size_of::<$dty>()) as IoctlRequestType
     };
 }
 
 macro_rules! iorw {
     ($nr:expr, $dty:ty) => {
-        ioctl_sys::iorw!(IOCTL_MAGIC, $nr, std::mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
+        ioctl_sys::iorw!(IOCTL_MAGIC, $nr, std::mem::size_of::<$dty>()) as IoctlRequestType
     };
 }
 pub(crate) use iorw;
@@ -59,14 +64,21 @@ pub fn read_event(f: &File, buf: &mut [u64]) -> Result<usize> {
 
 /// Wait for the file to have an event available to read.
 pub fn wait_event(f: &File, d: Duration) -> Result<bool> {
-    let mut pfd = pollfd {
+    let mut pfd = libc::pollfd {
         fd: f.as_raw_fd(),
-        events: POLLIN,
+        events: libc::POLLIN,
         revents: 0,
     };
-    let timeout = timespec {
-        tv_sec: d.as_secs() as time_t,
-        tv_nsec: d.subsec_nanos() as c_long,
+    // prevent musl builds complaining about use of deprecated time_t
+    #[cfg(not(target_env = "musl"))]
+    use libc::time_t as TimeT;
+    #[cfg(all(target_env = "musl", target_pointer_width = "32"))]
+    use std::primitive::i32 as TimeT;
+    #[cfg(all(target_env = "musl", target_pointer_width = "64"))]
+    use std::primitive::i64 as TimeT;
+    let timeout = libc::timespec {
+        tv_sec: d.as_secs() as TimeT,
+        tv_nsec: d.subsec_nanos() as libc::c_long,
     };
     unsafe {
         match libc::ppoll(
