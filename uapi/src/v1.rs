@@ -4,7 +4,6 @@
 
 use bitflags::bitflags;
 use std::fs::File;
-use std::mem;
 use std::os::unix::prelude::{AsRawFd, FromRawFd};
 
 // common to ABI v1 and v2.
@@ -142,12 +141,12 @@ impl LineInfoChangeEvent {
     /// The buffer is assumed to have been populated by a read of the chip File,
     /// so the content is validated before being returned.
     pub fn from_slice(d: &[u64]) -> Result<&LineInfoChangeEvent> {
-        debug_assert!(mem::size_of::<LineInfoChangeEvent>() % 8 == 0);
+        debug_assert!(std::mem::size_of::<LineInfoChangeEvent>() % 8 == 0);
         let len = d.len() * 8;
-        if len < mem::size_of::<LineInfoChangeEvent>() {
+        if len < std::mem::size_of::<LineInfoChangeEvent>() {
             return Err(Error::from(UnderReadError::new(
                 "LineInfoChangeEvent",
-                mem::size_of::<LineInfoChangeEvent>(),
+                std::mem::size_of::<LineInfoChangeEvent>(),
                 len,
             )));
         }
@@ -165,7 +164,7 @@ impl LineInfoChangeEvent {
 
     /// The number of u64 words required to store a LineInfoChangeEvent.
     pub fn u64_size() -> usize {
-        mem::size_of::<LineInfoChangeEvent>() / 8
+        std::mem::size_of::<LineInfoChangeEvent>() / 8
     }
 }
 
@@ -479,12 +478,12 @@ impl LineEdgeEvent {
     /// The buffer is assumed to have been populated by a read of the line request File,
     /// so the content is validated before being returned.
     pub fn from_slice(d: &[u64]) -> Result<&LineEdgeEvent> {
-        debug_assert!(mem::size_of::<LineEdgeEvent>() % 8 == 0);
+        debug_assert!(std::mem::size_of::<LineEdgeEvent>() % 8 == 0);
         let len = d.len() * 8;
-        if len < mem::size_of::<LineEdgeEvent>() {
+        if len < std::mem::size_of::<LineEdgeEvent>() {
             return Err(Error::from(UnderReadError::new(
                 "LineEdgeEvent",
-                mem::size_of::<LineEdgeEvent>(),
+                std::mem::size_of::<LineEdgeEvent>(),
                 len,
             )));
         }
@@ -502,7 +501,7 @@ impl LineEdgeEvent {
 
     /// The number of u64 words required to store a LineEdgeEvent.
     pub fn u64_size() -> usize {
-        mem::size_of::<LineEdgeEvent>() / 8
+        std::mem::size_of::<LineEdgeEvent>() / 8
     }
 }
 
@@ -516,7 +515,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::mem::size_of::<LineInfo>(),
+                std::mem::size_of::<LineInfo>(),
                 72usize,
                 concat!("Size of: ", stringify!(LineInfo))
             );
@@ -529,7 +528,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::mem::size_of::<LineInfoChangeEvent>(),
+                std::mem::size_of::<LineInfoChangeEvent>(),
                 104usize,
                 concat!("Size of: ", stringify!(LineInfoChangeEvent))
             );
@@ -569,7 +568,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::mem::size_of::<HandleRequest>(),
+                std::mem::size_of::<HandleRequest>(),
                 364usize,
                 concat!("Size of: ", stringify!(HandleRequest))
             );
@@ -582,7 +581,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::mem::size_of::<HandleConfig>(),
+                std::mem::size_of::<HandleConfig>(),
                 84usize,
                 concat!("Size of: ", stringify!(HandleConfig))
             );
@@ -595,7 +594,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::mem::size_of::<EventRequest>(),
+                std::mem::size_of::<EventRequest>(),
                 48usize,
                 concat!("Size of: ", stringify!(EventRequest))
             );
@@ -608,7 +607,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::mem::size_of::<LineEdgeEvent>(),
+                std::mem::size_of::<LineEdgeEvent>(),
                 16usize,
                 concat!("Size of: ", stringify!(LineEdgeEvent))
             );
@@ -671,7 +670,7 @@ mod tests {
         #[test]
         fn size() {
             assert_eq!(
-                super::mem::size_of::<LineValues>(),
+                std::mem::size_of::<LineValues>(),
                 64usize,
                 concat!("Size of: ", stringify!(LineValues))
             );

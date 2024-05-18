@@ -5,7 +5,6 @@
 use libc::{c_long, pollfd, time_t, timespec, POLLIN};
 use std::ffi::OsStr;
 use std::fs::File;
-use std::mem::{self, MaybeUninit};
 use std::os::unix::prelude::{AsRawFd, OsStrExt};
 use std::ptr;
 use std::slice;
@@ -22,13 +21,13 @@ pub fn has_event(f: &File) -> Result<bool> {
 
 macro_rules! ior {
     ($nr:expr, $dty:ty) => {
-        ioctl_sys::ior!(IOCTL_MAGIC, $nr, mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
+        ioctl_sys::ior!(IOCTL_MAGIC, $nr, std::mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
     };
 }
 
 macro_rules! iorw {
     ($nr:expr, $dty:ty) => {
-        ioctl_sys::iorw!(IOCTL_MAGIC, $nr, mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
+        ioctl_sys::iorw!(IOCTL_MAGIC, $nr, std::mem::size_of::<$dty>()) as ::std::os::raw::c_ulong
     };
 }
 pub(crate) use iorw;
@@ -111,7 +110,7 @@ pub struct ChipInfo {
 ///
 /// * `cf` - The open gpiochip device file.
 pub fn get_chip_info(cf: &File) -> Result<ChipInfo> {
-    let mut chip = MaybeUninit::<ChipInfo>::uninit();
+    let mut chip = std::mem::MaybeUninit::<ChipInfo>::uninit();
     unsafe {
         match libc::ioctl(
             cf.as_raw_fd(),
@@ -446,7 +445,7 @@ mod tests {
     #[test]
     fn size_of_chip_info() {
         assert_eq!(
-            mem::size_of::<ChipInfo>(),
+            std::mem::size_of::<ChipInfo>(),
             68usize,
             concat!("Size of: ", stringify!(ChipInfo))
         );
@@ -636,7 +635,7 @@ mod tests {
     #[test]
     fn size_of_name() {
         assert_eq!(
-            mem::size_of::<Name>(),
+            std::mem::size_of::<Name>(),
             NAME_LEN_MAX,
             concat!("Size of: ", stringify!(Name))
         );
@@ -645,7 +644,7 @@ mod tests {
     #[test]
     fn size_of_offsets() {
         assert_eq!(
-            mem::size_of::<Offsets>(),
+            std::mem::size_of::<Offsets>(),
             256usize,
             concat!("Size of: ", stringify!(Offsets))
         );
@@ -654,17 +653,17 @@ mod tests {
     #[test]
     fn size_of_padding() {
         assert_eq!(
-            mem::size_of::<Padding<1>>(),
+            std::mem::size_of::<Padding<1>>(),
             4usize,
             concat!("Size of: ", stringify!(Padding<1>))
         );
         assert_eq!(
-            mem::size_of::<Padding<2>>(),
+            std::mem::size_of::<Padding<2>>(),
             8usize,
             concat!("Size of: ", stringify!(Padding<2>))
         );
         assert_eq!(
-            mem::size_of::<Padding<5>>(),
+            std::mem::size_of::<Padding<5>>(),
             20usize,
             concat!("Size of: ", stringify!(Padding<5>))
         );
