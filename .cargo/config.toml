@@ -16,5 +16,5 @@ runner = 'sudo -E'
 [target.aarch64-unknown-linux-musl]
 runner = 'sudo -E'
 
-[target.arm-unknown-linux-musl]
+[target.arm-unknown-linux-musleabihf]
 runner = 'sudo -E'
