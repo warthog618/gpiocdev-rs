@@ -20,9 +20,9 @@ pub fn has_event(f: &File) -> Result<bool> {
 
 // workaround musl libc::ioctl() having a different signature
 #[cfg(target_env = "musl")]
-pub(crate) type IoctlRequestType = ::libc::c_int;
+pub(crate) type IoctlRequestType = libc::c_int;
 #[cfg(not(target_env = "musl"))]
-pub(crate) type IoctlRequestType = ::libc::c_ulong;
+pub(crate) type IoctlRequestType = libc::c_ulong;
 
 macro_rules! ior {
     ($nr:expr, $dty:ty) => {
