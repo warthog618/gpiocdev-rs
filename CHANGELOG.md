@@ -5,14 +5,25 @@ Each crate has its own detailed CHANGELOG:
 - [lib](lib/CHANGELOG.md)
 - [uapi](uapi/CHANGELOG.md)
 
-## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.7.0...HEAD)
+## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.7.1...HEAD)
+
+## 2024-05-23
 
 - remove dependencies on `nohash-hasher`.
+- move some v2::LineConfig functions from lib to uapi.
+- fix issue #17 - musl build errors.
+
+### Crates
+
+- [cli v0.5.4](cli/CHANGELOG.md)
+- [embedded-hal v0.1.1](embedded-hal/CHANGELOG.md)
+- [lib v0.7.1](lib/CHANGELOG.md)
+- [uapi v0.6.2](uapi/CHANGELOG.md)
 
 ## 2024-02-20
 
 - fix issue #14 - drop `Timestamp` class and `chrono` dependency from lib.
-- impl `From` for async wrappers
+- impl `From` for async wrappers.
 - impl `AsRef` for `Request` and `Chip` to simplify usage of async wrappers.
 - add embedded-hal crate.
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+<a name="v0.7.1"></a>
+
+## v0.7.1 - 2024-05-23
+
 - remove dependency on `nohash-hasher`.
 - move adding attributes to v2::LineConfig to uapi.
 - use local var println formatting.

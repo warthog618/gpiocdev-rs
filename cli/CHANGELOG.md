@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+<a name="v0.5.4"></a>
+
+## v0.5.4 - 2024-05-23
+
 - remove dependency on nohash-hasher.
 - use local var println formatting.
-- replace now deprecateds chrono function calls.
+- replace now deprecated chrono function calls.
 - improve help for set --interactive get.
 
 <a name="v0.5.3"></a>

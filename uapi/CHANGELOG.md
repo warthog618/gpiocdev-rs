@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+<a name="v0.6.2"></a>
+
+## v0.6.2 - 2024-05-23
+
 - add methods to add attributes to v2::LineConfig.
 - fix musl build errors and warnings
 
