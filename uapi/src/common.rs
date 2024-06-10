@@ -18,10 +18,10 @@ pub fn has_event(f: &File) -> Result<bool> {
     wait_event(f, Duration::ZERO)
 }
 
-// workaround musl libc::ioctl() having a different signature
-#[cfg(target_env = "musl")]
+// workaround musl and android libc::ioctl() having a different signature
+#[cfg(any(target_env = "musl", target_os = "android"))]
 pub(crate) type IoctlRequestType = libc::c_int;
-#[cfg(not(target_env = "musl"))]
+#[cfg(not(any(target_env = "musl", target_os = "android")))]
 pub(crate) type IoctlRequestType = libc::c_ulong;
 
 macro_rules! ior {
@@ -192,8 +192,14 @@ pub enum Error {
 impl Error {
     /// Create an error from the current errno value.
     #[inline]
+    #[cfg(target_os = "linux")]
     pub fn from_errno() -> Error {
         Error::Os(Errno(unsafe { *libc::__errno_location() }))
+    }
+    #[inline]
+    #[cfg(target_os = "android")]
+    pub fn from_errno() -> Error {
+        Error::Os(Errno(std::io::Error::last_os_error().raw_os_error().unwrap()))
     }
 }
 

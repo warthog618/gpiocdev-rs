@@ -20,7 +20,10 @@ use std::fmt;
 use std::fs;
 use std::mem;
 use std::ops::Range;
+#[cfg(target_os = "linux")]
 use std::os::linux::fs::MetadataExt;
+#[cfg(target_os = "android")]
+use std::os::android::fs::MetadataExt;
 use std::os::unix::prelude::{AsFd, AsRawFd, BorrowedFd, OsStrExt};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
