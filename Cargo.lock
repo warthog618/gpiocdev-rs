@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "gpiocdev-embedded-hal"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-io 2.3.2",
