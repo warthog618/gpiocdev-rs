@@ -365,8 +365,7 @@ pub use request::Request;
 /// The v1 uAPI can be selected as a feature for applications where v2 may be unavailable.
 ///
 /// * `V2` is the current ABI and is used by default.
-/// * `V1` is more restrictive than V2, so some information and features are
-/// unavailable.
+/// * `V1` is more restrictive than V2, so some information and features are unavailable.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(
     feature = "serde",
