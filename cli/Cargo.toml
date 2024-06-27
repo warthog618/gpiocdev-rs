@@ -11,7 +11,7 @@ keywords = ["linux", "gpio", "gpiochip", "cli", "chardev"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev-cli"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-rust-version = "1.70"
+rust-version = "1.74"
 version = "0.5.4"
 
 [[bin]]
@@ -25,9 +25,9 @@ clap = {version = "4", features = ["derive", "env", "cargo"]}
 daemonize = "0.5"
 gpiocdev = {version = "0.7", path = "../lib", default-features = false}
 libc = "0.2"
-mio = {version = "0.8", features = ["os-ext"]}
-rustyline = "14.0.0"
-rustyline-derive = "0.10.0"
+mio = {version = "1", features = ["os-ext"]}
+rustyline = "14"
+rustyline-derive = "0.10"
 serde = {version = "1.0", optional = true}
 serde_derive = {version = "1.0", optional = true}
 serde_json = {version = "1.0", optional = true}

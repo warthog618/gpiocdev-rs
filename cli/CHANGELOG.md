@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- update mio dependency to v1.
+- bump MSRV to 1.74 to support clap v4.5.7.
+
 <a name="v0.5.4"></a>
 
 ## v0.5.4 - 2024-05-23
