@@ -52,7 +52,7 @@ fn get_one(b: &mut Bencher, abiv: AbiVersion) {
     let req = builder.with_line(offset).as_input().request().unwrap();
 
     b.iter(|| {
-        let value = req.value(offset);
+        let value = req.lone_value();
     });
 }
 
@@ -109,7 +109,7 @@ fn set_one(b: &mut Bencher, abiv: AbiVersion) {
         .unwrap();
 
     b.iter(|| {
-        req.set_value(offset, Value::Active).unwrap();
+        req.set_lone_value(Value::Active).unwrap();
     });
 }
 

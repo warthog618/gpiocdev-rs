@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_bias(Bias::PullUp) // optionally set a pull-up or other attribute
         .request()?;
 
-    let value = req.value(offset)?;
+    let value = req.lone_value()?;
     println!("{offset}={value}");
 
     Ok(())

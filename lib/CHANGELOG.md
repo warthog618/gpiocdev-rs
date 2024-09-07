@@ -3,6 +3,7 @@
 ## Unreleased
 
 - add documentation to builder for complex configurations.
+- add Request.lone_value() and set_lone_value().
 
 <a name="v0.7.1"></a>
 

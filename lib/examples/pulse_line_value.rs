@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // some time later
     thread::sleep(Duration::from_secs(2));
     // change the value...
-    req.set_value(22, Value::Inactive)?;
+    req.set_lone_value(Value::Inactive)?;
 
     Ok(())
 }

@@ -871,8 +871,10 @@ mod request {
         common_tests! {
             V1,
             value,
+            lone_value,
             values,
             set_value,
+            set_lone_value,
             set_values,
             reconfigure,
             has_edge_event,
@@ -1065,8 +1067,10 @@ mod request {
         common_tests! {
             gpiocdev::AbiVersion::V2,
             value,
+            lone_value,
             values,
             set_value,
+            set_lone_value,
             set_values,
             reconfigure,
             has_edge_event,
@@ -1290,6 +1294,52 @@ mod request {
     }
 
     #[allow(unused_variables)]
+    fn lone_value(abiv: AbiVersion) {
+        let s = Simpleton::new(3);
+        let offset = 1;
+
+        let mut builder = Request::builder();
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        builder.using_abi_version(abiv);
+
+        let req = builder
+            .on_chip(s.dev_path())
+            .with_line(offset)
+            .as_input()
+            .request()
+            .unwrap();
+
+        let v = req.lone_value().unwrap();
+        assert_eq!(v, Value::Inactive);
+
+        s.pullup(offset).unwrap();
+        wait_propagation_delay();
+        let v = req.lone_value().unwrap();
+        assert_eq!(v, Value::Active);
+
+        s.pulldown(offset).unwrap();
+        wait_propagation_delay();
+        let v = req.lone_value().unwrap();
+        assert_eq!(v, Value::Inactive);
+
+        drop(req);
+
+        // multi-line request
+        let req = builder
+            .on_chip(s.dev_path())
+            .with_lines(&[1,2])
+            .as_input()
+            .request()
+            .unwrap();
+
+        let res = req.lone_value();
+        assert_eq!(
+            res.unwrap_err(),
+            gpiocdev::Error::InvalidArgument("request contains multiple lines.".into())
+            );
+        }
+
+    #[allow(unused_variables)]
     fn values(abiv: AbiVersion) {
         let s = Simpleton::new(5);
         let offsets = &[0, 1, 3];
@@ -1427,6 +1477,47 @@ mod request {
             res.unwrap_err(),
             gpiocdev::Error::InvalidArgument("offset is not a requested line.".into())
         );
+    }
+
+    #[allow(unused_variables)]
+    fn set_lone_value(abiv: AbiVersion) {
+        let s = Simpleton::new(3);
+        let offset = 1;
+
+        let mut builder = Request::builder();
+        #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
+        builder.using_abi_version(abiv);
+
+        let req = builder
+            .on_chip(s.dev_path())
+            .with_line(offset)
+            .as_output(Value::Inactive)
+            .request()
+            .unwrap();
+
+        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::Low);
+
+        assert!(req.set_lone_value(Value::Active).is_ok());
+        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::High);
+
+        assert!(req.set_lone_value(Value::Inactive).is_ok());
+        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::Low);
+
+        drop(req);
+
+        // multi-line request
+        let req = builder
+            .on_chip(s.dev_path())
+            .with_lines(&[1,2])
+            .as_output(Value::Inactive)
+            .request()
+            .unwrap();
+
+        let res = req.set_lone_value(Value::Active);
+        assert_eq!(
+            res.unwrap_err(),
+            gpiocdev::Error::InvalidArgument("request contains multiple lines.".into())
+            );
     }
 
     fn set_values(abiv: AbiVersion) {

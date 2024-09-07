@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{offset}={value}");
         std::thread::sleep(Duration::from_millis(500));
         value = value.not();
-        req.set_value(offset, value)
+        req.set_lone_value(value)
             .context("Failed to set value")?;
     }
 }

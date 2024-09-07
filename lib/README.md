@@ -43,7 +43,7 @@ Getting a line value:
         .as_input()
         .request()?;
     // get the value
-    let value = req.value(23)?;
+    let value = req.lone_value()?;
 ```
 
 Setting a line:
@@ -59,7 +59,7 @@ Setting a line:
     // do something...
 
     // change value later
-    req.set_value(22, Value::Inactive)
+    req.set_lone_value(Value::Inactive)
 ```
 
 Requesting a line by name:
@@ -72,7 +72,7 @@ Requesting a line by name:
         .request()?;
 
     // change value later
-    req.set_value(led0.offset, Value::Inactive)
+    req.set_lone_value(Value::Inactive)
 ```
 
 Waiting for events on a line:
@@ -93,7 +93,7 @@ Waiting for events on a line:
 
 Multiple lines may be selected in a single request, and then be operated on as a unit.
 
-Getting multiple lines:
+Getting multiple lines at once:
 
 ```rust
     // request multiple input lines
@@ -107,7 +107,7 @@ Getting multiple lines:
     req.values(&mut values)?;
 ```
 
-Setting multiple lines:
+Setting multiple lines at once:
 
 ```rust
     // request multiple output lines
@@ -123,6 +123,19 @@ Setting multiple lines:
     req.set_values(&values)?;
 ```
 
+Requesting lines with different configurations:
+
+```rust
+    // request multiple output lines
+    let req = Request::builder()
+        .on_chip("/dev/gpiochip0")
+        .with_lines(&[17,22])
+        .as_output(Value::Active)
+        .with_lines(&[18,23])
+        .as_input()
+        .request()?;
+```
+
 All line attributes available via the kernel GPIO interface, such as pull-ups and debounce etc, can also be set:
 
 ```rust
@@ -136,7 +149,7 @@ All line attributes available via the kernel GPIO interface, such as pull-ups an
         .with_bias(gpiocdev::line::Bias::PullUp)
         .request()?;
     // get the value
-    let value = req.value(23)?;
+    let value = req.lone_value()?;
 ```
 
 Working examples can be found in the [examples](https://github.com/warthog618/gpiocdev-rs/tree/master/lib/examples) directory.

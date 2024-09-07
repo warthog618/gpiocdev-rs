@@ -247,6 +247,33 @@ impl Request {
         Ok(vals.get(idx).unwrap().into())
     }
 
+    /// Get the value for the lone line in the request.
+    ///
+    /// This is a simplified version of [`value`] for single line request,
+    /// so the line offset is not required.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// # use gpiocdev::line::Values;
+    /// let req = gpiocdev::Request::builder()
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .with_line(3)
+    ///     .request()?;
+    /// // get the value of line 3 - the only line in the request
+    /// let v = req.lone_value()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`value`]: method.value
+    pub fn lone_value(&self) -> Result<Value> {
+        if self.offsets.len() != 1 {
+            return Err(Error::InvalidArgument("request contains multiple lines.".into()))?;
+        }
+        self.do_value(0)
+    }
+
     /// Set the values for a subset of the requested lines.
     /// # Examples
     /// ```no_run
@@ -308,11 +335,10 @@ impl Request {
     /// ```no_run
     /// # fn example() -> Result<(), gpiocdev::Error> {
     /// # use gpiocdev::line::Value;
-    /// # use gpiocdev::request::Config;
-    /// let mut cfg = Config::default();
-    /// cfg.with_line(5).as_output(Value::Active);
-    /// let req = gpiocdev::Request::from_config(cfg)
+    /// let req = gpiocdev::Request::builder()
     ///     .on_chip("/dev/gpiochip0")
+    ///     .with_lines(&[5,6])
+    ///     .as_output(Value::Active)
     ///     .request()?;
     /// req.set_value(5,Value::Inactive)?;
     /// # Ok(())
@@ -361,6 +387,34 @@ impl Request {
         }
         vals.mask |= mask;
         v2::set_line_values(&self.f, &vals).map_err(|e| Error::Uapi(UapiCall::SetLineValues, e))
+    }
+
+    /// Set the value for the lone line in the request.
+    ///
+    /// This is a simplified version of [`set_value`] intended for single line requests,
+    /// so the line offset is not required.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # fn example() -> Result<(), gpiocdev::Error> {
+    /// # use gpiocdev::line::Value;
+    /// let req = gpiocdev::Request::builder()
+    ///     .on_chip("/dev/gpiochip0")
+    ///     .with_line(5)
+    ///     .as_output(Value::Active)
+    ///     .request()?;
+    /// // set the value of line 5 - the only line in the request
+    /// req.set_lone_value(Value::Inactive)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`set_value`]: method.set_value
+    pub fn set_lone_value(&self, value: Value) -> Result<()> {
+        if self.offsets.len() != 1 {
+            return Err(Error::InvalidArgument("request contains multiple lines.".into()))?;
+        }
+        self.do_set_value(0, value)
     }
 
     /// Return the path of the chip for this request.
