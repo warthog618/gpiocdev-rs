@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- add documentation to builder for complex configurations.
+
 <a name="v0.7.1"></a>
 
 ## v0.7.1 - 2024-05-23

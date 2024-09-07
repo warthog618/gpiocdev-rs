@@ -23,20 +23,19 @@ use std::time::Duration;
 ///
 /// # Examples
 /// ```
-///    use gpiocdev::line::{Bias::*, Value::*};
-///    use gpiocdev::request::Config;
+/// use gpiocdev::line::{Bias::*, Value::*};
+/// use gpiocdev::request::Config;
 ///
-///    let cfg = Config::default()
-///        .as_input()
-///        .with_bias(PullUp)
-///        // -- base config ends here - just before lines are added.
-///        .with_lines(&[3, 5, 8]) // lines 3,5,8 will be input with pull-up bias...
-///        // -- config added here would apply to lines 3,5 and 8
-///        .with_line(3) // make line 3 pull-down instead...
-///        .with_bias(PullDown)
-///        .with_line(4) // and line 4 an output set inactive (and pull-up from the base)
-///        .as_output(Inactive);
-///
+/// let cfg = Config::default()
+///     .as_input()
+///     .with_bias(PullUp)
+///     // -- base config ends here - just before lines are first added.
+///     .with_lines(&[3, 5, 8]) // lines 3,5,8 will be input with pull-up bias...
+///     // -- config added here would apply to lines 3,5 and 8
+///     .with_line(3) // make line 3 pull-down instead...
+///     .with_bias(PullDown)
+///     .with_line(4) // and line 4 an output set inactive (and pull-up from the base config)
+///     .as_output(Inactive);
 /// ```
 ///
 /// Note that the configuration is applied to hardware via a call to [`Builder.request`] or

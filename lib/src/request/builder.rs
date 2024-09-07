@@ -54,15 +54,41 @@ use std::time::Duration;
 /// # Ok(())
 /// # }
 /// ```
+/// Complex configurations are specified by chaining line selection and configuration mutators.
+/// The configuration for a subset of lines is updated by selecting the lines and then calling
+/// the appropriate mutators. If no lines are selected then the mutators modify the base configuration
+/// that lines inherit when they are first added:
 ///
-/// More complex configurations can be built separately and provided
-/// to the `Builder`:
+/// ```no_run
+/// # use gpiocdev::line::{Bias::*, Value::*};
+/// # use gpiocdev::request::Config;
+///
+/// # fn example() -> Result<(), gpiocdev::Error> {
+/// let req = gpiocdev::Request::builder()
+///     .on_chip("/dev/gpiochip0")
+///     .as_input()
+///     .with_bias(PullUp)
+///     // -- base config ends here - just before lines are first added.
+///     .with_lines(&[3, 5, 8]) // lines 3,5,8 will be input with pull-up bias...
+///     // -- config added here would apply to lines 3,5 and 8
+///     .with_line(3) // make line 3 pull-down instead...
+///     .with_bias(PullDown)
+///     .with_line(4) // and line 4 an output set inactive (and pull-up from the base config)
+///     .as_output(Inactive)
+///     .request()?;
+/// let value = req.value(3)?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Complex configurations can be built separately and provided to the `Builder`:
 ///
 /// ```no_run
 /// # use gpiocdev::request::Config;
 /// # use gpiocdev::line::Value;
 /// # fn example() -> Result<(), gpiocdev::Error> {
 /// let mut cfg = Config::default();
+/// // build complex config (this just a simple example)...
 /// cfg.with_line(5).as_output(Value::Active);
 /// let req = gpiocdev::Request::from_config(cfg)
 ///     .on_chip("/dev/gpiochip0")
