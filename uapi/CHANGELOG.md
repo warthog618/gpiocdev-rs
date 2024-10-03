@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+<a name="v0.6.3"></a>
+
+## v0.6.3 - 2024-10-03
+
+- support android build
+
 <a name="v0.6.2"></a>
 
 ## v0.6.2 - 2024-05-23

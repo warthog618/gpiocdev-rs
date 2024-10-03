@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+<a name="v0.7.2"></a>
+
+## v0.7.2 - 2024-10-03
+
 - add documentation to builder for complex configurations.
 - add Request.lone_value() and set_lone_value().
+- support android build
 
 <a name="v0.7.1"></a>
 
