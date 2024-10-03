@@ -5,7 +5,7 @@
 [package]
 authors = ["Kent Gibson <warthog618@gmail.com>"]
 categories = ["hardware-support", "api-bindings", "os::linux-apis", "embedded"]
-description = "A library providing embedded-hal wrappers around gpiocdev Requests"
+description = "embedded-hal wrappers around gpiocdev Requests"
 edition = "2021"
 keywords = ["linux", "gpio", "gpiochip", "embedded-hal", "chardev"]
 license = "Apache-2.0 OR MIT"
