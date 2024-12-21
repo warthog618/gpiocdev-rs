@@ -111,7 +111,7 @@ pub struct InfoChangeStream<'a> {
     chip: &'a AsyncChip,
 }
 
-impl<'a> Stream for InfoChangeStream<'a> {
+impl Stream for InfoChangeStream<'_> {
     type Item = Result<InfoChangeEvent>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
@@ -303,7 +303,7 @@ pub struct EdgeEventStream<'a> {
     events: EdgeEventBuffer<'a>,
 }
 
-impl<'a> Stream for EdgeEventStream<'a> {
+impl Stream for EdgeEventStream<'_> {
     type Item = Result<EdgeEvent>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {

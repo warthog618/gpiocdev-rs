@@ -27,7 +27,7 @@ pub struct EdgeEventBuffer<'a> {
     buf: Vec<u64>,
 }
 
-impl<'a> EdgeEventBuffer<'a> {
+impl EdgeEventBuffer<'_> {
     pub(super) fn new(req: &Request, event_size: usize, capacity: usize) -> EdgeEventBuffer {
         debug_assert!(event_size % 8 == 0);
         let event_u64_size = event_size / 8;
@@ -105,7 +105,7 @@ impl<'a> EdgeEventBuffer<'a> {
     }
 }
 
-impl<'a> Iterator for EdgeEventBuffer<'a> {
+impl Iterator for EdgeEventBuffer<'_> {
     type Item = Result<EdgeEvent>;
 
     #[inline]

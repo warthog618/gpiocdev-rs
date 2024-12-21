@@ -89,7 +89,7 @@ struct Cmd<'a> {
     r: Resolver,
 }
 
-impl<'a> Cmd<'a> {
+impl Cmd<'_> {
     fn is_success(&self) -> bool {
         self.r.errors.is_empty()
             && (self.opts.lines.is_empty()

@@ -108,7 +108,7 @@ pub struct LineInfoIterator<'a> {
     offsets: Range<Offset>,
 }
 
-impl<'a> Iterator for LineInfoIterator<'a> {
+impl Iterator for LineInfoIterator<'_> {
     type Item = Result<line::Info>;
 
     fn next(&mut self) -> Option<Result<line::Info>> {
@@ -476,7 +476,7 @@ pub struct InfoChangeIterator<'a> {
     buf: Vec<u64>,
 }
 
-impl<'a> InfoChangeIterator<'a> {
+impl InfoChangeIterator<'_> {
     fn read_event(&mut self) -> Result<InfoChangeEvent> {
         let n = gpiocdev_uapi::read_event(&self.chip.f, &mut self.buf)
             .map_err(|e| Error::Uapi(UapiCall::ReadEvent, e))?;
@@ -484,7 +484,7 @@ impl<'a> InfoChangeIterator<'a> {
     }
 }
 
-impl<'a> Iterator for InfoChangeIterator<'a> {
+impl Iterator for InfoChangeIterator<'_> {
     type Item = Result<InfoChangeEvent>;
 
     fn next(&mut self) -> Option<Self::Item> {
