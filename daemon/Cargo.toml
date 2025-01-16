@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2024 Kent Gibson <warthog618@gmail.com>
+#
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+authors = ["Kent Gibson <warthog618@gmail.com>"]
+categories = ["hardware-support", "embedded"]
+description = "A tool to access GPIO lines on Linux using the GPIO character device"
+edition = "2021"
+keywords = ["linux", "gpio", "gpiochip", "chardev", "daemon"]
+license = "Apache-2.0 OR MIT"
+name = "gpiocdev-daemon"
+repository = "https://github.com/warthog618/gpiocdev-rs"
+rust-version = "1.70"
+version = "0.1.0"
+
+[[bin]]
+name = "gpiocdevd"
+path = "src/main.rs"
+
+[dependencies]
+daemonize = "0.5"
+getopts = "0.2"
+gpiocdev = {version = "0.7", path = "../lib", default-features = false}
+libc = "0.2"
+mio = {version = "1.0", features = ["net", "os-ext"]}
+saphyr = "0.0.1"
+
+[features]
+default = ["uapi_v2"]
+uapi_v1 = ["gpiocdev/uapi_v1"]
+uapi_v2 = ["gpiocdev/uapi_v2"]

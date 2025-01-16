@@ -20,7 +20,7 @@ futures = {version = "0.3", optional = true}
 gpiocdev-uapi = {version = "0.6.3", path = "../uapi", default-features = false}
 serde = {version = "1.0", optional = true}
 serde_derive = {version = "1.0", optional = true}
-thiserror = "1.0"
+thiserror = "2.0"
 tokio = {version = "1.21", features = ["net"], optional = true}
 tokio-stream = {version = "0.1.11", optional = true}
 

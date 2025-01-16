@@ -18,7 +18,7 @@ version = "0.6.3"
 bitflags = "2.2"
 libc = "0.2"
 ioctl-sys = "0.8"
-thiserror = "1.0"
+thiserror = "2.0"
 
 [dev-dependencies]
 criterion = "0.5"
