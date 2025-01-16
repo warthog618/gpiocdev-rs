@@ -143,8 +143,9 @@ fn do_cmd(opts: &Opts) -> Result<bool> {
     if opts.interactive {
         return setter.interact(opts);
     }
-    setter.wait();
-    Ok(true)
+    loop {
+        thread::park();
+    }
 }
 
 fn emit_errors(opts: &EmitOpts, errs: &[anyhow::Error]) {
@@ -489,11 +490,6 @@ impl Setter {
             }
         }
         Ok(updated)
-    }
-
-    fn wait(&self) {
-        // just block on something that should never happen...
-        _ = self.requests[0].read_edge_event();
     }
 }
 
