@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+<a name="v0.6.4"></a>
+
+## v0.6.4 - 2025-03-03
+
+- update thiserror dependency
+
 <a name="v0.6.3"></a>
 
 ## v0.6.3 - 2024-10-03

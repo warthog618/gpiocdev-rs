@@ -2,8 +2,14 @@
 
 ## Unreleased
 
-- update mio dependency to v1.
-- bump MSRV to 1.74 to support clap v4.5.7.
+<a name="v0.5.5"></a>
+
+## v0.5.5 - 2025-03-03
+
+- fix #18 - set doesn't block using ABI v1.
+- update mio, rustyline and thiserror dependencies.
+- bump MSRV to 1.81 due to home@0.5.11.
+- fix clippy lints.
 
 <a name="v0.5.4"></a>
 

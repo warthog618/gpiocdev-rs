@@ -5,7 +5,30 @@ Each crate has its own detailed CHANGELOG:
 - [lib](lib/CHANGELOG.md)
 - [uapi](uapi/CHANGELOG.md)
 
-## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.7.1...HEAD)
+## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.7.3...HEAD)
+
+## 2025-03-03
+
+- fix #18 - set doesn't block using ABI v1 (cli).
+- make tests more robust (lib)
+- update dependencies.
+
+### Crates
+
+- [cli v0.5.5](cli/CHANGELOG.md)
+- [embedded-hal v0.1.2](embedded-hal/CHANGELOG.md)
+- [lib v0.7.3](lib/CHANGELOG.md)
+- [uapi v0.6.4](uapi/CHANGELOG.md)
+
+## 2024-10-03
+
+- add Request.lone_value() and set_lone_value() (lib).
+- support android build.
+
+### Crates
+
+- [lib v0.7.2](lib/CHANGELOG.md)
+- [uapi v0.6.3](uapi/CHANGELOG.md)
 
 ## 2024-05-23
 

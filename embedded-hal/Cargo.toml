@@ -11,8 +11,8 @@ keywords = ["linux", "gpio", "gpiochip", "embedded-hal", "chardev"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev-embedded-hal"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-rust-version = "1.63"
-version = "0.1.1"
+rust-version = "1.64"
+version = "0.1.2"
 
 [dependencies]
 embedded-hal = {version = "1.0"}

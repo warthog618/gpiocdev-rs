@@ -737,7 +737,7 @@ dependencies = [
 
 [[package]]
 name = "gpiocdev"
-version = "0.7.2"
+version = "0.7.3"
 dependencies = [
  "anyhow",
  "async-io",
@@ -755,7 +755,7 @@ dependencies = [
 
 [[package]]
 name = "gpiocdev-cli"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "anyhow",
  "chrono",
@@ -774,7 +774,7 @@ dependencies = [
 
 [[package]]
 name = "gpiocdev-embedded-hal"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "async-io",
@@ -789,7 +789,7 @@ dependencies = [
 
 [[package]]
 name = "gpiocdev-uapi"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "bitflags",
  "criterion",

@@ -11,8 +11,8 @@ keywords = ["linux", "gpio", "gpiochip", "cli", "chardev"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev-cli"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-rust-version = "1.74"
-version = "0.5.4"
+rust-version = "1.81"
+version = "0.5.5"
 
 [[bin]]
 name = "gpiocdev"
