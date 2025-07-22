@@ -271,7 +271,7 @@ fn print_banner(lines: &[String]) {
         print!("Watching lines ");
 
         for l in lines.iter().take(lines.len() - 1) {
-            print!("'{}', ", l);
+            print!("'{l}', ");
         }
 
         println!("and '{}'...", lines[lines.len() - 1]);
@@ -378,13 +378,13 @@ fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo, 
                     "{}",
                     format_time(monotonic_to_realtime(event.timestamp_ns), &TimeFmt::Utc)
                 ),
-                x => print!("%{}", x),
+                x => print!("%{x}"),
             }
             escaped = false;
         } else if chr == '%' {
             escaped = true;
         } else {
-            print!("{}", chr);
+            print!("{chr}");
         }
     }
     if escaped {

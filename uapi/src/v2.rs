@@ -216,7 +216,7 @@ impl TryFrom<u32> for LineAttributeKind {
             x if x == Flags as u32 => Flags,
             x if x == Values as u32 => Values,
             x if x == Debounce as u32 => Debounce,
-            x => return Err(format!("invalid value: {}", x)),
+            x => return Err(format!("invalid value: {x}")),
         })
     }
 }
@@ -573,7 +573,7 @@ impl LineInfo {
         }
         for i in 0..NUM_ATTRS_MAX {
             if let Err(e) = self.attrs.0[i].kind.validate() {
-                return Err(ValidationError::new(format!("attrs[{}].kind", i), e));
+                return Err(ValidationError::new(format!("attrs[{i}].kind"), e));
             }
         }
         Ok(())
@@ -817,14 +817,14 @@ mod tests {
             let mut a = LineValues::default();
             for idx in [0, 2] {
                 let mask = 0x1 << idx;
-                assert_eq!(a.bits & mask, 0, "idx: {}", idx);
-                assert!(a.get(idx).is_none(), "idx: {}", idx);
+                assert_eq!(a.bits & mask, 0, "idx: {idx}");
+                assert!(a.get(idx).is_none(), "idx: {idx}");
 
                 a.mask |= mask;
-                assert!(!a.get(idx).unwrap(), "idx: {}", idx);
+                assert!(!a.get(idx).unwrap(), "idx: {idx}");
 
                 a.bits |= mask;
-                assert!(a.get(idx).unwrap(), "idx: {}", idx);
+                assert!(a.get(idx).unwrap(), "idx: {idx}");
             }
         }
 
@@ -834,12 +834,12 @@ mod tests {
             for idx in [0, 2] {
                 let mask = 0x1 << idx;
                 a.set(idx, false);
-                assert_eq!(a.mask & mask, mask, "idx: {}", idx);
-                assert_eq!(a.bits & mask, 0, "idx: {}", idx);
+                assert_eq!(a.mask & mask, mask, "idx: {idx}");
+                assert_eq!(a.bits & mask, 0, "idx: {idx}");
 
                 a.set(idx, true);
-                assert_eq!(a.mask & mask, mask, "idx: {}", idx);
-                assert_eq!(a.bits & mask, mask, "idx: {}", idx);
+                assert_eq!(a.mask & mask, mask, "idx: {idx}");
+                assert_eq!(a.bits & mask, mask, "idx: {idx}");
             }
         }
 
@@ -914,7 +914,7 @@ mod tests {
                     a.attrs.0[idx].kind = *(&4 as *const i32 as *const LineAttributeKind);
                 }
                 let e = a.validate().unwrap_err();
-                assert_eq!(e.field, format!("attrs[{}].kind", idx));
+                assert_eq!(e.field, format!("attrs[{idx}].kind"));
                 assert_eq!(e.msg, "invalid value: 4");
                 a.attrs.0[idx].kind = LineAttributeKind::Unused;
             }

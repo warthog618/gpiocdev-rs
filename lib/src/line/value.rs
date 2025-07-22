@@ -47,7 +47,7 @@ impl std::fmt::Display for Value {
             Value::Active => "active",
             Value::Inactive => "inactive",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

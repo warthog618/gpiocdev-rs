@@ -28,7 +28,7 @@ pub struct EdgeEventBuffer<'a> {
 }
 
 impl EdgeEventBuffer<'_> {
-    pub(super) fn new(req: &Request, event_size: usize, capacity: usize) -> EdgeEventBuffer {
+    pub(super) fn new(req: &Request, event_size: usize, capacity: usize) -> EdgeEventBuffer<'_> {
         debug_assert!(event_size % 8 == 0);
         let event_u64_size = event_size / 8;
         EdgeEventBuffer {

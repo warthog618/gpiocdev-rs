@@ -526,10 +526,10 @@ fn interactive_help() -> String {
         ("exit", "Exit the program"),
     ];
     for (cmd, desc) in cmds {
-        let cmd_line = format!("\n    {}", cmd);
+        let cmd_line = format!("\n    {cmd}");
         help.push_str(&cmd_line);
         for line in desc.split('\n') {
-            let desc_line = format!("\n            {}\n", line);
+            let desc_line = format!("\n            {line}\n");
             help.push_str(&desc_line);
         }
     }
@@ -542,7 +542,7 @@ fn print_banner(lines: &[String]) {
         print!("Setting lines ");
 
         for l in lines.iter().take(lines.len() - 1) {
-            print!("'{}', ", l);
+            print!("'{l}', ");
         }
 
         println!("and '{}'...", lines[lines.len() - 1]);
@@ -562,9 +562,9 @@ struct Line {
 
 fn format_line_value(opts: &EmitOpts, id: &str, value: Value) -> String {
     if opts.quoted || id.contains(' ') {
-        format!("\"{}\"={}", id, value)
+        format!("\"{id}\"={value}")
     } else {
-        format!("{}={}", id, value)
+        format!("{id}={value}")
     }
 }
 

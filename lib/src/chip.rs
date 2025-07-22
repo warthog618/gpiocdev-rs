@@ -20,10 +20,10 @@ use std::fmt;
 use std::fs;
 use std::mem;
 use std::ops::Range;
-#[cfg(target_os = "linux")]
-use std::os::linux::fs::MetadataExt;
 #[cfg(target_os = "android")]
 use std::os::android::fs::MetadataExt;
+#[cfg(target_os = "linux")]
+use std::os::linux::fs::MetadataExt;
 use std::os::unix::prelude::{AsFd, AsRawFd, BorrowedFd, OsStrExt};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -164,7 +164,7 @@ impl Chip {
     /// # }
     ///```
     pub fn from_name(n: &str) -> Result<Chip> {
-        let path = is_chip(format!("/dev/{}", n))?;
+        let path = is_chip(format!("/dev/{n}"))?;
         let f = fs::File::open(&path)?;
         Ok(Chip {
             path,
@@ -239,7 +239,7 @@ impl Chip {
     }
 
     /// An iterator that returns the info for each line on the chip.
-    pub fn line_info_iter(&self) -> Result<LineInfoIterator> {
+    pub fn line_info_iter(&self) -> Result<LineInfoIterator<'_>> {
         let cinfo = self.info()?;
         Ok(LineInfoIterator {
             chip: self,
@@ -319,7 +319,7 @@ impl Chip {
     }
 
     /// An iterator for info change events from the chip.
-    pub fn info_change_events(&self) -> InfoChangeIterator {
+    pub fn info_change_events(&self) -> InfoChangeIterator<'_> {
         InfoChangeIterator {
             chip: self,
             buf: vec![0_u64; self.line_info_change_event_u64_size()],
@@ -508,7 +508,7 @@ impl fmt::Display for ErrorKind {
             ErrorKind::NotCharacterDevice => "is not a character device",
             ErrorKind::NotGpioDevice => "is not a GPIO character device",
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 

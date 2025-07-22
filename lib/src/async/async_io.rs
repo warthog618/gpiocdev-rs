@@ -79,7 +79,7 @@ impl AsyncChip {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn info_change_events(&self) -> InfoChangeStream {
+    pub fn info_change_events(&self) -> InfoChangeStream<'_> {
         InfoChangeStream { chip: self }
     }
 }
@@ -238,7 +238,7 @@ impl AsyncRequest {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new_edge_event_stream(&self, capacity: usize) -> EdgeEventStream {
+    pub fn new_edge_event_stream(&self, capacity: usize) -> EdgeEventStream<'_> {
         EdgeEventStream {
             req: self,
             events: self.0.get_ref().new_edge_event_buffer(capacity),
@@ -269,7 +269,7 @@ impl AsyncRequest {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn edge_events(&self) -> EdgeEventStream {
+    pub fn edge_events(&self) -> EdgeEventStream<'_> {
         EdgeEventStream {
             req: self,
             events: self.0.get_ref().edge_events(),

@@ -250,7 +250,7 @@ pub(super) struct CommandWords<'a> {
 }
 
 impl CommandWords<'_> {
-    pub fn new(line: &str) -> CommandWords {
+    pub fn new(line: &str) -> CommandWords<'_> {
         CommandWords {
             line,
             liter: line.char_indices(),

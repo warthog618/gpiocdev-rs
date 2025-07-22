@@ -57,7 +57,7 @@ pub fn actual_abi_version(_opts: &UapiOpts) -> Result<AbiVersion> {
 fn chip_path_from_id(id: &str) -> PathBuf {
     if id.chars().all(char::is_numeric) {
         // from number
-        return format!("/dev/gpiochip{}", id).into();
+        return format!("/dev/gpiochip{id}").into();
     }
     if !id.chars().any(|x| x == '/') {
         // from name
@@ -71,7 +71,7 @@ fn chip_path_from_id(id: &str) -> PathBuf {
 
 pub fn chip_lookup_from_id(id: &str) -> Result<PathBuf> {
     is_chip(chip_path_from_id(id))
-        .with_context(|| format!("cannot find GPIO chip character device '{}'", id))
+        .with_context(|| format!("cannot find GPIO chip character device '{id}'"))
 }
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
@@ -180,9 +180,9 @@ pub fn emit_error(opts: &EmitOpts, e: &anyhow::Error) {
 
 pub fn format_error(opts: &EmitOpts, e: &anyhow::Error) -> String {
     if opts.verbose {
-        format!("{:#}", e)
+        format!("{e:#}")
     } else {
-        format!("{}", e)
+        format!("{e}")
     }
 }
 
@@ -395,14 +395,13 @@ pub fn format_time(evtime: u64, timefmt: &TimeFmt) -> String {
     let ts_sec = (evtime / 1000000000) as i64;
     let ts_nsec = (evtime % 1000000000) as u32;
     match timefmt {
-        TimeFmt::Seconds => format!("{}.{:09}", ts_sec, ts_nsec),
+        TimeFmt::Seconds => format!("{ts_sec}.{ts_nsec:09}"),
         TimeFmt::Localtime => {
             let t = Local.timestamp_opt(ts_sec, ts_nsec).unwrap();
             format!("{}", t.format("%FT%T%.9f"))
         }
         TimeFmt::Utc => {
-            let t =
-                Utc.timestamp_opt(ts_sec, ts_nsec).unwrap();
+            let t = Utc.timestamp_opt(ts_sec, ts_nsec).unwrap();
             format!("{}", t.format("%FT%T%.9fZ"))
         }
     }

@@ -109,7 +109,7 @@ impl fmt::Display for Features {
             Features::Realtime => "event_clock realtime (added in 5.11)",
             Features::Hte => "event_clock hte (added in 5.19)",
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 

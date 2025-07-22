@@ -199,7 +199,9 @@ impl Error {
     #[inline]
     #[cfg(target_os = "android")]
     pub fn from_errno() -> Error {
-        Error::Os(Errno(std::io::Error::last_os_error().raw_os_error().unwrap()))
+        Error::Os(Errno(
+            std::io::Error::last_os_error().raw_os_error().unwrap(),
+        ))
     }
 }
 
@@ -412,7 +414,7 @@ impl TryFrom<u32> for LineInfoChangeKind {
             x if x == LineInfoChangeKind::Requested as u32 => LineInfoChangeKind::Requested,
             x if x == LineInfoChangeKind::Released as u32 => LineInfoChangeKind::Released,
             x if x == LineInfoChangeKind::Reconfigured as u32 => LineInfoChangeKind::Reconfigured,
-            x => return Err(format!("invalid value: {}", x)),
+            x => return Err(format!("invalid value: {x}")),
         })
     }
 }
@@ -444,7 +446,7 @@ impl TryFrom<u32> for LineEdgeEventKind {
         Ok(match v {
             x if x == LineEdgeEventKind::RisingEdge as u32 => LineEdgeEventKind::RisingEdge,
             x if x == LineEdgeEventKind::FallingEdge as u32 => LineEdgeEventKind::FallingEdge,
-            _ => return Err(format!("invalid value: {}", v)),
+            _ => return Err(format!("invalid value: {v}")),
         })
     }
 }

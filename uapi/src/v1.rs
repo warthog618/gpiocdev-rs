@@ -645,12 +645,12 @@ mod tests {
         fn get() {
             let mut a = LineValues::default();
             for idx in [0, 2] {
-                assert_eq!(a.0[idx], 0, "idx: {}", idx);
-                assert_eq!(a.get(idx), 0, "idx: {}", idx);
+                assert_eq!(a.0[idx], 0, "idx: {idx}");
+                assert_eq!(a.get(idx), 0, "idx: {idx}");
                 a.0[idx] = 1;
-                assert_eq!(a.get(idx), 1, "idx: {}", idx);
+                assert_eq!(a.get(idx), 1, "idx: {idx}");
                 a.0[idx] = 42;
-                assert_eq!(a.get(idx), 42, "idx: {}", idx);
+                assert_eq!(a.get(idx), 42, "idx: {idx}");
             }
         }
 
@@ -659,11 +659,11 @@ mod tests {
             let mut a = LineValues::default();
             for idx in [0, 2] {
                 a.set(idx, 0);
-                assert_eq!(a.0[idx], 0, "idx: {}", idx);
+                assert_eq!(a.0[idx], 0, "idx: {idx}");
                 a.set(idx, 1);
-                assert_eq!(a.0[idx], 1, "idx: {}", idx);
+                assert_eq!(a.0[idx], 1, "idx: {idx}");
                 a.set(idx, 42);
-                assert_eq!(a.0[idx], 42, "idx: {}", idx);
+                assert_eq!(a.0[idx], 42, "idx: {idx}");
             }
         }
 

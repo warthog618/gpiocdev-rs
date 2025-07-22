@@ -181,7 +181,7 @@ impl CmdResult {
                 if &lv.id == id {
                     print_values.push(if opts.numeric {
                         let v: u8 = lv.value.into();
-                        format!("{}", v)
+                        format!("{v}")
                     } else if opts.emit.quoted {
                         format!("\"{}\"={}", lv.id, lv.value)
                     } else {
@@ -195,7 +195,7 @@ impl CmdResult {
             println!("{}", print_values.join(" "));
         }
         for e in &self.errors {
-            eprintln!("{}", e);
+            eprintln!("{e}");
         }
     }
 }

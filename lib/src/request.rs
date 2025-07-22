@@ -269,7 +269,9 @@ impl Request {
     /// [`value`]: method.value
     pub fn lone_value(&self) -> Result<Value> {
         if self.offsets.len() != 1 {
-            return Err(Error::InvalidArgument("request contains multiple lines.".into()))?;
+            return Err(Error::InvalidArgument(
+                "request contains multiple lines.".into(),
+            ))?;
         }
         self.do_value(0)
     }
@@ -412,7 +414,9 @@ impl Request {
     /// [`set_value`]: method.set_value
     pub fn set_lone_value(&self, value: Value) -> Result<()> {
         if self.offsets.len() != 1 {
-            return Err(Error::InvalidArgument("request contains multiple lines.".into()))?;
+            return Err(Error::InvalidArgument(
+                "request contains multiple lines.".into(),
+            ))?;
         }
         self.do_set_value(0, value)
     }
@@ -553,7 +557,7 @@ impl Request {
     /// ```
     ///
     /// [`Builder.with_user_event_buffer_size`]: struct.Builder.html#method.with_user_event_buffer_size
-    pub fn edge_events(&self) -> EdgeEventBuffer {
+    pub fn edge_events(&self) -> EdgeEventBuffer<'_> {
         self.new_edge_event_buffer(self.user_event_buffer_size)
     }
 
@@ -605,7 +609,7 @@ impl Request {
     /// Create an edge event buffer.
     ///
     /// * `capacity` - The number of events that can be buffered.
-    pub fn new_edge_event_buffer(&self, capacity: usize) -> EdgeEventBuffer {
+    pub fn new_edge_event_buffer(&self, capacity: usize) -> EdgeEventBuffer<'_> {
         EdgeEventBuffer::new(self, self.edge_event_size(), capacity)
     }
 

@@ -307,7 +307,7 @@ impl CmdResult {
             return;
         }
         for e in &self.errors {
-            eprintln!("{}", e);
+            eprintln!("{e}");
         }
     }
 
@@ -330,7 +330,7 @@ fn print_banner(lines: &[String]) {
         print!("Monitoring lines ");
 
         for l in lines.iter().take(lines.len() - 1) {
-            print!("'{}', ", l);
+            print!("'{l}', ");
         }
 
         println!("and '{}'...", lines[lines.len() - 1]);
@@ -389,9 +389,9 @@ impl Event {
                 print!("{} {} ", ci.name, self.edge.offset);
             }
             if opts.emit.quoted {
-                println!("\"{}\"", lname);
+                println!("\"{lname}\"");
             } else {
-                println!("{}", lname);
+                println!("{lname}");
             }
         } else {
             println!("{} {}", ci.name, self.edge.offset);
@@ -428,13 +428,13 @@ fn print_edge_formatted(event: &EdgeEvent, format: &str, ci: &ChipInfo) {
                 'o' => print!("{}", event.offset),
                 'S' => print!("{}", format_time(event.timestamp_ns, &TimeFmt::Seconds)),
                 'U' => print!("{}", format_time(event.timestamp_ns, &TimeFmt::Utc)),
-                x => print!("%{}", x),
+                x => print!("%{x}"),
             }
             escaped = false;
         } else if chr == '%' {
             escaped = true;
         } else {
-            print!("{}", chr);
+            print!("{chr}");
         }
     }
     if escaped {

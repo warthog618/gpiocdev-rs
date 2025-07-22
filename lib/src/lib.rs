@@ -481,7 +481,7 @@ impl fmt::Display for UapiCall {
             UapiCall::WaitEvent => "wait_event",
             UapiCall::WatchLineInfo => "watch_line_info",
         };
-        write!(f, "{}", name)
+        write!(f, "{name}")
     }
 }
 
@@ -542,35 +542,35 @@ mod tests {
         fn display() {
             use super::UapiCall;
             let uc = UapiCall::GetChipInfo;
-            assert_eq!(format!("{}", uc), "get_chip_info");
+            assert_eq!(format!("{uc}"), "get_chip_info");
             let uc = UapiCall::GetLine;
-            assert_eq!(format!("{}", uc), "get_line");
+            assert_eq!(format!("{uc}"), "get_line");
             let uc = UapiCall::GetLineEvent;
-            assert_eq!(format!("{}", uc), "get_line_event");
+            assert_eq!(format!("{uc}"), "get_line_event");
             let uc = UapiCall::GetLineHandle;
-            assert_eq!(format!("{}", uc), "get_line_handle");
+            assert_eq!(format!("{uc}"), "get_line_handle");
             let uc = UapiCall::GetLineInfo;
-            assert_eq!(format!("{}", uc), "get_line_info");
+            assert_eq!(format!("{uc}"), "get_line_info");
             let uc = UapiCall::GetLineValues;
-            assert_eq!(format!("{}", uc), "get_line_values");
+            assert_eq!(format!("{uc}"), "get_line_values");
             let uc = UapiCall::HasEvent;
-            assert_eq!(format!("{}", uc), "has_event");
+            assert_eq!(format!("{uc}"), "has_event");
             let uc = UapiCall::LEEFromBuf;
-            assert_eq!(format!("{}", uc), "LineEdgeEvent::from_buf");
+            assert_eq!(format!("{uc}"), "LineEdgeEvent::from_buf");
             let uc = UapiCall::LICEFromBuf;
-            assert_eq!(format!("{}", uc), "LineInfoChangeEvent::from_buf");
+            assert_eq!(format!("{uc}"), "LineInfoChangeEvent::from_buf");
             let uc = UapiCall::ReadEvent;
-            assert_eq!(format!("{}", uc), "read_event");
+            assert_eq!(format!("{uc}"), "read_event");
             let uc = UapiCall::SetLineConfig;
-            assert_eq!(format!("{}", uc), "set_line_config");
+            assert_eq!(format!("{uc}"), "set_line_config");
             let uc = UapiCall::SetLineValues;
-            assert_eq!(format!("{}", uc), "set_line_values");
+            assert_eq!(format!("{uc}"), "set_line_values");
             let uc = UapiCall::WaitEvent;
-            assert_eq!(format!("{}", uc), "wait_event");
+            assert_eq!(format!("{uc}"), "wait_event");
             let uc = UapiCall::WatchLineInfo;
-            assert_eq!(format!("{}", uc), "watch_line_info");
+            assert_eq!(format!("{uc}"), "watch_line_info");
             let uc = UapiCall::UnwatchLineInfo;
-            assert_eq!(format!("{}", uc), "unwatch_line_info");
+            assert_eq!(format!("{uc}"), "unwatch_line_info");
         }
     }
 
@@ -580,9 +580,9 @@ mod tests {
         fn display() {
             use crate::AbiSupportKind;
             let ask = AbiSupportKind::Build;
-            assert_eq!(format!("{}", ask), "build");
+            assert_eq!(format!("{ask}"), "build");
             let ask = AbiSupportKind::Kernel;
-            assert_eq!(format!("{}", ask), "kernel");
+            assert_eq!(format!("{ask}"), "kernel");
         }
     }
 }
