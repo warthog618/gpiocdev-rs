@@ -11,7 +11,7 @@ keywords = ["linux", "gpio", "ioctl", "gpiochip", "chardev"]
 license = "Apache-2.0 OR MIT"
 name = "gpiocdev-uapi"
 repository = "https://github.com/warthog618/gpiocdev-rs"
-rust-version = "1.62"
+rust-version = "1.63"
 version = "0.6.4"
 
 [dependencies]
