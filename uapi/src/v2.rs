@@ -500,10 +500,10 @@ pub struct LineRequest {
 /// * `cf` - The open gpiochip device file.
 /// * `lr` - The line request.
 #[inline]
-pub fn get_line(cf: &File, lr: LineRequest) -> Result<File> {
+pub fn get_line(cf: &File, mut lr: LineRequest) -> Result<File> {
     // SAFETY: lr is consumed and the returned file is drawn from the returned fd.
     unsafe {
-        match libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLine, LineRequest), &lr) {
+        match libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLine, LineRequest), &mut lr) {
             0 => Ok(File::from_raw_fd(lr.fd)),
             _ => Err(Error::from_errno()),
         }
@@ -589,12 +589,12 @@ impl LineInfo {
 /// * `offset` - The offset of the line.
 #[inline]
 pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
-    let li = LineInfo {
+    let mut li = LineInfo {
         offset,
         ..Default::default()
     };
     // SAFETY: returned struct is explicitly validated before being returned.
-    match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineInfo, LineInfo), &li) } {
+    match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineInfo, LineInfo), &mut li) } {
         0 => li.validate().map(|_| li).map_err(Error::from),
         _ => Err(Error::from_errno()),
     }
@@ -611,12 +611,18 @@ pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
 /// * `offset` - The offset of the line to watch.
 #[inline]
 pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
-    let li = LineInfo {
+    let mut li = LineInfo {
         offset,
         ..Default::default()
     };
     // SAFETY: returned struct is explicitly validated before being returned.
-    match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::WatchLineInfo, LineInfo), &li) } {
+    match unsafe {
+        libc::ioctl(
+            cf.as_raw_fd(),
+            iorw!(Ioctl::WatchLineInfo, LineInfo),
+            &mut li,
+        )
+    } {
         0 => li.validate().map(|_| li).map_err(Error::from),
         _ => Err(Error::from_errno()),
     }
