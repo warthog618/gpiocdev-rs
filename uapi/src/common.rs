@@ -104,7 +104,7 @@ enum Ioctl {
 
 /// Information about a particular GPIO chip.
 #[repr(C)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ChipInfo {
     /// The Linux kernel name of this GPIO chip.
     pub name: Name,
@@ -122,14 +122,15 @@ pub struct ChipInfo {
 ///
 /// * `cf` - The open gpiochip device file.
 pub fn get_chip_info(cf: &File) -> Result<ChipInfo> {
-    let mut chip = std::mem::MaybeUninit::<ChipInfo>::uninit();
+    let mut chip: ChipInfo = Default::default();
+    // SAFETY: returned struct contains raw byte arrays and ints that are safe to decode.
     unsafe {
         match libc::ioctl(
             cf.as_raw_fd(),
             ior!(Ioctl::GetChipInfo, ChipInfo),
-            chip.as_mut_ptr(),
+            &mut chip,
         ) {
-            0 => Ok(chip.assume_init()),
+            0 => Ok(chip),
             _ => Err(Error::from_errno()),
         }
     }
