@@ -272,21 +272,21 @@ fn with_both_edges() {
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
     assert_eq!(event.seqno, 1);
 
     assert!(has_event(&l).unwrap());
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
     assert_eq!(event.seqno, 2);
 
     assert!(has_event(&l).unwrap());
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
     assert_eq!(event.seqno, 3);
 
     assert!(!has_event(&l).unwrap());
@@ -330,14 +330,14 @@ fn with_event_buffer_size() {
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
     assert_eq!(event.seqno, 3);
 
     assert!(has_event(&l).unwrap());
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
     assert_eq!(event.seqno, 4);
 
     assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
@@ -351,14 +351,14 @@ fn with_event_buffer_size() {
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
     assert_eq!(event.seqno, 5);
 
     assert!(has_event(&l).unwrap());
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
     assert_eq!(event.seqno, 6);
 
     drop(l);
@@ -396,14 +396,14 @@ fn with_rising_edge() {
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
     assert_eq!(event.seqno, 1);
 
     assert!(has_event(&l).unwrap());
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
     assert_eq!(event.seqno, 2);
 
     assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
@@ -417,7 +417,7 @@ fn with_rising_edge() {
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
     assert_eq!(event.seqno, 3);
 
     assert!(!has_event(&l).unwrap());
@@ -457,14 +457,14 @@ fn with_falling_edge() {
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
     assert_eq!(event.seqno, 1);
 
     assert!(has_event(&l).unwrap());
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
     assert_eq!(event.seqno, 2);
 
     assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
@@ -478,7 +478,7 @@ fn with_falling_edge() {
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
     event = LineEdgeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.offset, offset);
-    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge);
+    assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
     assert_eq!(event.seqno, 3);
 
     assert!(!has_event(&l).unwrap());

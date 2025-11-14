@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use super::{Bias, Direction, Drive, EdgeDetection, EventClock, Offset};
+#[cfg(feature = "uapi_v2")]
+use crate::{Error, UapiField};
 #[cfg(feature = "uapi_v1")]
 use gpiocdev_uapi::v1;
 #[cfg(feature = "uapi_v2")]
@@ -102,12 +104,22 @@ impl From<&v1::LineInfo> for Info {
     }
 }
 #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-impl From<&v2::LineInfo> for Info {
-    fn from(li: &v2::LineInfo) -> Self {
+impl TryFrom<&v2::LineInfo> for Info {
+    type Error = Error;
+
+    fn try_from(li: &v2::LineInfo) -> Result<Self, Self::Error> {
         let mut debounce_period = None;
+        // range check num_attrs
+        if li.num_attrs > v2::NUM_ATTRS_MAX as u32 {
+            return Err(Error::UnexpectedResponse(
+                UapiField::NumAttrs,
+                format!("{}", li.num_attrs),
+            ));
+        }
         for idx in 0..li.num_attrs as usize {
+            // change to a match if more attr types are added...
             if let Some(v2::LineAttributeValue::DebouncePeriod(db)) = li.attr(idx).to_value() {
-                debounce_period = Some(db);
+                debounce_period = Some(Duration::from_micros(db as u64));
             }
         }
         let ed = EdgeDetection::try_from(li.flags).ok();
@@ -116,7 +128,7 @@ impl From<&v2::LineInfo> for Info {
         } else {
             None
         };
-        Info {
+        Ok(Info {
             offset: li.offset,
             name: String::from(&li.name),
             consumer: String::from(&li.consumer),
@@ -128,7 +140,7 @@ impl From<&v2::LineInfo> for Info {
             edge_detection: ed,
             event_clock: ec,
             debounce_period,
-        }
+        })
     }
 }
 
@@ -199,9 +211,9 @@ mod tests {
     }
     #[test]
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-    fn info_from_v2_line_info() {
+    fn info_try_from_v2_line_info() {
         let v2info: v2::LineInfo = Default::default();
-        let info = Info::from(&v2info);
+        let info = Info::try_from(&v2info).unwrap();
         assert_eq!(info.offset, 0);
         assert!(info.name.is_empty());
         assert!(info.consumer.is_empty());
@@ -226,7 +238,7 @@ mod tests {
             attrs: Default::default(),
             padding: Default::default(),
         };
-        let info = Info::from(&v2info);
+        let info = Info::try_from(&v2info).unwrap();
         assert_eq!(info.offset, 32);
         assert_eq!(info.name, "banana");
         assert_eq!(info.consumer, "jam");
@@ -251,7 +263,7 @@ mod tests {
             attrs: Default::default(),
             padding: Default::default(),
         };
-        let info = Info::from(&v2info);
+        let info = Info::try_from(&v2info).unwrap();
         assert_eq!(info.offset, 32);
         assert_eq!(info.name, "banana");
         assert_eq!(info.consumer, "jam");
@@ -276,7 +288,7 @@ mod tests {
             attrs: Default::default(),
             padding: Default::default(),
         };
-        let info = Info::from(&v2info);
+        let info = Info::try_from(&v2info).unwrap();
         assert_eq!(info.offset, 32);
         assert_eq!(info.name, "banana");
         assert_eq!(info.consumer, "jam");
@@ -288,5 +300,23 @@ mod tests {
         assert_eq!(info.edge_detection, Some(EdgeDetection::RisingEdge));
         assert_eq!(info.event_clock, Some(EventClock::Monotonic));
         assert!(info.debounce_period.is_none());
+
+        let v2info = v2::LineInfo {
+            offset: 32,
+            flags: v2::LineFlags::USED
+                | v2::LineFlags::INPUT
+                | v2::LineFlags::EDGE_RISING
+                | v2::LineFlags::BIAS_PULL_DOWN,
+            name: "banana".into(),
+            consumer: "jam".into(),
+            num_attrs: 11,
+            attrs: Default::default(),
+            padding: Default::default(),
+        };
+        let err = Info::try_from(&v2info).unwrap_err();
+        assert_eq!(
+            err,
+            Error::UnexpectedResponse(UapiField::NumAttrs, "11".into())
+        );
     }
 }

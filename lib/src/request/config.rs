@@ -1236,7 +1236,7 @@ mod tests {
         // first is flags for line 4
         let lca = lc.attrs.0[0];
         assert_eq!(lca.mask, 0b0100);
-        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
+        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags as u32);
         assert_eq!(
             lca.attr.to_value().unwrap(),
             v2::LineAttributeValue::Flags(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW)
@@ -1245,7 +1245,7 @@ mod tests {
         // second is values for outputs
         let lca = lc.attrs.0[1];
         assert_eq!(lca.mask, 0b1011);
-        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
+        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values as u32);
         assert_eq!(
             lca.attr.to_value().unwrap(),
             v2::LineAttributeValue::Values(0b1001)
@@ -1254,10 +1254,10 @@ mod tests {
         // third is debounce for line 4
         let lca = lc.attrs.0[2];
         assert_eq!(lca.mask, 0b0100);
-        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Debounce);
+        assert_eq!(lca.attr.kind, v2::LineAttributeKind::Debounce as u32);
         assert_eq!(
             lca.attr.to_value().unwrap(),
-            v2::LineAttributeValue::DebouncePeriod(Duration::from_micros(10000))
+            v2::LineAttributeValue::DebouncePeriod(10000)
         );
 
         // too many attrs required

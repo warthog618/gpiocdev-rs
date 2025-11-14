@@ -362,7 +362,7 @@ fn print_change_formatted(event: &InfoChangeEvent, format: &str, ci: &ChipInfo, 
                 'a' => print!("{}", stringify_attrs(&event.info, quoted)),
                 'c' => print!("{}", ci.name),
                 'C' => print!("{}", format_consumer(&event.info)),
-                'e' => print!("{}", event_kind_num(event.kind)),
+                'e' => print!("{}", event.kind as u8),
                 'E' => print!("{}", event_kind_name(event.kind)),
                 'l' => print!("{}", ci.line_name(&event.info.offset).unwrap_or("unnamed")),
                 'L' => print!(
@@ -398,14 +398,6 @@ fn event_kind_name(kind: InfoChangeKind) -> &'static str {
         InfoChangeKind::Requested => "requested",
         InfoChangeKind::Released => "released",
         InfoChangeKind::Reconfigured => "reconfigured",
-    }
-}
-
-fn event_kind_num(kind: InfoChangeKind) -> u8 {
-    match kind {
-        InfoChangeKind::Requested => 1,
-        InfoChangeKind::Released => 2,
-        InfoChangeKind::Reconfigured => 3,
     }
 }
 

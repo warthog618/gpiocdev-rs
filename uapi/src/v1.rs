@@ -133,8 +133,8 @@ pub struct LineInfoChangeEvent {
     /// An estimate of time of status change occurrence, in nanoseconds.
     pub timestamp_ns: u64,
 
-    /// The kind of change event.
-    pub kind: LineInfoChangeKind,
+    /// The kind of change event (LineInfoChangeKind).
+    pub kind: u32,
 
     /// Reserved for future use.
     #[doc(hidden)]
@@ -145,7 +145,7 @@ impl LineInfoChangeEvent {
     /// Read a LineInfoChangeEvent from a buffer.
     ///
     /// The buffer is assumed to have been populated by a read of the chip File,
-    /// so the content is validated before being returned.
+    /// so the content is initialised.
     pub fn from_slice(d: &[u64]) -> Result<&LineInfoChangeEvent> {
         debug_assert!(std::mem::size_of::<LineInfoChangeEvent>() % 8 == 0);
         let len = d.len() * 8;
@@ -156,16 +156,9 @@ impl LineInfoChangeEvent {
                 len,
             )));
         }
-        // SAFETY: event is validated before being returned
+        // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
         let le = unsafe { &*(d as *const [u64] as *const LineInfoChangeEvent) };
-        le.validate().map(|_| le).map_err(Error::from)
-    }
-
-    /// Check that a LineInfoChangeEvent read from the kernel is valid in Rust.
-    fn validate(&self) -> ValidationResult {
-        self.kind
-            .validate()
-            .map_err(|e| ValidationError::new("kind", e))
+        Ok(le)
     }
 
     /// The number of u64 words required to store a LineInfoChangeEvent.
@@ -474,15 +467,15 @@ pub fn get_line_event(cf: &File, mut er: EventRequest) -> Result<File> {
 pub struct LineEdgeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     pub timestamp_ns: u64,
-    /// The kind of line event.
-    pub kind: LineEdgeEventKind,
+    /// The kind of line event. (LineEdgeEventKind)
+    pub kind: u32,
 }
 
 impl LineEdgeEvent {
     /// Read a LineEdgeEvent from a buffer.
     ///
     /// The buffer is assumed to have been populated by a read of the line request File,
-    /// so the content is validated before being returned.
+    /// so the content is initialised.
     pub fn from_slice(d: &[u64]) -> Result<&LineEdgeEvent> {
         debug_assert!(std::mem::size_of::<LineEdgeEvent>() % 8 == 0);
         let len = d.len() * 8;
@@ -493,16 +486,9 @@ impl LineEdgeEvent {
                 len,
             )));
         }
-        // SAFETY: returned struct is explicitly validated before being returned.
+        // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
         let le = unsafe { &*(d as *const [u64] as *const LineEdgeEvent) };
-        le.validate().map(|_| le).map_err(Error::from)
-    }
-
-    /// Check that a LineEdgeEvent read from the kernel is valid in Rust.
-    fn validate(&self) -> ValidationResult {
-        self.kind
-            .validate()
-            .map_err(|e| ValidationError::new("kind", e))
+        Ok(le)
     }
 
     /// The number of u64 words required to store a LineEdgeEvent.
@@ -538,33 +524,6 @@ mod tests {
                 104usize,
                 concat!("Size of: ", stringify!(LineInfoChangeEvent))
             );
-        }
-
-        #[test]
-        fn validate() {
-            use super::LineInfoChangeKind;
-
-            let mut a = LineInfoChangeEvent {
-                info: Default::default(),
-                timestamp_ns: 0,
-                kind: LineInfoChangeKind::Released,
-                padding: Default::default(),
-            };
-            assert!(a.validate().is_ok());
-            a.timestamp_ns = 1234;
-            assert!(a.validate().is_ok());
-            unsafe {
-                a.kind = *(&0 as *const i32 as *const LineInfoChangeKind);
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, "kind");
-                assert_eq!(e.msg, "invalid value: 0");
-                a.kind = *(&4 as *const i32 as *const LineInfoChangeKind);
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, "kind");
-                assert_eq!(e.msg, "invalid value: 4");
-                a.kind = *(&1 as *const i32 as *const LineInfoChangeKind);
-                assert!(a.validate().is_ok());
-            }
         }
     }
 
@@ -617,30 +576,6 @@ mod tests {
                 16usize,
                 concat!("Size of: ", stringify!(LineEdgeEvent))
             );
-        }
-
-        #[test]
-        fn validate() {
-            use super::LineEdgeEventKind;
-            let mut a = LineEdgeEvent {
-                timestamp_ns: 0,
-                kind: LineEdgeEventKind::RisingEdge,
-            };
-            assert!(a.validate().is_ok());
-            a.timestamp_ns = 1234;
-            assert!(a.validate().is_ok());
-            unsafe {
-                a.kind = *(&0 as *const i32 as *const LineEdgeEventKind);
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, "kind");
-                assert_eq!(e.msg, "invalid value: 0");
-                a.kind = *(&3 as *const i32 as *const LineEdgeEventKind);
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, "kind");
-                assert_eq!(e.msg, "invalid value: 3");
-                a.kind = *(&1 as *const i32 as *const LineEdgeEventKind);
-                assert!(a.validate().is_ok());
-            }
         }
     }
 

@@ -1203,7 +1203,7 @@ mod tests {
             // first is flags for line inputs
             let lca = lr.config.attrs.0[0];
             assert_eq!(lca.mask, 0b000111);
-            assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags);
+            assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags as u32);
             assert_eq!(
                 lca.attr.to_value().unwrap(),
                 v2::LineAttributeValue::Flags(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW)
@@ -1211,7 +1211,7 @@ mod tests {
             // second is values for outputs
             let lca = lr.config.attrs.0[1];
             assert_eq!(lca.mask, 0b1111000);
-            assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values);
+            assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values as u32);
             // inputs should be inactive, outputs as per config
             assert_eq!(
                 lca.attr.to_value().unwrap(),

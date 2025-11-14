@@ -573,6 +573,10 @@ mod chip {
                 .with_line(offset)
                 .request()
                 .unwrap();
+            assert_eq!(
+                c.wait_line_info_change_event(INFO_CHANGE_EVENT_WAIT),
+                Ok(true)
+            );
             assert_eq!(c.has_line_info_change_event(), Ok(true));
             _ = c.read_line_info_change_event();
             assert_eq!(c.has_line_info_change_event(), Ok(false));

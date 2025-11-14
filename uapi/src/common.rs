@@ -122,7 +122,7 @@ pub struct ChipInfo {
 ///
 /// * `cf` - The open gpiochip device file.
 pub fn get_chip_info(cf: &File) -> Result<ChipInfo> {
-    let mut chip: ChipInfo = Default::default();
+    let mut chip = ChipInfo::default();
     // SAFETY: returned struct contains raw byte arrays and ints that are safe to decode.
     unsafe {
         match libc::ioctl(
@@ -169,9 +169,6 @@ impl std::fmt::Display for Errno {
 /// [`gpiocdev_uapi`]: crate
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Result returned by struct validators.
-pub type ValidationResult = std::result::Result<(), ValidationError>;
-
 /// Errors returned by [`gpiocdev_uapi`] functions.
 ///
 /// [`gpiocdev_uapi`]: crate
@@ -184,10 +181,6 @@ pub enum Error {
     /// An error indicating insufficient data read for the expected object.
     #[error(transparent)]
     UnderRead(#[from] UnderReadError),
-
-    /// An error validating an data structure retuned from the kernel
-    #[error(transparent)]
-    Validation(#[from] ValidationError),
 }
 
 impl Error {
@@ -227,28 +220,6 @@ impl UnderReadError {
             obj,
             expected,
             found,
-        }
-    }
-}
-
-/// A failure to validate a struct returned from a system call.
-//
-// Should only be seen if a kernel update adds an enum value we are unaware of.
-#[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]
-#[error("Kernel returned invalid {field}: {msg}")]
-pub struct ValidationError {
-    /// The field that failed to validate.
-    pub field: String,
-    /// The details of the validation failure.
-    pub msg: String,
-}
-
-impl ValidationError {
-    /// Create a ValidationError.
-    pub(crate) fn new<S: Into<String>, T: Into<String>>(field: S, msg: T) -> ValidationError {
-        ValidationError {
-            field: field.into(),
-            msg: msg.into(),
         }
     }
 }
@@ -408,22 +379,15 @@ pub enum LineInfoChangeKind {
 }
 
 impl TryFrom<u32> for LineInfoChangeKind {
-    type Error = String;
+    type Error = ();
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
         Ok(match v {
-            x if x == LineInfoChangeKind::Requested as u32 => LineInfoChangeKind::Requested,
-            x if x == LineInfoChangeKind::Released as u32 => LineInfoChangeKind::Released,
-            x if x == LineInfoChangeKind::Reconfigured as u32 => LineInfoChangeKind::Reconfigured,
-            x => return Err(format!("invalid value: {x}")),
+            1 => LineInfoChangeKind::Requested,
+            2 => LineInfoChangeKind::Released,
+            3 => LineInfoChangeKind::Reconfigured,
+            _ => return Err(()),
         })
-    }
-}
-
-impl LineInfoChangeKind {
-    /// Confirm that the value read from the kernel is valid in Rust.
-    pub(crate) fn validate(&self) -> std::result::Result<(), String> {
-        LineInfoChangeKind::try_from(*self as u32).map(|_i| ())
     }
 }
 
@@ -441,21 +405,14 @@ pub enum LineEdgeEventKind {
 }
 
 impl TryFrom<u32> for LineEdgeEventKind {
-    type Error = String;
+    type Error = ();
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
         Ok(match v {
-            x if x == LineEdgeEventKind::RisingEdge as u32 => LineEdgeEventKind::RisingEdge,
-            x if x == LineEdgeEventKind::FallingEdge as u32 => LineEdgeEventKind::FallingEdge,
-            _ => return Err(format!("invalid value: {v}")),
+            1 => LineEdgeEventKind::RisingEdge,
+            2 => LineEdgeEventKind::FallingEdge,
+            _ => return Err(()),
         })
-    }
-}
-
-impl LineEdgeEventKind {
-    /// Confirm that the value read from the kernel is valid in Rust.
-    pub(crate) fn validate(&self) -> std::result::Result<(), String> {
-        LineEdgeEventKind::try_from(*self as u32).map(|_i| ())
     }
 }
 
@@ -473,31 +430,43 @@ mod tests {
     }
 
     #[test]
-    fn line_info_changed_kind_validate() {
-        let mut a = LineInfoChangeKind::Requested;
-        assert!(a.validate().is_ok());
-        unsafe {
-            a = *(&0 as *const i32 as *const LineInfoChangeKind);
-            assert_eq!(a.validate().unwrap_err(), "invalid value: 0");
-            a = *(&4 as *const i32 as *const LineInfoChangeKind);
-            assert_eq!(a.validate().unwrap_err(), "invalid value: 4");
-            a = *(&3 as *const i32 as *const LineInfoChangeKind);
-            assert!(a.validate().is_ok());
-        }
+    fn line_info_changed_try_from() {
+        assert_eq!(
+            LineInfoChangeKind::try_from(LineInfoChangeKind::Requested as u32),
+            Ok(LineInfoChangeKind::Requested)
+        );
+        assert_eq!(
+            LineInfoChangeKind::try_from(LineInfoChangeKind::Released as u32),
+            Ok(LineInfoChangeKind::Released)
+        );
+        assert_eq!(
+            LineInfoChangeKind::try_from(LineInfoChangeKind::Reconfigured as u32),
+            Ok(LineInfoChangeKind::Reconfigured)
+        );
+        assert!(LineInfoChangeKind::try_from(0).is_err());
+        assert!(LineInfoChangeKind::try_from(4).is_err());
+        assert_eq!(
+            LineInfoChangeKind::try_from(3),
+            Ok(LineInfoChangeKind::Reconfigured)
+        );
     }
 
     #[test]
-    fn line_event_kind_validate() {
-        let mut a = LineInfoChangeKind::Requested;
-        assert!(a.validate().is_ok());
-        unsafe {
-            a = *(&0 as *const i32 as *const LineInfoChangeKind);
-            assert_eq!(a.validate().unwrap_err(), "invalid value: 0");
-            a = *(&4 as *const i32 as *const LineInfoChangeKind);
-            assert_eq!(a.validate().unwrap_err(), "invalid value: 4");
-            a = *(&3 as *const i32 as *const LineInfoChangeKind);
-            assert!(a.validate().is_ok());
-        }
+    fn line_edge_event_kind_try_from() {
+        assert_eq!(
+            LineEdgeEventKind::try_from(LineEdgeEventKind::RisingEdge as u32),
+            Ok(LineEdgeEventKind::RisingEdge)
+        );
+        assert_eq!(
+            LineEdgeEventKind::try_from(LineEdgeEventKind::FallingEdge as u32),
+            Ok(LineEdgeEventKind::FallingEdge)
+        );
+        assert!(LineEdgeEventKind::try_from(0).is_err());
+        assert!(LineEdgeEventKind::try_from(3).is_err());
+        assert_eq!(
+            LineEdgeEventKind::try_from(2),
+            Ok(LineEdgeEventKind::FallingEdge)
+        );
     }
 
     #[test]

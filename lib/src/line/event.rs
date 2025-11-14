@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use super::{Info, Offset};
+use crate::{Error, UapiField};
 #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
 use gpiocdev_uapi::v1 as uapi;
 #[cfg(feature = "uapi_v1")]
@@ -50,28 +51,36 @@ pub struct EdgeEvent {
     pub line_seqno: u32,
 }
 #[cfg(feature = "uapi_v1")]
-impl From<&v1::LineEdgeEvent> for EdgeEvent {
-    fn from(le: &v1::LineEdgeEvent) -> Self {
-        EdgeEvent {
+impl TryFrom<&v1::LineEdgeEvent> for EdgeEvent {
+    type Error = Error;
+
+    fn try_from(le: &v1::LineEdgeEvent) -> Result<Self, Self::Error> {
+        let kind = uapi::LineEdgeEventKind::try_from(le.kind)
+            .map_err(|_| Error::UnexpectedResponse(UapiField::Kind, format!("{}", le.kind)))?;
+        Ok(EdgeEvent {
             timestamp_ns: le.timestamp_ns,
-            kind: EdgeKind::from(le.kind),
+            kind: kind.into(),
             // v1 doesn't provide the remaining fields...
             offset: 0,
             seqno: 0,
             line_seqno: 0,
-        }
+        })
     }
 }
 #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-impl From<&v2::LineEdgeEvent> for EdgeEvent {
-    fn from(le: &v2::LineEdgeEvent) -> Self {
-        EdgeEvent {
+impl TryFrom<&v2::LineEdgeEvent> for EdgeEvent {
+    type Error = Error;
+
+    fn try_from(le: &v2::LineEdgeEvent) -> Result<Self, Self::Error> {
+        let kind = uapi::LineEdgeEventKind::try_from(le.kind)
+            .map_err(|_| Error::UnexpectedResponse(UapiField::Kind, format!("{}", le.kind)))?;
+        Ok(EdgeEvent {
             timestamp_ns: le.timestamp_ns,
-            kind: EdgeKind::from(le.kind),
+            kind: kind.into(),
             offset: le.offset,
             seqno: le.seqno,
             line_seqno: le.line_seqno,
-        }
+        })
     }
 }
 
@@ -117,23 +126,31 @@ pub struct InfoChangeEvent {
     pub kind: InfoChangeKind,
 }
 #[cfg(feature = "uapi_v1")]
-impl From<&v1::LineInfoChangeEvent> for InfoChangeEvent {
-    fn from(ice: &v1::LineInfoChangeEvent) -> Self {
-        InfoChangeEvent {
+impl TryFrom<&v1::LineInfoChangeEvent> for InfoChangeEvent {
+    type Error = Error;
+
+    fn try_from(ice: &v1::LineInfoChangeEvent) -> Result<Self, Self::Error> {
+        let kind = InfoChangeKind::try_from(ice.kind)
+            .map_err(|_| Error::UnexpectedResponse(UapiField::Kind, format!("{}", ice.kind)))?;
+        Ok(InfoChangeEvent {
             info: Info::from(&ice.info),
             timestamp_ns: ice.timestamp_ns,
-            kind: InfoChangeKind::from(ice.kind),
-        }
+            kind,
+        })
     }
 }
 #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-impl From<&v2::LineInfoChangeEvent> for InfoChangeEvent {
-    fn from(ice: &v2::LineInfoChangeEvent) -> Self {
-        InfoChangeEvent {
-            info: Info::from(&ice.info),
+impl TryFrom<&v2::LineInfoChangeEvent> for InfoChangeEvent {
+    type Error = Error;
+
+    fn try_from(ice: &v2::LineInfoChangeEvent) -> Result<Self, Self::Error> {
+        let kind = InfoChangeKind::try_from(ice.kind)
+            .map_err(|_| Error::UnexpectedResponse(UapiField::Kind, format!("{}", ice.kind)))?;
+        Ok(InfoChangeEvent {
+            info: Info::try_from(&ice.info)?,
             timestamp_ns: ice.timestamp_ns,
-            kind: InfoChangeKind::from(ice.kind),
-        }
+            kind,
+        })
     }
 }
 
@@ -151,13 +168,16 @@ pub enum InfoChangeKind {
     Reconfigured = 3,
 }
 
-impl From<uapi::LineInfoChangeKind> for InfoChangeKind {
-    fn from(kind: uapi::LineInfoChangeKind) -> Self {
-        match kind {
-            uapi::LineInfoChangeKind::Requested => InfoChangeKind::Requested,
-            uapi::LineInfoChangeKind::Released => InfoChangeKind::Released,
-            uapi::LineInfoChangeKind::Reconfigured => InfoChangeKind::Reconfigured,
-        }
+impl TryFrom<u32> for InfoChangeKind {
+    type Error = ();
+
+    fn try_from(kind: u32) -> Result<Self, Self::Error> {
+        Ok(match kind {
+            1 => InfoChangeKind::Requested,
+            2 => InfoChangeKind::Released,
+            3 => InfoChangeKind::Reconfigured,
+            _ => return Err(()),
+        })
     }
 }
 
@@ -171,36 +191,42 @@ mod tests {
 
         #[test]
         #[cfg(feature = "uapi_v1")]
-        fn from_v1() {
-            let v1event = v1::LineEdgeEvent {
+        fn try_from_v1() {
+            let mut v1event = v1::LineEdgeEvent {
                 timestamp_ns: 1234,
-                kind: gpiocdev_uapi::v1::LineEdgeEventKind::FallingEdge,
+                kind: gpiocdev_uapi::v1::LineEdgeEventKind::FallingEdge as u32,
             };
-            let ee = EdgeEvent::from(&v1event);
+            let ee = EdgeEvent::try_from(&v1event).unwrap();
             assert_eq!(ee.timestamp_ns, 1234);
             assert_eq!(ee.kind, EdgeKind::Falling);
             assert_eq!(ee.offset, 0);
             assert_eq!(ee.seqno, 0);
             assert_eq!(ee.line_seqno, 0);
+            v1event.kind = 42;
+            let ee = EdgeEvent::try_from(&v1event).unwrap_err();
+            assert_eq!(ee, Error::UnexpectedResponse(UapiField::Kind, "42".into()));
         }
 
         #[test]
         #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-        fn from_v2() {
-            let v2event = v2::LineEdgeEvent {
+        fn try_from_v2() {
+            let mut v2event = v2::LineEdgeEvent {
                 timestamp_ns: 1234,
-                kind: gpiocdev_uapi::v2::LineEdgeEventKind::RisingEdge,
+                kind: gpiocdev_uapi::v2::LineEdgeEventKind::RisingEdge as u32,
                 offset: 23,
                 seqno: 2,
                 line_seqno: 1,
                 padding: Default::default(),
             };
-            let ee = EdgeEvent::from(&v2event);
+            let ee = EdgeEvent::try_from(&v2event).unwrap();
             assert_eq!(ee.timestamp_ns, 1234);
             assert_eq!(ee.kind, EdgeKind::Rising);
             assert_eq!(ee.offset, 23);
             assert_eq!(ee.seqno, 2);
             assert_eq!(ee.line_seqno, 1);
+            v2event.kind = 42;
+            let ee = EdgeEvent::try_from(&v2event).unwrap_err();
+            assert_eq!(ee, Error::UnexpectedResponse(UapiField::Kind, "42".into()));
         }
     }
 
@@ -209,10 +235,10 @@ mod tests {
 
         #[test]
         #[cfg(feature = "uapi_v1")]
-        fn from_v1() {
-            let v1event = v1::LineInfoChangeEvent {
+        fn try_from_v1() {
+            let mut v1event = v1::LineInfoChangeEvent {
                 timestamp_ns: 1234,
-                kind: gpiocdev_uapi::v1::LineInfoChangeKind::Reconfigured,
+                kind: gpiocdev_uapi::v1::LineInfoChangeKind::Reconfigured as u32,
                 info: v1::LineInfo {
                     offset: 32,
                     flags: v1::LineInfoFlags::OPEN_DRAIN,
@@ -221,19 +247,22 @@ mod tests {
                 },
                 padding: Default::default(),
             };
-            let ee = InfoChangeEvent::from(&v1event);
+            let ee = InfoChangeEvent::try_from(&v1event).unwrap();
             assert_eq!(ee.timestamp_ns, 1234);
             assert_eq!(ee.kind, InfoChangeKind::Reconfigured);
             assert_eq!(ee.info.offset, 32);
             assert_eq!(ee.info.drive, Some(Drive::OpenDrain));
+            v1event.kind = 42;
+            let ee = InfoChangeEvent::try_from(&v1event).unwrap_err();
+            assert_eq!(ee, Error::UnexpectedResponse(UapiField::Kind, "42".into()));
         }
 
         #[test]
         #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
-        fn from_v2() {
-            let v2event = v2::LineInfoChangeEvent {
+        fn try_from_v2() {
+            let mut v2event = v2::LineInfoChangeEvent {
                 timestamp_ns: 1234,
-                kind: gpiocdev_uapi::v2::LineInfoChangeKind::Reconfigured,
+                kind: gpiocdev_uapi::v2::LineInfoChangeKind::Reconfigured as u32,
                 info: v2::LineInfo {
                     offset: 32,
                     flags: v2::LineFlags::OPEN_DRAIN,
@@ -245,11 +274,14 @@ mod tests {
                 },
                 padding: Default::default(),
             };
-            let ee = InfoChangeEvent::from(&v2event);
+            let ee = InfoChangeEvent::try_from(&v2event).unwrap();
             assert_eq!(ee.timestamp_ns, 1234);
             assert_eq!(ee.kind, InfoChangeKind::Reconfigured);
             assert_eq!(ee.info.offset, 32);
             assert_eq!(ee.info.drive, Some(Drive::OpenDrain));
+            v2event.kind = 42;
+            let ee = InfoChangeEvent::try_from(&v2event).unwrap_err();
+            assert_eq!(ee, Error::UnexpectedResponse(UapiField::Kind, "42".into()));
         }
     }
 }

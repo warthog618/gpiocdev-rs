@@ -31,7 +31,7 @@ fn watch() {
     assert_eq!(read_event(&f, &mut buf), Ok(size));
     let mut event = LineInfoChangeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.info.offset, offset);
-    assert_eq!(event.kind, LineInfoChangeKind::Requested);
+    assert_eq!(event.kind, LineInfoChangeKind::Requested as u32);
 
     // reconfigure
     let lc = LineConfig {
@@ -43,7 +43,7 @@ fn watch() {
     assert_eq!(read_event(&f, &mut buf), Ok(size));
     event = LineInfoChangeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.info.offset, offset);
-    assert_eq!(event.kind, LineInfoChangeKind::Reconfigured);
+    assert_eq!(event.kind, LineInfoChangeKind::Reconfigured as u32);
 
     // release
     drop(l);
@@ -51,7 +51,7 @@ fn watch() {
     assert_eq!(read_event(&f, &mut buf), Ok(size));
     event = LineInfoChangeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.info.offset, offset);
-    assert_eq!(event.kind, LineInfoChangeKind::Released);
+    assert_eq!(event.kind, LineInfoChangeKind::Released as u32);
 
     // while already watched on this fd
     assert_eq!(
@@ -65,7 +65,7 @@ fn watch() {
     assert_eq!(read_event(&f, &mut buf), Ok(size));
     event = LineInfoChangeEvent::from_slice(&buf).unwrap();
     assert_eq!(event.info.offset, offset);
-    assert_eq!(event.kind, LineInfoChangeKind::Requested);
+    assert_eq!(event.kind, LineInfoChangeKind::Requested as u32);
     drop(l);
 }
 

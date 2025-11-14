@@ -18,6 +18,9 @@ macro_rules! common_tests {
 mod chip {
     use gpiocdev::{Chip, Request};
     use std::path::Path;
+    use tokio::time::Duration;
+
+    const PROPAGATION_DELAY: Duration = Duration::from_millis(10);
 
     #[cfg(feature = "uapi_v1")]
     mod uapi_v1 {
@@ -110,6 +113,10 @@ mod chip {
                 .as_input()
                 .request()
                 .unwrap();
+            assert_eq!(
+                ac.as_ref().wait_line_info_change_event(PROPAGATION_DELAY),
+                Ok(true)
+            );
             assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(true));
             let evt = ac.read_line_info_change_event().await.unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Requested);
@@ -125,7 +132,12 @@ mod chip {
                 cfg.with_edge_detection(gpiocdev::line::EdgeDetection::RisingEdge)
                     .with_debounce_period(Duration::from_millis(10));
             }
+            assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(false));
             req.reconfigure(&cfg).unwrap();
+            assert_eq!(
+                ac.as_ref().wait_line_info_change_event(PROPAGATION_DELAY),
+                Ok(true)
+            );
             assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(true));
             let evt = ac.read_line_info_change_event().await.unwrap();
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Reconfigured);

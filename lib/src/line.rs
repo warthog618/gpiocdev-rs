@@ -441,6 +441,5 @@ mod tests {
             let mut h = OffsetHasher::default();
             h.write_u8(42);
         }
-
     }
 }

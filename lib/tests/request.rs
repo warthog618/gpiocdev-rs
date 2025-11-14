@@ -297,13 +297,19 @@ mod builder {
             drop(req);
 
             let res = builder.with_event_clock(EventClock::Hte).request();
-            assert_eq!(
+            // error code depends on kernel build.
+            // - with CONFIG_HTE -> 19 (ENODEV - assuming no dev present)
+            // - without CONFIG_HTE -> 95 (EOPNOTSUPP)
+            assert!(matches!(
                 res.unwrap_err(),
                 gpiocdev::Error::Uapi(
                     gpiocdev::UapiCall::GetLine,
+                    gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(19))
+                ) | gpiocdev::Error::Uapi(
+                    gpiocdev::UapiCall::GetLine,
                     gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(95))
                 )
-            );
+            ));
         }
 
         #[test]
@@ -1327,7 +1333,7 @@ mod request {
         // multi-line request
         let req = builder
             .on_chip(s.dev_path())
-            .with_lines(&[1,2])
+            .with_lines(&[1, 2])
             .as_input()
             .request()
             .unwrap();
@@ -1336,8 +1342,8 @@ mod request {
         assert_eq!(
             res.unwrap_err(),
             gpiocdev::Error::InvalidArgument("request contains multiple lines.".into())
-            );
-        }
+        );
+    }
 
     #[allow(unused_variables)]
     fn values(abiv: AbiVersion) {
@@ -1508,7 +1514,7 @@ mod request {
         // multi-line request
         let req = builder
             .on_chip(s.dev_path())
-            .with_lines(&[1,2])
+            .with_lines(&[1, 2])
             .as_output(Value::Inactive)
             .request()
             .unwrap();
@@ -1517,7 +1523,7 @@ mod request {
         assert_eq!(
             res.unwrap_err(),
             gpiocdev::Error::InvalidArgument("request contains multiple lines.".into())
-            );
+        );
     }
 
     fn set_values(abiv: AbiVersion) {

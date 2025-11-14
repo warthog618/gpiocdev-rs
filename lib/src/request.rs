@@ -654,36 +654,36 @@ impl Request {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_edge_event_from_slice(&self, buf: &[u64]) -> Result<EdgeEvent> {
-        Ok(match self.abiv {
+        match self.abiv {
             AbiVersion::V1 => {
-                let mut ee = EdgeEvent::from(
+                let mut ee = EdgeEvent::try_from(
                     v1::LineEdgeEvent::from_slice(buf)
                         .map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
-                );
+                )?;
                 // populate offset for v1
                 ee.offset = self.offsets[0];
-                ee
+                Ok(ee)
             }
-            AbiVersion::V2 => EdgeEvent::from(
+            AbiVersion::V2 => EdgeEvent::try_from(
                 uapi::LineEdgeEvent::from_slice(buf)
                     .map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
             ),
-        })
+        }
     }
     #[cfg(not(feature = "uapi_v2"))]
     fn do_edge_event_from_slice(&self, buf: &[u64]) -> Result<EdgeEvent> {
-        let mut ee = EdgeEvent::from(
+        let mut ee = EdgeEvent::try_from(
             v1::LineEdgeEvent::from_slice(buf).map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
-        );
+        )?;
         // populate offset for v1
         ee.offset = self.offsets[0]; // there can be only one
         Ok(ee)
     }
     #[cfg(not(feature = "uapi_v1"))]
     fn do_edge_event_from_slice(&self, buf: &[u64]) -> Result<EdgeEvent> {
-        Ok(EdgeEvent::from(
+        EdgeEvent::try_from(
             v2::LineEdgeEvent::from_slice(buf).map_err(|e| Error::Uapi(UapiCall::LEEFromBuf, e))?,
-        ))
+        )
     }
 
     /// The number of u64s required to buffer a single event read from the request.

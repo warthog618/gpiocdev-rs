@@ -6,7 +6,6 @@ use bitflags::bitflags;
 use std::fmt;
 use std::fs::File;
 use std::os::unix::prelude::{AsRawFd, FromRawFd};
-use std::time::Duration;
 
 // common to ABI v1 and v2.
 pub use super::common::*;
@@ -207,24 +206,17 @@ pub enum LineAttributeKind {
 }
 
 impl TryFrom<u32> for LineAttributeKind {
-    type Error = String;
+    type Error = ();
 
     fn try_from(v: u32) -> std::result::Result<Self, Self::Error> {
         use LineAttributeKind::*;
         Ok(match v {
-            x if x == Unused as u32 => Unused,
-            x if x == Flags as u32 => Flags,
-            x if x == Values as u32 => Values,
-            x if x == Debounce as u32 => Debounce,
-            x => return Err(format!("invalid value: {x}")),
+            0 => Unused,
+            1 => Flags,
+            2 => Values,
+            3 => Debounce,
+            _ => return Err(()),
         })
-    }
-}
-
-impl LineAttributeKind {
-    /// Confirm that the value read from the kernel is valid in Rust.
-    fn validate(&self) -> std::result::Result<(), String> {
-        LineAttributeKind::try_from(*self as u32).map(|_i| ())
     }
 }
 
@@ -232,8 +224,8 @@ impl LineAttributeKind {
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct LineAttribute {
-    /// The type of attribute stored in `value`.
-    pub kind: LineAttributeKind,
+    /// The type of attribute stored in `value` (LineAttributeKind).
+    pub kind: u32,
 
     /// Reserved for future use and must be zero filled.
     #[doc(hidden)]
@@ -246,19 +238,19 @@ pub struct LineAttribute {
 impl LineAttribute {
     /// Set the attribute as debounce period.
     pub fn set_debounce_period_us(&mut self, debounce_period_us: u32) {
-        self.kind = LineAttributeKind::Debounce;
+        self.kind = LineAttributeKind::Debounce as u32;
         self.value.debounce_period_us = debounce_period_us;
     }
 
     /// Set the attribute as flags.
     pub fn set_flags(&mut self, flags: LineFlags) {
-        self.kind = LineAttributeKind::Flags;
+        self.kind = LineAttributeKind::Flags as u32;
         self.value.flags = flags;
     }
 
     /// Set the attribute as output values.
     pub fn set_values(&mut self, values: u64) {
-        self.kind = LineAttributeKind::Values;
+        self.kind = LineAttributeKind::Values as u32;
         self.value.values = values;
     }
 
@@ -269,12 +261,10 @@ impl LineAttribute {
         // SAFETY: checks kind before accessing union
         unsafe {
             Some(match self.kind {
-                LineAttributeKind::Unused => return None,
-                LineAttributeKind::Flags => LineAttributeValue::Flags(self.value.flags),
-                LineAttributeKind::Values => LineAttributeValue::Values(self.value.values),
-                LineAttributeKind::Debounce => LineAttributeValue::DebouncePeriod(
-                    Duration::from_micros(self.value.debounce_period_us as u64),
-                ),
+                1 => LineAttributeValue::Flags(self.value.flags),
+                2 => LineAttributeValue::Values(self.value.values),
+                3 => LineAttributeValue::DebouncePeriod(self.value.debounce_period_us),
+                _ => return None,
             })
         }
     }
@@ -285,14 +275,15 @@ impl fmt::Debug for LineAttribute {
         // SAFETY: checks kind before accessing union
         unsafe {
             match self.kind {
-                LineAttributeKind::Unused => write!(f, "unused"),
-                LineAttributeKind::Flags => write!(f, "flags: {:?}", self.value.flags),
-                LineAttributeKind::Values => {
+                0 => write!(f, "unused"),
+                1 => write!(f, "flags: {:?}", self.value.flags),
+                2 => {
                     write!(f, "values: {:08x}", self.value.values)
                 }
-                LineAttributeKind::Debounce => {
+                3 => {
                     write!(f, "debounce_period_us: {}", self.value.debounce_period_us)
                 }
+                _ => write!(f, "unknown attr kind {}", self.kind),
             }
         }
     }
@@ -306,12 +297,11 @@ impl PartialEq for LineAttribute {
         // SAFETY: checks kind before accessing union
         unsafe {
             match self.kind {
-                LineAttributeKind::Unused => true,
-                LineAttributeKind::Flags => self.value.flags == other.value.flags,
-                LineAttributeKind::Values => self.value.values == other.value.values,
-                LineAttributeKind::Debounce => {
-                    self.value.debounce_period_us == other.value.debounce_period_us
-                }
+                0 => true,
+                1 => self.value.flags == other.value.flags,
+                2 => self.value.values == other.value.values,
+                3 => self.value.debounce_period_us == other.value.debounce_period_us,
+                _ => false,
             }
         }
     }
@@ -346,8 +336,8 @@ impl Default for LineAttributeValueUnion {
 /// The attribute value contained within a [`LineAttribute`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LineAttributeValue {
-    /// The debounce period attribute as a Duration.
-    DebouncePeriod(Duration),
+    /// The debounce period in microseconds.
+    DebouncePeriod(u32),
 
     /// The configuration flags.
     Flags(LineFlags),
@@ -563,21 +553,6 @@ impl LineInfo {
     pub fn attr(&self, idx: usize) -> &LineAttribute {
         &self.attrs.0[idx]
     }
-    /// Check that a LineInfo read from the kernel is valid in Rust.
-    fn validate(&self) -> ValidationResult {
-        if self.num_attrs > NUM_ATTRS_MAX as u32 {
-            return Err(ValidationError::new(
-                "num_attrs",
-                format!("out of range: {}", self.num_attrs),
-            ));
-        }
-        for i in 0..NUM_ATTRS_MAX {
-            if let Err(e) = self.attrs.0[i].kind.validate() {
-                return Err(ValidationError::new(format!("attrs[{i}].kind"), e));
-            }
-        }
-        Ok(())
-    }
 }
 
 /// Get the publicly available information for a line.
@@ -593,9 +568,9 @@ pub fn get_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
         offset,
         ..Default::default()
     };
-    // SAFETY: returned struct is explicitly validated before being returned.
+    // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
     match unsafe { libc::ioctl(cf.as_raw_fd(), iorw!(Ioctl::GetLineInfo, LineInfo), &mut li) } {
-        0 => li.validate().map(|_| li).map_err(Error::from),
+        0 => Ok(li),
         _ => Err(Error::from_errno()),
     }
 }
@@ -615,7 +590,7 @@ pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
         offset,
         ..Default::default()
     };
-    // SAFETY: returned struct is explicitly validated before being returned.
+    // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
     match unsafe {
         libc::ioctl(
             cf.as_raw_fd(),
@@ -623,7 +598,7 @@ pub fn watch_line_info(cf: &File, offset: Offset) -> Result<LineInfo> {
             &mut li,
         )
     } {
-        0 => li.validate().map(|_| li).map_err(Error::from),
+        0 => Ok(li),
         _ => Err(Error::from_errno()),
     }
 }
@@ -638,8 +613,8 @@ pub struct LineInfoChangeEvent {
     /// The best estimate of time of event occurrence, in nanoseconds.
     pub timestamp_ns: u64,
 
-    /// The trigger for the change.
-    pub kind: LineInfoChangeKind,
+    /// The trigger for the change (LineInfoChangeKind)
+    pub kind: u32,
 
     /// Reserved for future use.
     #[doc(hidden)]
@@ -650,7 +625,7 @@ impl LineInfoChangeEvent {
     /// Read an info change event from a buffer.
     ///
     /// The buffer is assumed to have been populated by a read of the chip File,
-    /// so the content is validated before being returned.
+    /// so the content is initialised.
     pub fn from_slice(d: &[u64]) -> Result<&LineInfoChangeEvent> {
         debug_assert!(std::mem::size_of::<LineInfoChangeEvent>() % 8 == 0);
         let len = d.len() * 8;
@@ -661,16 +636,9 @@ impl LineInfoChangeEvent {
                 len,
             )));
         }
-        // SAFETY: returned struct is explicitly validated before being returned.
+        // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
         let ice = unsafe { &*(d as *const [u64] as *const LineInfoChangeEvent) };
-        ice.validate().map(|_| ice).map_err(Error::from)
-    }
-
-    /// Check that a LineInfoChangeEvent read from the kernel is valid in Rust.
-    fn validate(&self) -> ValidationResult {
-        self.kind
-            .validate()
-            .map_err(|e| ValidationError::new("kind", e))
+        Ok(ice)
     }
 
     /// The number of u64 words required to store a LineInfoChangeEvent.
@@ -693,8 +661,8 @@ pub struct LineEdgeEvent {
     /// timestamp is read from **CLOCK_REALTIME**.
     pub timestamp_ns: u64,
 
-    /// The event trigger identifier.
-    pub kind: LineEdgeEventKind,
+    /// The event trigger identifier (LineEdgeEventKind)
+    pub kind: u32,
 
     /// The offset of the line that triggered the event.
     pub offset: Offset,
@@ -716,7 +684,7 @@ impl LineEdgeEvent {
     /// Read an edge event from a buffer.
     ///
     /// The buffer is assumed to have been populated by a read of the line request File,
-    /// so the content is validated before being returned.
+    /// so the content is initialised.
     #[inline]
     pub fn from_slice(d: &[u64]) -> Result<&LineEdgeEvent> {
         debug_assert!(std::mem::size_of::<LineEdgeEvent>() % 8 == 0);
@@ -728,16 +696,9 @@ impl LineEdgeEvent {
                 len,
             )));
         }
-        // SAFETY: returned struct is explicitly validated before being returned.
+        // SAFETY: returned struct contains raw byte arrays and bitfields that are safe to decode.
         let le = unsafe { &*(d as *const [u64] as *const LineEdgeEvent) };
-        le.validate().map(|_| le).map_err(Error::from)
-    }
-
-    /// Check that a LineEdgeEvent read from the kernel is valid in Rust.
-    fn validate(&self) -> ValidationResult {
-        self.kind
-            .validate()
-            .map_err(|e| ValidationError::new("kind", e))
+        Ok(le)
     }
 
     /// The number of u64 words required to store a LineEdgeEvent.
@@ -878,53 +839,8 @@ mod tests {
         }
     }
 
-    mod line_attribute_kind {
-        use super::LineAttributeKind;
-
-        #[test]
-        fn validate() {
-            let mut a = LineAttributeKind::Flags;
-            assert!(a.validate().is_ok());
-
-            a = LineAttributeKind::Unused;
-            assert!(a.validate().is_ok());
-
-            unsafe {
-                a = *(&4 as *const i32 as *const LineAttributeKind);
-                assert_eq!(a.validate().unwrap_err(), "invalid value: 4");
-                a = *(&3 as *const i32 as *const LineAttributeKind);
-                assert!(a.validate().is_ok());
-            }
-        }
-    }
-
     mod line_info {
-        use super::{LineAttributeKind, LineInfo, NUM_ATTRS_MAX};
-
-        #[test]
-        fn validate() {
-            let mut a = LineInfo::default();
-            assert!(a.validate().is_ok());
-
-            a.num_attrs = NUM_ATTRS_MAX as u32;
-            assert!(a.validate().is_ok());
-
-            a.num_attrs += 1;
-            let e = a.validate().unwrap_err();
-            assert_eq!(e.field, "num_attrs");
-            assert_eq!(e.msg, "out of range: 11");
-
-            a.num_attrs = NUM_ATTRS_MAX as u32;
-            for idx in [0, 1, 4, 7] {
-                unsafe {
-                    a.attrs.0[idx].kind = *(&4 as *const i32 as *const LineAttributeKind);
-                }
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, format!("attrs[{idx}].kind"));
-                assert_eq!(e.msg, "invalid value: 4");
-                a.attrs.0[idx].kind = LineAttributeKind::Unused;
-            }
-        }
+        use super::LineInfo;
 
         #[test]
         fn size() {
@@ -937,35 +853,8 @@ mod tests {
     }
 
     mod line_info_changed {
-        use super::{LineInfoChangeEvent, LineInfoChangeKind};
+        use super::LineInfoChangeEvent;
 
-        #[test]
-        fn validate() {
-            let mut a = LineInfoChangeEvent {
-                info: Default::default(),
-                timestamp_ns: 0,
-                kind: LineInfoChangeKind::Released,
-                padding: Default::default(),
-            };
-            assert!(a.validate().is_ok());
-
-            a.timestamp_ns = 1234;
-            assert!(a.validate().is_ok());
-            unsafe {
-                a.kind = *(&0 as *const i32 as *const LineInfoChangeKind);
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, "kind");
-                assert_eq!(e.msg, "invalid value: 0");
-
-                a.kind = *(&4 as *const i32 as *const LineInfoChangeKind);
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, "kind");
-                assert_eq!(e.msg, "invalid value: 4");
-
-                a.kind = *(&1 as *const i32 as *const LineInfoChangeKind);
-                assert!(a.validate().is_ok());
-            }
-        }
         #[test]
         fn size() {
             assert_eq!(
@@ -977,37 +866,7 @@ mod tests {
     }
 
     mod line_event {
-        use super::{LineEdgeEvent, LineEdgeEventKind};
-
-        #[test]
-        fn validate() {
-            let mut a = LineEdgeEvent {
-                timestamp_ns: 0,
-                kind: LineEdgeEventKind::RisingEdge,
-                offset: 0,
-                seqno: 0,
-                line_seqno: 0,
-                padding: Default::default(),
-            };
-            assert!(a.validate().is_ok());
-
-            a.timestamp_ns = 1234;
-            assert!(a.validate().is_ok());
-            unsafe {
-                a.kind = *(&0 as *const i32 as *const LineEdgeEventKind);
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, "kind");
-                assert_eq!(e.msg, "invalid value: 0");
-
-                a.kind = *(&3 as *const i32 as *const LineEdgeEventKind);
-                let e = a.validate().unwrap_err();
-                assert_eq!(e.field, "kind");
-                assert_eq!(e.msg, "invalid value: 3");
-
-                a.kind = *(&1 as *const i32 as *const LineEdgeEventKind);
-                assert!(a.validate().is_ok());
-            }
-        }
+        use super::LineEdgeEvent;
 
         #[test]
         fn size() {

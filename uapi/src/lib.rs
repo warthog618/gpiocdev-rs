@@ -8,8 +8,7 @@ pub(crate) mod common;
 
 // move ops into v1/v2??
 pub use common::{
-    has_event, read_event, wait_event, Errno, Error, Name, Result, ValidationError, NAME_LEN_MAX,
-    NUM_LINES_MAX,
+    has_event, read_event, wait_event, Errno, Error, Name, Result, NAME_LEN_MAX, NUM_LINES_MAX,
 };
 
 /// This module implements GPIO ABI v1 which was released in Linux v4.8.

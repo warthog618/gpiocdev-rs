@@ -226,16 +226,27 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
         match self.actual_abi_version()? {
-            V1 => v1::get_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
-            V2 => v2::get_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
+            V1 => v1::get_line_info(&self.f, offset)
+                .map(|li| line::Info::from(&li))
+                .map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e)),
+            V2 => {
+                let uli = uapi::get_line_info(&self.f, offset)
+                    .map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e))?;
+                line::Info::try_from(&uli)
+            }
         }
-        .map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e))
     }
-    #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
+    #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
     fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
         uapi::get_line_info(&self.f, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e))
+    }
+    #[cfg(all(not(feature = "uapi_v1"), feature = "uapi_v2"))]
+    fn do_line_info(&self, offset: Offset) -> Result<line::Info> {
+        let uli = uapi::get_line_info(&self.f, offset)
+            .map_err(|e| Error::Uapi(UapiCall::GetLineInfo, e))?;
+        line::Info::try_from(&uli)
     }
 
     /// An iterator that returns the info for each line on the chip.
@@ -259,16 +270,27 @@ impl Chip {
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
         match self.actual_abi_version()? {
-            V1 => v1::watch_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
-            V2 => v2::watch_line_info(&self.f, offset).map(|li| line::Info::from(&li)),
+            V1 => v1::watch_line_info(&self.f, offset)
+                .map(|li| line::Info::from(&li))
+                .map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e)),
+            V2 => {
+                let uli = uapi::watch_line_info(&self.f, offset)
+                    .map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e))?;
+                line::Info::try_from(&uli)
+            }
         }
-        .map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e))
     }
-    #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
+    #[cfg(all(feature = "uapi_v1", not(feature = "uapi_v2")))]
     fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
         uapi::watch_line_info(&self.f, offset)
             .map(|li| line::Info::from(&li))
             .map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e))
+    }
+    #[cfg(all(not(feature = "uapi_v1"), feature = "uapi_v2"))]
+    fn do_watch_line_info(&self, offset: Offset) -> Result<line::Info> {
+        let uwli = uapi::watch_line_info(&self.f, offset)
+            .map_err(|e| Error::Uapi(UapiCall::WatchLineInfo, e))?;
+        line::Info::try_from(&uwli)
     }
 
     /// Remove a watch for changes to the publicly available information on a line.
@@ -377,23 +399,23 @@ impl Chip {
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn line_info_change_event_from_slice(&self, d: &[u64]) -> Result<InfoChangeEvent> {
-        Ok(match self.actual_abi_version()? {
-            V1 => InfoChangeEvent::from(
+        match self.actual_abi_version()? {
+            V1 => InfoChangeEvent::try_from(
                 v1::LineInfoChangeEvent::from_slice(d)
                     .map_err(|e| Error::Uapi(UapiCall::LICEFromBuf, e))?,
             ),
-            V2 => InfoChangeEvent::from(
+            V2 => InfoChangeEvent::try_from(
                 v2::LineInfoChangeEvent::from_slice(d)
                     .map_err(|e| Error::Uapi(UapiCall::LICEFromBuf, e))?,
             ),
-        })
+        }
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn line_info_change_event_from_slice(&self, d: &[u64]) -> Result<InfoChangeEvent> {
-        Ok(InfoChangeEvent::from(
+        InfoChangeEvent::try_from(
             uapi::LineInfoChangeEvent::from_slice(d)
                 .map_err(|e| Error::Uapi(UapiCall::LICEFromBuf, e))?,
-        ))
+        )
     }
 
     fn line_info_change_event_u64_size(&self) -> usize {

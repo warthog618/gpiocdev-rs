@@ -423,8 +423,8 @@ pub enum Error {
     Uapi(UapiCall, #[source] uapi::Error),
 
     /// The response to a uAPI command contained unexpected content.
-    #[error("{0}")]
-    UnexpectedResponse(String),
+    #[error("field '{0}' contains unexpected value '{1}'")]
+    UnexpectedResponse(UapiField, String),
 
     /// The kernel or build does not support the requested uAPI ABI version.
     #[error("{0} is not supported by the {1}.")]
@@ -480,6 +480,24 @@ impl fmt::Display for UapiCall {
             UapiCall::UnwatchLineInfo => "unwatch_line_info",
             UapiCall::WaitEvent => "wait_event",
             UapiCall::WatchLineInfo => "watch_line_info",
+        };
+        write!(f, "{name}")
+    }
+}
+
+/// Identifiers for fields in uAPI structs.
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UapiField {
+    Kind,
+    NumAttrs,
+}
+
+impl fmt::Display for UapiField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            UapiField::Kind => "kind",
+            UapiField::NumAttrs => "num_attrs",
         };
         write!(f, "{name}")
     }
