@@ -3,31 +3,16 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
 [package]
-authors = ["Kent Gibson <warthog618@gmail.com>"]
-categories = ["hardware-support", "os::linux-apis", "embedded", "api-bindings"]
-description = "A low level library to access GPIO lines on Linux using the GPIO character device"
-edition = "2021"
-keywords = ["linux", "gpio", "ioctl", "gpiochip", "chardev"]
-license = "Apache-2.0 OR MIT"
 name = "gpiocdev-uapi"
-repository = "https://github.com/warthog618/gpiocdev-rs"
-rust-version = "1.63"
 version = "0.6.4"
-
-[dependencies]
-bitflags = "2.2"
-libc = "0.2"
-ioctl-sys = "0.8"
-thiserror = "2.0"
-
-[dev-dependencies]
-criterion = "0.5"
-gpiosim = "0.4"
-
-[features]
-default = ["uapi_v2"]
-uapi_v1 = []
-uapi_v2 = []
+authors = ["Kent Gibson <warthog618@gmail.com>"]
+edition = "2021"
+rust-version = "1.63"
+description = "A low level library to access GPIO lines on Linux using the GPIO character device"
+repository = "https://github.com/warthog618/gpiocdev-rs"
+license = "Apache-2.0 OR MIT"
+keywords = ["chardev", "gpio", "gpiochip", "ioctl", "linux"]
+categories = ["api-bindings", "embedded", "hardware-support", "os::linux-apis"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -48,3 +33,18 @@ name = "request"
 [[bench]]
 harness = false
 name = "value"
+
+[dependencies]
+bitflags = "2.2"
+ioctl-sys = "0.8"
+libc = "0.2"
+thiserror = "2.0"
+
+[dev-dependencies]
+criterion = "0.7"
+gpiosim = "0.4"
+
+[features]
+default = ["uapi_v2"]
+uapi_v1 = []
+uapi_v2 = []
