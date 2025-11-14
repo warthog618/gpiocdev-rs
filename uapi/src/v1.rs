@@ -306,7 +306,7 @@ pub fn set_line_config(lf: &File, hc: HandleConfig) -> Result<()> {
 /// [`HandleRequest.offsets`]: struct@HandleRequest
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct LineValues([u8; 64usize]);
+pub struct LineValues(pub [u8; 64usize]);
 
 impl LineValues {
     /// Create values from a slice.

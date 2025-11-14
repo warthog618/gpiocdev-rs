@@ -276,7 +276,7 @@ mod tests {
         assert!(info.event_clock.is_none());
         assert!(info.debounce_period.is_none());
 
-        let v2info = v2::LineInfo {
+        let mut v2info = v2::LineInfo {
             offset: 32,
             flags: v2::LineFlags::USED
                 | v2::LineFlags::INPUT
@@ -284,10 +284,12 @@ mod tests {
                 | v2::LineFlags::BIAS_PULL_DOWN,
             name: "banana".into(),
             consumer: "jam".into(),
-            num_attrs: 0,
+            num_attrs: 1,
             attrs: Default::default(),
             padding: Default::default(),
         };
+        v2info.attr_mut(0).set_debounce_period_us(24);
+
         let info = Info::try_from(&v2info).unwrap();
         assert_eq!(info.offset, 32);
         assert_eq!(info.name, "banana");
@@ -299,7 +301,7 @@ mod tests {
         assert!(info.drive.is_none());
         assert_eq!(info.edge_detection, Some(EdgeDetection::RisingEdge));
         assert_eq!(info.event_clock, Some(EventClock::Monotonic));
-        assert!(info.debounce_period.is_none());
+        assert_eq!(info.debounce_period, Some(Duration::from_micros(24)));
 
         let v2info = v2::LineInfo {
             offset: 32,

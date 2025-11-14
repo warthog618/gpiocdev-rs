@@ -507,7 +507,7 @@ pub fn get_line(cf: &File, mut lr: LineRequest) -> Result<File> {
 /// [`LineInfo.num_attrs`]: struct@LineInfo
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct LineAttributes([LineAttribute; NUM_ATTRS_MAX]);
+pub struct LineAttributes(pub [LineAttribute; NUM_ATTRS_MAX]);
 
 /// The capacity of [`LineAttributes`] and [`LineConfigAttributes`] arrays.
 pub const NUM_ATTRS_MAX: usize = 10;
@@ -552,6 +552,11 @@ impl LineInfo {
     #[inline]
     pub fn attr(&self, idx: usize) -> &LineAttribute {
         &self.attrs.0[idx]
+    }
+    /// The nth attribute in the attrs
+    #[inline]
+    pub fn attr_mut(&mut self, idx: usize) -> &mut LineAttribute {
+        &mut self.attrs.0[idx]
     }
 }
 

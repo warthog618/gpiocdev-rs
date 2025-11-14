@@ -230,7 +230,7 @@ pub const NAME_LEN_MAX: usize = 32;
 /// A uAPI name string, common to ABI v1 and v2.
 #[repr(C)]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct Name([u8; NAME_LEN_MAX]);
+pub struct Name(pub [u8; NAME_LEN_MAX]);
 
 impl Name {
     /// Checks whether the Name is empty.
@@ -300,7 +300,7 @@ pub const NUM_LINES_MAX: usize = 64;
 /// Typically used to identify the lines belonging to a particular request.
 #[repr(C)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Offsets([Offset; NUM_LINES_MAX]);
+pub struct Offsets(pub [Offset; NUM_LINES_MAX]);
 
 impl Offsets {
     /// Create offsets from an iterable list.
