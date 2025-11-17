@@ -25,6 +25,10 @@ all-features = true
 targets = []
 
 [[example]]
+name = "tokio_watch_line_edges"
+required-features = ["async_tokio"]
+
+[[example]]
 name = "tokio_watch_line_value"
 required-features = ["async_tokio"]
 

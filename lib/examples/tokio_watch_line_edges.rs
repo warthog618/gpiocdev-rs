@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-// Example of asynchronously watching for edge events and reading line value on a single line using tokio.
+// Example of asynchronously watching for edge events on a single line using tokio.
 
 use anyhow::Context;
-use gpiocdev::line::{EdgeDetection, Values};
+use gpiocdev::line::{Bias, EdgeDetection};
 use gpiocdev::tokio::AsyncRequest;
 use gpiocdev::Request;
+use std::time::Duration;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,14 +16,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Request::builder()
             .on_chip("/dev/gpiochip0")
             .with_consumer("tokio watcher")
-            .with_line(23)
+            .with_line(22)
             .with_edge_detection(EdgeDetection::BothEdges)
+            .with_bias(Bias::PullUp)
+            .with_debounce_period(Duration::from_millis(5))
             .request()
             .context("Failed to request line")?,
     );
-    let mut values = Values::from_offsets(&[23]);
     loop {
         let event = req.read_edge_event().await;
-        println!("{:?} {:?}", event?, req.as_ref().values(&mut values));
+        println!("{:?}", event?);
     }
 }
