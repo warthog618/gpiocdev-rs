@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- fix #21 - release builds incorrectly report 0ns debounce period.
+- update dependencies.
+- update MSRV to 1.68 for quote v1.0.42.
+- clippy 1.90 lints.
+- stick to C enums instead of Rust enums in uapi structs.
+
 <a name="v0.6.4"></a>
 
 ## v0.6.4 - 2025-03-03

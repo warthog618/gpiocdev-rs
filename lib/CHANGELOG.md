@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- update criterion dependency to 0.7.
+- clippy 1.90 lints.
+- update  MSRV to 1.68 for quote v1.0.42.
+- uapi using C enums instead of Rust enums.
+- fix race conditions in tests.
+
 <a name="v0.7.3"></a>
 
 ## v0.7.3 - 2025-03-03

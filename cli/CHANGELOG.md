@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- fix #21 - release builds incorrectly report 0ns debounce period.
+- update dependencies.
+- update MSRV to 1.88 for home v0.5.12.
+- clippy 1.90 lints.
+
 <a name="v0.5.5"></a>
 
 ## v0.5.5 - 2025-03-03
@@ -24,8 +29,8 @@
 
 ## v0.5.3 - 2024-02-20
 
-- fix clippy 1.75 lints
-- update dependencies
+- fix clippy 1.75 ints.
+- update dependencies.
 
 <a name="v0.5.2"></a>
 
