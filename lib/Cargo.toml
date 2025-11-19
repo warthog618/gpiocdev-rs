@@ -4,7 +4,7 @@
 
 [package]
 name = "gpiocdev"
-version = "0.7.3"
+version = "0.8.0"
 authors = ["Kent Gibson <warthog618@gmail.com>"]
 edition = "2021"
 rust-version = "1.68"
@@ -67,7 +67,7 @@ name = "value"
 [dependencies]
 async-io = { version = "2.2", optional = true }
 futures = { version = "0.3", optional = true }
-gpiocdev-uapi = { version = "0.6.3", default-features = false, path = "../uapi" }
+gpiocdev-uapi = { version = "0.7", default-features = false, path = "../uapi" }
 serde = { version = "1.0", optional = true }
 serde_derive = { version = "1.0", optional = true }
 thiserror = "2.0"

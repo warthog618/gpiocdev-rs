@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+<a name="v0.6.0"></a>
+
+## v0.6.0 - 2025-11-19
+
 - fix #21 - release builds incorrectly report 0ns debounce period.
 - update dependencies.
 - update MSRV to 1.88 for home v0.5.12.

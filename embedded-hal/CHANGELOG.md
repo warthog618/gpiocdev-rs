@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+<a name="v0.1.3"></a>
+
+## v0.1.3 - 2025-11-19
+
 - update dependencies.
 - update MSRV to 1.68 for quote v1.0.42.
 

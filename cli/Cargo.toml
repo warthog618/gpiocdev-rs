@@ -4,7 +4,7 @@
 
 [package]
 name = "gpiocdev-cli"
-version = "0.5.5"
+version = "0.6.0"
 authors = ["Kent Gibson <warthog618@gmail.com>"]
 edition = "2021"
 rust-version = "1.88"
@@ -28,7 +28,7 @@ anyhow = "1.0"
 chrono = "0.4"
 clap = { version = "4", features = ["cargo", "derive", "env"] }
 daemonize = "0.5"
-gpiocdev = { version = "0.7", default-features = false, path = "../lib" }
+gpiocdev = { version = "0.8", default-features = false, path = "../lib" }
 libc = "0.2"
 mio = { version = "1", features = ["os-ext"] }
 rustyline = "17"

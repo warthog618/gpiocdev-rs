@@ -4,7 +4,7 @@
 
 [package]
 name = "gpiocdev-uapi"
-version = "0.6.4"
+version = "0.7.0"
 authors = ["Kent Gibson <warthog618@gmail.com>"]
 edition = "2021"
 rust-version = "1.68"

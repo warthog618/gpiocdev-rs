@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+<a name="v0.7.0"></a>
+
+## v0.7.0 - 2025-11-19
+
 - fix #21 - release builds incorrectly report 0ns debounce period.
 - update dependencies.
 - update MSRV to 1.68 for quote v1.0.42.

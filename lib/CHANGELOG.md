@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+<a name="v0.8.0"></a>
+
+## v0.8.0 - 2025-11-19
+
 - update criterion dependency to 0.7.
 - clippy 1.90 lints.
 - update  MSRV to 1.68 for quote v1.0.42.
