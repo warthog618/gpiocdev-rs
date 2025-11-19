@@ -5,7 +5,21 @@ Each crate has its own detailed CHANGELOG:
 - [lib](lib/CHANGELOG.md)
 - [uapi](uapi/CHANGELOG.md)
 
-## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.7.3...HEAD)
+## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.8.0...HEAD)
+
+## 2025-11-19
+
+- fix #21 - release build incorrectly reporting debounce period (cli).
+- use C enums rather than Rust in uapi structs (uapi and lib)
+- some conversions from uapi to lib can now fail so are TryFrom instead of From (lib).
+- make more struct fields pub (lib).
+
+### Crates
+
+- [cli v0.6.0](cli/CHANGELOG.md)
+- [embedded-hal v0.1.3](embedded-hal/CHANGELOG.md)
+- [lib v0.8.0](lib/CHANGELOG.md)
+- [uapi v0.7.0](uapi/CHANGELOG.md)
 
 ## 2025-03-03
 
