@@ -65,7 +65,7 @@ Setting a line:
 Requesting a line by name:
 
 ```rust
-    let led0 = gpiocdev::find_named_line("LED0").unwrap();
+    let led0 = gpiocdev::find_named_line("LED0").expect("line exists");
     let req = Request::builder()
         .with_found_line(&led0)
         .as_output(Value::Active)

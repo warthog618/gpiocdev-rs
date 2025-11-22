@@ -66,7 +66,7 @@ impl InteractiveHelper {
         let selected: Vec<&'_ str> = line_values
             .iter()
             .filter(|lv| lv.contains('='))
-            .map(|lv| unquoted(&lv[..lv.find('=').unwrap()]))
+            .map(|lv| unquoted(&lv[..lv.find('=').expect("lv must contain '='")]))
             .collect();
         let unselected = self
             .line_names
@@ -78,7 +78,7 @@ impl InteractiveHelper {
             }
             return (pos, candidates);
         }
-        let mut part_word = *line_values.last().unwrap();
+        let mut part_word = *line_values.last().expect("words cannot be empty");
         match part_word.split_once('=') {
             Some((_, part_value)) => {
                 const VALUES: [&str; 8] =
@@ -142,7 +142,7 @@ impl InteractiveHelper {
             let candidates = unselected.map(|l| line_pair(l)).collect();
             return (pos, candidates);
         }
-        let mut part_word = *selected.last().unwrap();
+        let mut part_word = *selected.last().expect("words cannot be empty");
         let lpos = pos - part_word.len();
         if part_word.starts_with('"') {
             part_word = &part_word[1..];
@@ -304,15 +304,15 @@ mod tests {
         #[test]
         fn whole_words() {
             let mut words = CommandWords::new("basic command line");
-            let mut word = words.next().unwrap();
+            let mut word = words.next().expect("next word should exist");
             assert_eq!(word, "basic");
             assert!(!words.partial);
             assert!(!words.inquote);
-            word = words.next().unwrap();
+            word = words.next().expect("next word should exist");
             assert_eq!(word, "command");
             assert!(!words.partial);
             assert!(!words.inquote);
-            word = words.next().unwrap();
+            word = words.next().expect("next word should exist");
             assert_eq!(word, "line");
             assert!(words.partial);
             assert!(!words.inquote);
@@ -324,15 +324,15 @@ mod tests {
         #[test]
         fn quoted_words() {
             let mut words = CommandWords::new("quoted \"command lines\" \"are awful");
-            let mut word = words.next().unwrap();
+            let mut word = words.next().expect("words cannot be empty");
             assert_eq!(word, "quoted");
             assert!(!words.partial);
             assert!(!words.inquote);
-            word = words.next().unwrap();
+            word = words.next().expect("next word should exist");
             assert_eq!(word, "\"command lines\"");
             assert!(!words.partial);
             assert!(!words.inquote);
-            word = words.next().unwrap();
+            word = words.next().expect("next word should exist");
             assert_eq!(word, "\"are awful");
             assert!(words.partial);
             assert!(words.inquote);
@@ -344,15 +344,15 @@ mod tests {
         #[test]
         fn quotes_mid_words() {
             let mut words = CommandWords::new("quoted \"comm\"and\" lines\" \"are awful");
-            let mut word = words.next().unwrap();
+            let mut word = words.next().expect("words cannot be empty");
             assert_eq!(word, "quoted");
             assert!(!words.partial);
             assert!(!words.inquote);
-            word = words.next().unwrap();
+            word = words.next().expect("next word should exist");
             assert_eq!(word, "\"comm\"and\" lines\"");
             assert!(!words.partial);
             assert!(!words.inquote);
-            word = words.next().unwrap();
+            word = words.next().expect("next word should exist");
             assert_eq!(word, "\"are awful");
             assert!(words.partial);
             assert!(words.inquote);

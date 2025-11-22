@@ -238,7 +238,7 @@ impl Config {
     /// # use gpiocdev::request::Config;
     /// # use gpiocdev::line::Value;
     /// # fn example() -> Result<(), gpiocdev::Error> {
-    /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+    /// let led0 = gpiocdev::find_named_line("LED0").expect("line exists");
     /// let mut cfg = Config::default();
     /// cfg.with_found_line(&led0)?
     ///    .as_output(Value::Active);
@@ -335,7 +335,10 @@ impl Config {
         self.selected.clear();
         for lv in values.iter() {
             self.select_line(&lv.offset);
-            let cfg = self.lcfg.get_mut(&lv.offset).unwrap();
+            let cfg = self
+                .lcfg
+                .get_mut(&lv.offset)
+                .expect("offsets match lcfg keys");
             cfg.as_output(lv.value);
         }
         self
@@ -393,11 +396,13 @@ impl Config {
     #[cfg(feature = "uapi_v1")]
     pub(crate) fn unique(&self) -> Result<&line::Config> {
         // Have previously checked there is at least one line.
-        // unwrap is safe here as offsets match lcfg keys
-        let lcfg = self.lcfg.get(&self.offsets[0]).unwrap();
+        let lcfg = self
+            .lcfg
+            .get(&self.offsets[0])
+            .expect("offsets match lcfg keys");
         if self.offsets.len() > 1 {
             for offset in self.offsets.iter().skip(1) {
-                if !lcfg.equivalent(self.lcfg.get(offset).unwrap()) {
+                if !lcfg.equivalent(self.lcfg.get(offset).expect("offsets match lcfg keys")) {
                     return Err(Error::AbiLimitation(
                         AbiVersion::V1,
                         "requires all lines to share the same configuration".into(),
@@ -446,7 +451,7 @@ impl Config {
             let lc = top
                 .lcfg
                 .get(offset)
-                .unwrap_or_else(|| self.lcfg.get(offset).unwrap());
+                .unwrap_or_else(|| self.lcfg.get(offset).expect("offsets match lcfg keys"));
             cfg.lcfg.insert(*offset, lc.clone());
         }
         cfg
@@ -469,8 +474,14 @@ impl Config {
     pub(crate) fn to_v1_values(&self) -> Result<v1::LineValues> {
         let mut values = v1::LineValues::default();
         for (idx, offset) in self.offsets.iter().enumerate() {
-            // unwrap is safe here as offsets match lcfg keys
-            values.set(idx, self.lcfg.get(offset).unwrap().value().into());
+            values.set(
+                idx,
+                self.lcfg
+                    .get(offset)
+                    .expect("offsets match lcfg keys")
+                    .value()
+                    .into(),
+            );
         }
         Ok(values)
     }
@@ -483,8 +494,7 @@ impl Config {
         let mut flags = HashMap::new();
         let mut values = v2::LineValues::default();
         for (idx, offset) in self.offsets.iter().enumerate() {
-            // unwrap is safe here as offsets match lcfg keys
-            let lcfg = self.lcfg.get(offset).unwrap();
+            let lcfg = self.lcfg.get(offset).expect("offsets match lcfg keys");
             let mask = 0x01 << idx;
             let lflags = v2::LineFlags::from(lcfg);
             flags
@@ -590,8 +600,8 @@ impl<'a> Iterator for SelectedIterator<'a> {
             let cfg_ptr: *mut line::Config = &mut *self
                 .cfg
                 .lcfg
-                .get_mut(self.cfg.selected.get(self.index).unwrap())
-                .unwrap();
+                .get_mut(self.cfg.selected.get(self.index).expect("selected exists"))
+                .expect("existing config");
             self.index += 1;
             // SAFETY: cfg_ptr valid as checked selected.
             Some(unsafe { &mut *cfg_ptr })
@@ -668,12 +678,12 @@ mod tests {
     fn as_active_high() {
         let mut cfg = Config::default();
         cfg.as_active_low().with_line(3);
-        assert!(cfg.lcfg.get(&3).unwrap().active_low);
+        assert!(cfg.lcfg.get(&3).expect("idx should exist").active_low);
         assert!(cfg.base.active_low);
 
         cfg.as_active_high();
         assert!(cfg.base.active_low);
-        assert!(!cfg.lcfg.get(&3).unwrap().active_low);
+        assert!(!cfg.lcfg.get(&3).expect("idx should exist").active_low);
     }
 
     #[test]
@@ -809,24 +819,42 @@ mod tests {
         cfg.with_line(3);
         assert_eq!(cfg.offsets, &[3]);
         assert_eq!(cfg.selected, &[3]);
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
+        assert_eq!(
+            cfg.lcfg.get(&3).expect("idx should exist").direction,
+            Some(Input)
+        );
+        assert_eq!(cfg.lcfg.get(&3).expect("idx should exist").value, None);
 
         // mutator only hits selected config
         cfg.with_line(5);
         assert_eq!(cfg.offsets, &[3, 5]);
         assert_eq!(cfg.selected, &[5]);
-        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Input));
-        assert_eq!(cfg.lcfg.get(&5).unwrap().value, None);
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
+        assert_eq!(
+            cfg.lcfg.get(&5).expect("idx should exist").direction,
+            Some(Input)
+        );
+        assert_eq!(cfg.lcfg.get(&5).expect("idx should exist").value, None);
+        assert_eq!(
+            cfg.lcfg.get(&3).expect("idx should exist").direction,
+            Some(Input)
+        );
+        assert_eq!(cfg.lcfg.get(&3).expect("idx should exist").value, None);
         cfg.as_output(Inactive);
         assert_eq!(cfg.offsets, &[3, 5]);
         assert_eq!(cfg.selected, &[5]);
-        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&5).unwrap().value, Some(Inactive));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Input));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().value, None);
+        assert_eq!(
+            cfg.lcfg.get(&5).expect("idx should exist").direction,
+            Some(Output)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&5).expect("idx should exist").value,
+            Some(Inactive)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&3).expect("idx should exist").direction,
+            Some(Input)
+        );
+        assert_eq!(cfg.lcfg.get(&3).expect("idx should exist").value, None);
         assert_eq!(cfg.base.direction, Some(Input));
         assert_eq!(cfg.base.value, None);
     }
@@ -841,23 +869,47 @@ mod tests {
         cfg.with_lines(&[1, 6, 2, 7]);
         assert_eq!(cfg.offsets, &[1, 6, 2, 7]);
         assert_eq!(cfg.selected, &[1, 6, 2, 7]);
-        assert_eq!(cfg.lcfg.get(&2).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&2).unwrap().value, Some(Active));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
+        assert_eq!(
+            cfg.lcfg.get(&2).expect("idx should exist").direction,
+            Some(Output)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&2).expect("idx should exist").value,
+            Some(Active)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&6).expect("idx should exist").direction,
+            Some(Output)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&6).expect("idx should exist").value,
+            Some(Active)
+        );
 
         // from selected
         cfg.without_line(2);
         assert_eq!(cfg.offsets, &[1, 6, 7]);
         assert_eq!(cfg.selected, &[1, 6, 7]);
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
+        assert_eq!(
+            cfg.lcfg.get(&6).expect("idx should exist").direction,
+            Some(Output)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&6).expect("idx should exist").value,
+            Some(Active)
+        );
         cfg.with_line(1);
         assert_eq!(cfg.offsets, &[1, 6, 7]);
         assert_eq!(cfg.selected, &[1]);
         assert_eq!(cfg.lcfg.len(), 3);
-        assert_eq!(cfg.lcfg.get(&6).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&6).unwrap().value, Some(Active));
+        assert_eq!(
+            cfg.lcfg.get(&6).expect("idx should exist").direction,
+            Some(Output)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&6).expect("idx should exist").value,
+            Some(Active)
+        );
 
         // from unselected
         cfg.without_line(6);
@@ -1024,12 +1076,24 @@ mod tests {
         assert_eq!(sorted(&cfg.selected), &[3, 5]);
         assert_eq!(cfg.lcfg.len(), 2);
         assert!(cfg.lcfg.contains_key(&3));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&3).unwrap().value, Some(Value::Active));
+        assert_eq!(
+            cfg.lcfg.get(&3).expect("idx should exist").direction,
+            Some(Output)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&3).expect("idx should exist").value,
+            Some(Value::Active)
+        );
 
         assert!(cfg.lcfg.contains_key(&5));
-        assert_eq!(cfg.lcfg.get(&5).unwrap().direction, Some(Output));
-        assert_eq!(cfg.lcfg.get(&5).unwrap().value, Some(Value::Inactive));
+        assert_eq!(
+            cfg.lcfg.get(&5).expect("idx should exist").direction,
+            Some(Output)
+        );
+        assert_eq!(
+            cfg.lcfg.get(&5).expect("idx should exist").value,
+            Some(Value::Inactive)
+        );
     }
 
     #[test]
@@ -1076,7 +1140,7 @@ mod tests {
         cfg.with_line(1).from_line_config(&lc);
         assert_eq!(cfg.selected, &[1]);
         assert_eq!(cfg.lcfg.len(), 1);
-        let select = cfg.lcfg.get(&1).unwrap();
+        let select = cfg.lcfg.get(&1).expect("idx should exist");
         assert_eq!(select.direction, Some(Output));
         assert!(select.active_low);
         assert_eq!(select.direction, Some(Output));
@@ -1097,13 +1161,13 @@ mod tests {
         cfg.with_line(2);
         let mut lc = cfg.line_config(2);
         assert!(lc.is_some());
-        assert_eq!(lc.unwrap().bias, Some(PullDown));
+        assert_eq!(lc.expect("checked is_some").bias, Some(PullDown));
 
         // from unselected
         cfg.with_line(3);
         lc = cfg.line_config(2);
         assert!(lc.is_some());
-        let lc = lc.unwrap();
+        let lc = lc.expect("checked is_some");
         assert_eq!(lc.bias, Some(PullDown));
     }
 
@@ -1139,19 +1203,19 @@ mod tests {
         // multiple, but unique
         cfg.with_lines(&[1, 2, 4, 6]);
         let lc = cfg.lcfg.get(&1);
-        assert_eq!(cfg.unique().unwrap(), lc.unwrap());
+        assert_eq!(cfg.unique().expect("exists"), lc.expect("idx should exist"));
 
         // multiple, not unique
         cfg.with_lines(&[2, 6, 9]).with_bias(PullUp);
         assert_eq!(
-            cfg.unique().unwrap_err().to_string(),
+            cfg.unique().expect_err("not unique").to_string(),
             "uAPI ABI v1 requires all lines to share the same configuration."
         );
 
         // reduce to one (line 4), so unique again
         cfg.without_lines(&[1, 2, 6, 9]);
         let lc = cfg.lcfg.get(&4);
-        assert_eq!(cfg.unique().unwrap(), lc.unwrap());
+        assert_eq!(cfg.unique().expect("exists"), lc.expect("idx should exist"));
     }
 
     #[test]
@@ -1164,14 +1228,14 @@ mod tests {
         let overlay = bottom.overlay(&top);
         assert_eq!(overlay.num_lines(), 3);
 
-        let lc = overlay.lcfg.get(&1).unwrap();
+        let lc = overlay.lcfg.get(&1).expect("idx should exist");
         assert!(lc.active_low);
         assert_eq!(overlay.lcfg.get(&3), None);
 
-        let lc = overlay.lcfg.get(&4).unwrap();
+        let lc = overlay.lcfg.get(&4).expect("idx should exist");
         assert!(!lc.active_low);
 
-        let lc = overlay.lcfg.get(&7).unwrap();
+        let lc = overlay.lcfg.get(&7).expect("idx should exist");
         assert!(lc.active_low);
     }
 
@@ -1185,7 +1249,7 @@ mod tests {
             .as_output(Value::Inactive)
             .with_line(2)
             .as_output(Value::Active);
-        let hc = cfg.to_v1().unwrap();
+        let hc = cfg.to_v1().expect("cfg is valid");
         assert!(hc.flags.contains(v1::HandleRequestFlags::OUTPUT));
         assert_eq!(hc.values.get(0), 1);
         assert_eq!(hc.values.get(1), 0);
@@ -1193,7 +1257,7 @@ mod tests {
 
         cfg.with_line(2).as_input();
         assert_eq!(
-            cfg.to_v1().unwrap_err().to_string(),
+            cfg.to_v1().expect_err("invalid conversion").to_string(),
             "uAPI ABI v1 requires all lines to share the same configuration."
         );
     }
@@ -1208,7 +1272,7 @@ mod tests {
             .as_input()
             .with_line(1)
             .as_output(Value::Inactive);
-        let values = cfg.to_v1_values().unwrap();
+        let values = cfg.to_v1_values().expect("cfg is valid");
         // in order added to config
         assert_eq!(values.get(0), 1);
         assert_eq!(values.get(1), 0);
@@ -1229,7 +1293,7 @@ mod tests {
             .with_debounce_period(Duration::from_millis(10))
             .with_line(2)
             .as_output(Value::Active);
-        let lc = cfg.to_v2().unwrap();
+        let lc = cfg.to_v2().expect("cfg is valid");
         assert!(lc.flags.contains(v2::LineFlags::OUTPUT));
         assert_eq!(lc.num_attrs, 3);
 
@@ -1238,7 +1302,7 @@ mod tests {
         assert_eq!(lca.mask, 0b0100);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags as u32);
         assert_eq!(
-            lca.attr.to_value().unwrap(),
+            lca.attr.to_value().expect("attr is valid"),
             v2::LineAttributeValue::Flags(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW)
         );
 
@@ -1247,7 +1311,7 @@ mod tests {
         assert_eq!(lca.mask, 0b1011);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values as u32);
         assert_eq!(
-            lca.attr.to_value().unwrap(),
+            lca.attr.to_value().expect("attr is valid"),
             v2::LineAttributeValue::Values(0b1001)
         );
 
@@ -1256,7 +1320,7 @@ mod tests {
         assert_eq!(lca.mask, 0b0100);
         assert_eq!(lca.attr.kind, v2::LineAttributeKind::Debounce as u32);
         assert_eq!(
-            lca.attr.to_value().unwrap(),
+            lca.attr.to_value().expect("attr is valid"),
             v2::LineAttributeValue::DebouncePeriod(10000)
         );
 
@@ -1266,7 +1330,7 @@ mod tests {
                 .with_debounce_period(Duration::from_millis(offset as u64));
         }
         assert_eq!(
-            cfg.to_v2().unwrap_err().to_string(),
+            cfg.to_v2().expect_err("invalid conversion").to_string(),
             // requires 10 attrs in addition to the 3 above -
             // one for the flags and 9 for additional debounce periods.
             // (line 10 has debounce in common with line 4)

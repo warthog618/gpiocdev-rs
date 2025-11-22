@@ -167,7 +167,7 @@ impl InputPin {
     /// # fn example() -> Result<(), gpiocdev_embedded_hal::Error> {
     /// use embedded_hal::digital::InputPin;
     ///
-    /// let sensor0 = gpiocdev::find_named_line("SENSOR0").unwrap();
+    /// let sensor0 = gpiocdev::find_named_line("SENSOR0").expect("sensor exists");
     /// let mut pin = gpiocdev_embedded_hal::InputPin::from_found_line(sensor0)?;
     /// if pin.is_low()? {
     ///     println!("Input is low.");
@@ -181,7 +181,10 @@ impl InputPin {
             .as_input()
             .request()?;
         let config = req.config();
-        let line_config = config.line_config(fl.info.offset).unwrap().clone();
+        let line_config = config
+            .line_config(fl.info.offset)
+            .expect("offset must be in config")
+            .clone();
         Ok(InputPin(Pin {
             req,
             offset: fl.info.offset,
@@ -204,8 +207,8 @@ impl InputPin {
     /// # }
     /// ```
     pub fn from_name(name: &str) -> Result<Self, Error> {
-        let line = gpiocdev::find_named_line(name)
-            .ok_or_else(|| Error::UnfoundLine(name.into()))?;
+        let line =
+            gpiocdev::find_named_line(name).ok_or_else(|| Error::UnfoundLine(name.into()))?;
         Self::from_found_line(line)
     }
 }
@@ -225,8 +228,10 @@ impl TryFrom<Request> for InputPin {
             return Err(Error::MultipleLinesRequested);
         }
         let offset = offsets[0];
-        // unwrap is safe as line config must exist.
-        let line_config = config.line_config(offset).unwrap().clone();
+        let line_config = config
+            .line_config(offset)
+            .expect("offset must be in config")
+            .clone();
         if line_config.direction != Some(Direction::Input) {
             return Err(Error::RequiresInputMode);
         }
@@ -325,7 +330,7 @@ impl OutputPin {
     /// # fn example() -> Result<(), gpiocdev_embedded_hal::Error> {
     /// use embedded_hal::digital::{OutputPin, PinState};
     ///
-    /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+    /// let led0 = gpiocdev::find_named_line("LED0").expect("line exists");
     /// let mut pin = gpiocdev_embedded_hal::OutputPin::from_found_line(led0, PinState::High)?;
     /// // ...
     /// pin.set_low()?;
@@ -338,7 +343,10 @@ impl OutputPin {
             .as_output(state_to_value(state, false))
             .request()?;
         let config = req.config();
-        let line_config = config.line_config(fl.info.offset).unwrap().clone();
+        let line_config = config
+            .line_config(fl.info.offset)
+            .expect("offset must be in config")
+            .clone();
         Ok(OutputPin(Pin {
             req,
             offset: fl.info.offset,
@@ -360,8 +368,8 @@ impl OutputPin {
     /// # }
     /// ```
     pub fn from_name(name: &str, state: PinState) -> Result<Self, Error> {
-        let line = gpiocdev::find_named_line(name)
-            .ok_or_else(|| Error::UnfoundLine(name.into()))?;
+        let line =
+            gpiocdev::find_named_line(name).ok_or_else(|| Error::UnfoundLine(name.into()))?;
         Self::from_found_line(line, state)
     }
 }
@@ -381,8 +389,10 @@ impl TryFrom<Request> for OutputPin {
             return Err(Error::MultipleLinesRequested);
         }
         let offset = offsets[0];
-        // unwrap is safe as line config must exist.
-        let line_config = config.line_config(offset).unwrap().clone();
+        let line_config = config
+            .line_config(offset)
+            .expect("offset must be in config")
+            .clone();
         if line_config.direction != Some(Direction::Output) {
             return Err(Error::RequiresOutputMode);
         }

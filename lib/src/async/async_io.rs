@@ -32,7 +32,7 @@ pub struct AsyncChip(Async<Chip>);
 impl AsyncChip {
     /// Create an async-io wrapper for a Chip.
     pub fn new(chip: Chip) -> Self {
-        AsyncChip(Async::new(chip).unwrap())
+        AsyncChip(Async::new(chip).expect("chip fd should be suitable as Async"))
     }
 
     /// Async form of [`Chip::read_line_info_change_event`].
@@ -73,7 +73,7 @@ impl AsyncChip {
     /// let chip = Chip::from_path("/dev/gpiochip0")?;
     /// let achip = AsyncChip::new(chip);
     /// let mut events = achip.info_change_events();
-    /// while let Ok(evt) = events.next().await.unwrap() {
+    /// while let Ok(evt) = events.next().await.expect("got event") {
     ///     // process event...
     /// }
     /// # Ok(())
@@ -92,7 +92,8 @@ impl AsRef<Chip> for AsyncChip {
 
 impl From<AsyncChip> for Chip {
     fn from(c: AsyncChip) -> Chip {
-        c.0.into_inner().unwrap()
+        c.0.into_inner()
+            .expect("Chip can be unwrapped from AsyncChip")
     }
 }
 
@@ -146,7 +147,7 @@ pub struct AsyncRequest(Async<Request>);
 impl AsyncRequest {
     /// Create an async-io wrapper for a Request.
     pub fn new(req: Request) -> Self {
-        AsyncRequest(Async::new(req).unwrap())
+        AsyncRequest(Async::new(req).expect("req fd should be suitable as Async"))
     }
 
     /// Async form of [`Request::read_edge_event`].
@@ -232,7 +233,7 @@ impl AsyncRequest {
     ///    .request()?;
     /// let areq = AsyncRequest::new(req);
     /// let mut events = areq.new_edge_event_stream(2);
-    /// while let Ok(evt) = events.next().await.unwrap() {
+    /// while let Ok(evt) = events.next().await.expect("got event") {
     ///     // process event...
     /// }
     /// # Ok(())
@@ -263,7 +264,7 @@ impl AsyncRequest {
     ///    .request()?;
     /// let areq = AsyncRequest::new(req);
     /// let mut events = areq.edge_events();
-    /// while let Ok(evt) = events.next().await.unwrap() {
+    /// while let Ok(evt) = events.next().await.expect("got event") {
     ///     // process event...
     /// }
     /// # Ok(())
@@ -285,7 +286,8 @@ impl AsRef<Request> for AsyncRequest {
 
 impl From<AsyncRequest> for Request {
     fn from(r: AsyncRequest) -> Request {
-        r.0.into_inner().unwrap()
+        r.0.into_inner()
+            .expect("Request can be unwrapped from AsyncRequest")
     }
 }
 

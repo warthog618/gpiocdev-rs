@@ -100,7 +100,7 @@ pub fn lines() -> Result<LineIterator> {
 /// ```no_run
 /// # fn example() -> Result<(), gpiocdev::Error> {
 /// # use gpiocdev::line::Value;
-/// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+/// let led0 = gpiocdev::find_named_line("LED0").expect("line exists");
 /// let req = gpiocdev::Request::builder()
 ///     .with_found_line(&led0)
 ///     .as_output(Value::Active)
@@ -113,7 +113,7 @@ pub fn lines() -> Result<LineIterator> {
 /// ```no_run
 /// # fn example() -> Result<(), gpiocdev::Error> {
 /// # use gpiocdev::line::Value;
-/// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+/// let led0 = gpiocdev::find_named_line("LED0").expect("line exists");
 /// let req = gpiocdev::Request::builder()
 ///     .on_chip(&led0.chip)
 ///     .with_line(led0.info.offset)
@@ -149,7 +149,7 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 ///     .with_found_lines(&sensors)
 ///     .as_input()
 ///     .request()?;
-/// let sensor1 = sensors.get("SENSOR1").unwrap();
+/// let sensor1 = sensors.get("SENSOR1").expect("sensor exists");
 /// let value = req.value(sensor1.info.offset)?;
 /// # Ok(())
 /// # }
@@ -161,8 +161,8 @@ pub fn find_named_line(name: &str) -> Option<FoundLine> {
 /// # fn example() -> Result<(), gpiocdev::Error> {
 /// # use gpiocdev::line::Value;
 /// let lines = gpiocdev::find_named_lines(&["SENSOR0", "LED0"], true)?;
-/// let sensor0 = lines.get("SENSOR0").unwrap();
-/// let led0 = lines.get("LED0").unwrap();
+/// let sensor0 = lines.get("SENSOR0").expect("sensor exists");
+/// let led0 = lines.get("LED0").expect("line exists");
 /// let req = gpiocdev::Request::builder()
 ///     .with_found_line(&sensor0)
 ///     .as_input()
@@ -206,7 +206,7 @@ pub fn find_named_lines<'a>(
 /// ```no_run
 /// # fn example() -> Result<(), gpiocdev::Error> {
 /// # use gpiocdev::line::Value;
-/// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+/// let led0 = gpiocdev::find_named_line("LED0").expect("line exists");
 /// let req = gpiocdev::Request::builder()
 ///     .with_found_line(&led0)
 ///     .as_output(Value::Active)
@@ -239,7 +239,7 @@ impl From<line::Offset> for FoundLine {
 /// # fn example() -> Result<(), gpiocdev::Error> {
 /// # use gpiocdev::line::Value;
 /// // replicating find_named_line...
-/// let led2 = gpiocdev::LineIterator::new()?.find(|l| l.info.name == "LED2").unwrap();
+/// let led2 = gpiocdev::LineIterator::new()?.find(|l| l.info.name == "LED2").expect("line exists");
 /// let req = gpiocdev::Request::builder()
 ///     .with_found_line(&led2)
 ///     .as_output(Value::Active)

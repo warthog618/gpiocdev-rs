@@ -120,7 +120,10 @@ impl Cmd<'_> {
         for e in &self.r.errors {
             res.errors.push(common::format_error(&self.opts.emit, e))
         }
-        println!("{}", serde_json::to_string(&res).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string(&res).expect("serialize should succeed")
+        );
     }
 
     fn print(&self) {

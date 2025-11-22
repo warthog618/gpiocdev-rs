@@ -244,7 +244,7 @@ impl Request {
         };
         v2::get_line_values(&self.f, &mut vals)
             .map_err(|e| Error::Uapi(UapiCall::GetLineValues, e))?;
-        Ok(vals.get(idx).unwrap().into())
+        Ok(vals.get(idx).expect("idx exists in values").into())
     }
 
     /// Get the value for the lone line in the request.

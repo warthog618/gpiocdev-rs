@@ -179,7 +179,7 @@ impl Builder {
             cfg: Arc::new(RwLock::new(self.cfg.clone())),
             user_event_buffer_size: max(self.user_event_buffer_size, 1),
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
-            abiv: self.abiv.unwrap(),
+            abiv: self.abiv.expect("abiv initialised in do_request"),
         }
     }
 
@@ -411,7 +411,7 @@ impl Builder {
     /// ```no_run
     /// # use gpiocdev::line::Value;
     /// # fn example() -> Result<(), gpiocdev::Error> {
-    /// let led0 = gpiocdev::find_named_line("LED0").unwrap();
+    /// let led0 = gpiocdev::find_named_line("LED0").expect("line exists");
     /// let req = gpiocdev::Request::builder()
     ///     .with_found_line(&led0)
     ///     .as_output(Value::Active)
@@ -519,7 +519,7 @@ impl Builder {
     }
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn do_to_uapi(&self) -> Result<UapiRequest> {
-        match self.abiv.unwrap() {
+        match self.abiv.expect("abiv initialised in do_request") {
             AbiVersion::V1 => self.to_v1(),
             AbiVersion::V2 => self.to_v2(),
         }
@@ -654,8 +654,10 @@ mod tests {
     #[test]
     fn request_no_chip() {
         let res = Builder::default().with_line(2).request();
-        assert!(res.is_err());
-        assert_eq!(res.err().unwrap().to_string(), "No chip specified.");
+        assert_eq!(
+            res.expect_err("invalid conversion").to_string(),
+            "No chip specified."
+        );
     }
 
     #[test]
@@ -666,8 +668,10 @@ mod tests {
             .on_chip("/dev/gpiochip1")
             .with_line(3)
             .request();
-        assert!(res.is_err());
-        assert_eq!(res.err().unwrap().to_string(), "Multiple chips requested.");
+        assert_eq!(
+            res.expect_err("invalid conversion").to_string(),
+            "Multiple chips requested."
+        );
     }
 
     #[test]
@@ -962,11 +966,31 @@ mod tests {
         assert_eq!(b.cfg.num_lines(), 2);
         assert_eq!(sorted(&b.cfg.offsets), &[3, 5]);
         assert!(b.cfg.lcfg.contains_key(&3));
-        assert_eq!(b.cfg.lcfg.get(&3).unwrap().direction, Some(Output));
-        assert_eq!(b.cfg.lcfg.get(&3).unwrap().value, Some(Value::Active));
+        assert_eq!(
+            b.cfg
+                .lcfg
+                .get(&3)
+                .expect("lcfg should contain key")
+                .direction,
+            Some(Output)
+        );
+        assert_eq!(
+            b.cfg.lcfg.get(&3).expect("lcfg should contain key").value,
+            Some(Value::Active)
+        );
         assert!(b.cfg.lcfg.contains_key(&5));
-        assert_eq!(b.cfg.lcfg.get(&5).unwrap().direction, Some(Output));
-        assert_eq!(b.cfg.lcfg.get(&5).unwrap().value, Some(Value::Inactive));
+        assert_eq!(
+            b.cfg
+                .lcfg
+                .get(&5)
+                .expect("lcfg should contain key")
+                .direction,
+            Some(Output)
+        );
+        assert_eq!(
+            b.cfg.lcfg.get(&5).expect("lcfg should contain key").value,
+            Some(Value::Inactive)
+        );
 
         let vv: Values = [(3, Value::Inactive), (1, Value::Active)]
             .into_iter()
@@ -976,11 +1000,31 @@ mod tests {
         assert_eq!(b.cfg.num_lines(), 3);
         assert_eq!(sorted(&b.cfg.offsets), &[1, 3, 5]);
         assert!(b.cfg.lcfg.contains_key(&3));
-        assert_eq!(b.cfg.lcfg.get(&3).unwrap().direction, Some(Output));
-        assert_eq!(b.cfg.lcfg.get(&3).unwrap().value, Some(Value::Inactive));
+        assert_eq!(
+            b.cfg
+                .lcfg
+                .get(&3)
+                .expect("lcfg should contain key")
+                .direction,
+            Some(Output)
+        );
+        assert_eq!(
+            b.cfg.lcfg.get(&3).expect("lcfg should contain key").value,
+            Some(Value::Inactive)
+        );
         assert!(b.cfg.lcfg.contains_key(&1));
-        assert_eq!(b.cfg.lcfg.get(&1).unwrap().direction, Some(Output));
-        assert_eq!(b.cfg.lcfg.get(&1).unwrap().value, Some(Value::Active));
+        assert_eq!(
+            b.cfg
+                .lcfg
+                .get(&1)
+                .expect("lcfg should contain key")
+                .direction,
+            Some(Output)
+        );
+        assert_eq!(
+            b.cfg.lcfg.get(&1).expect("lcfg should contain key").value,
+            Some(Value::Active)
+        );
     }
 
     #[test]
@@ -1026,8 +1070,10 @@ mod tests {
     #[test]
     fn to_uapi() {
         let res = Builder::default().to_uapi();
-        assert!(res.is_err());
-        assert_eq!(res.err().unwrap().to_string(), "No lines specified.");
+        assert_eq!(
+            res.expect_err("invalid conversion").to_string(),
+            "No lines specified."
+        );
     }
 
     #[test]
@@ -1038,7 +1084,7 @@ mod tests {
             .with_lines(&[1, 8, 4])
             .as_active_low()
             .as_input();
-        if let UapiRequest::Handle(hr) = b.to_v1().unwrap() {
+        if let UapiRequest::Handle(hr) = b.to_v1().expect("req is valid") {
             assert_eq!(hr.num_lines, 3);
             assert_eq!(hr.offsets.get(0), 1);
             assert_eq!(hr.offsets.get(1), 8);
@@ -1058,7 +1104,7 @@ mod tests {
         b.with_consumer("test builder")
             .with_line(8)
             .with_edge_detection(RisingEdge);
-        if let UapiRequest::Event(er) = b.to_v1().unwrap() {
+        if let UapiRequest::Event(er) = b.to_v1().expect("req is valid") {
             assert_eq!(er.offset, 8);
             assert_eq!(String::from(&er.consumer).as_str(), "test builder");
             assert!(er.handleflags.contains(v1::HandleRequestFlags::INPUT));
@@ -1072,7 +1118,7 @@ mod tests {
             .as_output(Value::Active)
             .with_lines(&[5, 7])
             .as_output(Value::Inactive);
-        if let UapiRequest::Handle(hr) = b.to_v1().unwrap() {
+        if let UapiRequest::Handle(hr) = b.to_v1().expect("req is valid") {
             assert_eq!(hr.num_lines, 4);
             assert_eq!(hr.offsets.get(0), 2);
             assert_eq!(hr.offsets.get(1), 6);
@@ -1099,7 +1145,7 @@ mod tests {
                 .with_lines(&[1, 8, 4])
                 .as_input()
                 .to_v1()
-                .unwrap_err()
+                .expect_err("invalid conversion")
                 .to_string(),
             "uAPI ABI v1 does not support setting event buffer size."
         );
@@ -1111,7 +1157,7 @@ mod tests {
                 .with_line(3)
                 .as_output(Value::Active)
                 .to_v1()
-                .unwrap_err()
+                .expect_err("invalid conversion")
                 .to_string(),
             "uAPI ABI v1 requires all lines to share the same configuration."
         );
@@ -1121,7 +1167,7 @@ mod tests {
             b.with_lines(&[1, 8, 4])
                 .with_edge_detection(RisingEdge)
                 .to_v1()
-                .unwrap_err()
+                .expect_err("invalid conversion")
                 .to_string(),
             "uAPI ABI v1 only supports edge detection on single line requests."
         );
@@ -1131,7 +1177,7 @@ mod tests {
             b.with_lines(&[1, 8, 4])
                 .with_debounce_period(Duration::from_millis(23))
                 .to_v1()
-                .unwrap_err()
+                .expect_err("invalid conversion")
                 .to_string(),
             "uAPI ABI v1 does not support debounce."
         );
@@ -1142,7 +1188,7 @@ mod tests {
                 .with_edge_detection(RisingEdge)
                 .with_event_clock(EventClock::Realtime)
                 .to_v1()
-                .unwrap_err()
+                .expect_err("invalid conversion")
                 .to_string(),
             "uAPI ABI v1 does not support selecting the event clock source."
         );
@@ -1158,7 +1204,7 @@ mod tests {
             .with_lines(&[1, 8, 4])
             .with_edge_detection(RisingEdge)
             .with_event_clock(EventClock::Realtime);
-        if let UapiRequest::Line(lr) = b.to_v2().unwrap() {
+        if let UapiRequest::Line(lr) = b.to_v2().expect("req is valid") {
             assert_eq!(lr.num_lines, 3);
             assert_eq!(lr.offsets.get(0), 1);
             assert_eq!(lr.offsets.get(1), 8);
@@ -1183,7 +1229,7 @@ mod tests {
             .as_output(Value::Active)
             .with_lines(&[5, 7])
             .as_output(Value::Inactive);
-        if let UapiRequest::Line(lr) = b.to_v2().unwrap() {
+        if let UapiRequest::Line(lr) = b.to_v2().expect("req is valid") {
             assert_eq!(lr.num_lines, 7);
             assert_eq!(lr.offsets.get(0), 1);
             assert_eq!(lr.offsets.get(1), 8);
@@ -1205,7 +1251,7 @@ mod tests {
             assert_eq!(lca.mask, 0b000111);
             assert_eq!(lca.attr.kind, v2::LineAttributeKind::Flags as u32);
             assert_eq!(
-                lca.attr.to_value().unwrap(),
+                lca.attr.to_value().expect("attr is valid"),
                 v2::LineAttributeValue::Flags(v2::LineFlags::INPUT | v2::LineFlags::ACTIVE_LOW)
             );
             // second is values for outputs
@@ -1214,7 +1260,7 @@ mod tests {
             assert_eq!(lca.attr.kind, v2::LineAttributeKind::Values as u32);
             // inputs should be inactive, outputs as per config
             assert_eq!(
-                lca.attr.to_value().unwrap(),
+                lca.attr.to_value().expect("attr is valid"),
                 v2::LineAttributeValue::Values(0b0011000)
             );
         } else {

@@ -88,7 +88,10 @@ impl CmdResult {
     fn emit(&self) {
         #[cfg(feature = "json")]
         if self.opts.json {
-            println!("{}", serde_json::to_string(&self).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string(&self).expect("serialize should succeed")
+            );
             return;
         }
         self.print()

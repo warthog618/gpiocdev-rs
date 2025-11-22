@@ -47,7 +47,9 @@ pub fn read_event(f: &File, buf: &mut [u64]) -> Result<usize> {
         match libc::read(f.as_raw_fd(), bufptr, buf.len() * 8) {
             -1 => Err(Error::from_errno()),
             x => {
-                let size: usize = x.try_into().unwrap();
+                // SAFETY: libc::read returns -1 or number of bytes read so conversion should
+                // always succeed.
+                let size: usize = x.try_into().expect("read returns -1 (error) or size");
                 if size % 8 == 0 {
                     Ok(size / 8)
                 } else {
@@ -194,7 +196,9 @@ impl Error {
     #[cfg(target_os = "android")]
     pub fn from_errno() -> Error {
         Error::Os(Errno(
-            std::io::Error::last_os_error().raw_os_error().unwrap(),
+            std::io::Error::last_os_error()
+                .raw_os_error()
+                .expect("raw os error drawn from last_os_error"),
         ))
     }
 }

@@ -131,7 +131,9 @@ fn do_cmd(opts: &Opts) -> CmdResult {
                     for line in r.lines.iter().filter(|l| l.1.chip_idx == idx) {
                         res.values.push(LineValue {
                             id: line.0.to_string(),
-                            value: values.get(line.1.offset).unwrap(),
+                            value: values
+                                .get(line.1.offset)
+                                .expect("offset should be in values"),
                         });
                     }
                 }
@@ -159,7 +161,10 @@ impl CmdResult {
     fn emit(&self, opts: &Opts) {
         #[cfg(feature = "json")]
         if opts.emit.json {
-            println!("{}", serde_json::to_string(self).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string(self).expect("serialize should succeed")
+            );
             return;
         }
         self.print(opts);

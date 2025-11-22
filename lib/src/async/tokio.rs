@@ -33,7 +33,7 @@ pub struct AsyncChip(AsyncFd<Chip>);
 impl AsyncChip {
     /// Create a Tokio wrapper for a Chip.
     pub fn new(chip: Chip) -> Self {
-        AsyncChip(AsyncFd::new(chip).unwrap())
+        AsyncChip(AsyncFd::new(chip).expect("chip fd should be suitable for AsyncFd"))
     }
 
     /// Async form of [`Chip::read_line_info_change_event`].
@@ -76,7 +76,7 @@ impl AsyncChip {
     /// let chip = Chip::from_path("/dev/gpiochip0")?;
     /// let achip = AsyncChip::new(chip);
     /// let mut events = achip.info_change_events();
-    /// while let Ok(evt) = events.next().await.unwrap() {
+    /// while let Ok(evt) = events.next().await.expect("got event") {
     ///     // process event...
     /// }
     /// # Ok(())
@@ -153,7 +153,7 @@ pub struct AsyncRequest(AsyncFd<Request>);
 impl AsyncRequest {
     /// Create a Tokio wrapper for a Request.
     pub fn new(req: Request) -> Self {
-        AsyncRequest(AsyncFd::new(req).unwrap())
+        AsyncRequest(AsyncFd::new(req).expect("req fd should be suitable as AsyncFd"))
     }
 
     /// Async form of [`Request::read_edge_event`].
@@ -247,7 +247,7 @@ impl AsyncRequest {
     ///    .request()?;
     /// let areq = AsyncRequest::new(req);
     /// let mut events = areq.new_edge_event_stream(2);
-    /// while let Ok(evt) = events.next().await.unwrap() {
+    /// while let Ok(evt) = events.next().await.expect("got event") {
     ///     // process event...
     /// }
     /// # Ok(())
@@ -277,7 +277,7 @@ impl AsyncRequest {
     ///    .request()?;
     /// let areq = AsyncRequest::new(req);
     /// let mut events = areq.edge_events();
-    /// while let Ok(evt) = events.next().await.unwrap() {
+    /// while let Ok(evt) = events.next().await.expect("got event") {
     ///     // process event...
     /// }
     /// # Ok(())

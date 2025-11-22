@@ -71,7 +71,7 @@ impl InputPin {
         if self.config.value.is_none() {
             self.config.value = Some(self.req.as_ref().value(self.offset)?);
         }
-        Ok(self.config.value.unwrap())
+        Ok(self.config.value.expect("value should be initialised"))
     }
 
     async fn wait_for_edge(&mut self, edge: EdgeDetection) -> Result<(), Error> {

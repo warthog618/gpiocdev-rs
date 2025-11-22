@@ -50,7 +50,7 @@ pub fn is_chip<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
         return Err(Error::GpioChip(pb, ErrorKind::NotCharacterDevice));
     }
     let mut sysfs_dev = PathBuf::from("/sys/bus/gpio/devices");
-    sysfs_dev.push(pb.file_name().unwrap());
+    sysfs_dev.push(pb.file_name().expect("chardev should have a valid name"));
     sysfs_dev.push("dev");
     if let Ok(rdev) = fs::read_to_string(sysfs_dev) {
         let st_rdev = m.st_rdev();
@@ -188,8 +188,12 @@ impl Chip {
     ///
     /// [`Info`]: Info
     pub fn name(&self) -> String {
-        // The unwrap can only fail for directories, and the path is known to refer to a file.
-        String::from(self.path.file_name().unwrap().to_string_lossy())
+        String::from(
+            self.path
+                .file_name()
+                .expect("path should refer to file")
+                .to_string_lossy(),
+        )
     }
 
     /// Return the path of the chip.

@@ -196,14 +196,14 @@ mod tests {
                 timestamp_ns: 1234,
                 kind: gpiocdev_uapi::v1::LineEdgeEventKind::FallingEdge as u32,
             };
-            let ee = EdgeEvent::try_from(&v1event).unwrap();
+            let ee = EdgeEvent::try_from(&v1event).expect("event should be valid");
             assert_eq!(ee.timestamp_ns, 1234);
             assert_eq!(ee.kind, EdgeKind::Falling);
             assert_eq!(ee.offset, 0);
             assert_eq!(ee.seqno, 0);
             assert_eq!(ee.line_seqno, 0);
             v1event.kind = 42;
-            let ee = EdgeEvent::try_from(&v1event).unwrap_err();
+            let ee = EdgeEvent::try_from(&v1event).expect_err("event should be invalid");
             assert_eq!(ee, Error::UnexpectedResponse(UapiField::Kind, "42".into()));
         }
 
@@ -218,14 +218,14 @@ mod tests {
                 line_seqno: 1,
                 padding: Default::default(),
             };
-            let ee = EdgeEvent::try_from(&v2event).unwrap();
+            let ee = EdgeEvent::try_from(&v2event).expect("event should be valid");
             assert_eq!(ee.timestamp_ns, 1234);
             assert_eq!(ee.kind, EdgeKind::Rising);
             assert_eq!(ee.offset, 23);
             assert_eq!(ee.seqno, 2);
             assert_eq!(ee.line_seqno, 1);
             v2event.kind = 42;
-            let ee = EdgeEvent::try_from(&v2event).unwrap_err();
+            let ee = EdgeEvent::try_from(&v2event).expect_err("event should be invalid");
             assert_eq!(ee, Error::UnexpectedResponse(UapiField::Kind, "42".into()));
         }
     }
@@ -247,13 +247,13 @@ mod tests {
                 },
                 padding: Default::default(),
             };
-            let ee = InfoChangeEvent::try_from(&v1event).unwrap();
+            let ee = InfoChangeEvent::try_from(&v1event).expect("event should be valid");
             assert_eq!(ee.timestamp_ns, 1234);
             assert_eq!(ee.kind, InfoChangeKind::Reconfigured);
             assert_eq!(ee.info.offset, 32);
             assert_eq!(ee.info.drive, Some(Drive::OpenDrain));
             v1event.kind = 42;
-            let ee = InfoChangeEvent::try_from(&v1event).unwrap_err();
+            let ee = InfoChangeEvent::try_from(&v1event).expect_err("event should be invalid");
             assert_eq!(ee, Error::UnexpectedResponse(UapiField::Kind, "42".into()));
         }
 
@@ -274,13 +274,13 @@ mod tests {
                 },
                 padding: Default::default(),
             };
-            let ee = InfoChangeEvent::try_from(&v2event).unwrap();
+            let ee = InfoChangeEvent::try_from(&v2event).expect("event should be valid");
             assert_eq!(ee.timestamp_ns, 1234);
             assert_eq!(ee.kind, InfoChangeKind::Reconfigured);
             assert_eq!(ee.info.offset, 32);
             assert_eq!(ee.info.drive, Some(Drive::OpenDrain));
             v2event.kind = 42;
-            let ee = InfoChangeEvent::try_from(&v2event).unwrap_err();
+            let ee = InfoChangeEvent::try_from(&v2event).expect_err("event should be invalid");
             assert_eq!(ee, Error::UnexpectedResponse(UapiField::Kind, "42".into()));
         }
     }

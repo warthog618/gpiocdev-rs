@@ -263,7 +263,7 @@ impl Resolver {
             } else if !by_name && id.parse::<u32>().is_ok() && chip.is_some() {
                 self.push_error(Error::OffsetOutOfRange(
                     id.into(),
-                    chip.as_ref().unwrap().into(),
+                    chip.as_ref().expect("chip cannot be None").into(),
                 ));
             } else {
                 self.push_error(Error::NoSuchLine(id.into()));

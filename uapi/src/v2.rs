@@ -793,10 +793,10 @@ mod tests {
                 assert!(a.get(idx).is_none(), "idx: {idx}");
 
                 a.mask |= mask;
-                assert!(!a.get(idx).unwrap(), "idx: {idx}");
+                assert!(!a.get(idx).expect("idx should exist"), "idx: {idx}");
 
                 a.bits |= mask;
-                assert!(a.get(idx).unwrap(), "idx: {idx}");
+                assert!(a.get(idx).expect("idx should exist"), "idx: {idx}");
             }
         }
 

@@ -80,6 +80,8 @@ pub enum ParseDurationError {
     Units(String),
     #[error("'{0}' must start with a digit")]
     NoDigits(String),
+    #[error("'{0}' {1}")]
+    ParseDigits(String, std::num::ParseIntError),
 }
 
 pub fn parse_duration(s: &str) -> std::result::Result<Duration, ParseDurationError> {
@@ -87,18 +89,24 @@ pub fn parse_duration(s: &str) -> std::result::Result<Duration, ParseDurationErr
         return Ok(Duration::ZERO);
     }
     let t = match s.find(|c: char| !c.is_ascii_digit()) {
-        Some(0) => return Err(ParseDurationError::NoDigits(s.to_string())),
+        Some(0) => return Err(ParseDurationError::NoDigits(s.into())),
         Some(n) => {
             let (num, units) = s.split_at(n);
-            let t = num.parse::<u64>().unwrap();
+            let t = num
+                .parse::<u64>()
+                .map_err(|e| ParseDurationError::ParseDigits(num.into(), e))?;
             t * match units {
                 "us" => 1000,
                 "ms" => 1000000,
                 "s" => 1000000000,
-                _ => return Err(ParseDurationError::Units(s.to_string())),
+                _ => return Err(ParseDurationError::Units(s.into())),
             }
         }
-        None => s.parse::<u64>().unwrap() * 1000000,
+        None => {
+            s.parse::<u64>()
+                .map_err(|e| ParseDurationError::ParseDigits(s.into(), e))?
+                * 1000000
+        }
     };
     Ok(Duration::from_nanos(t))
 }
@@ -358,7 +366,10 @@ pub fn stringify_attrs(li: &gpiocdev::line::Info, quoted: bool) -> String {
     }
     let db;
     if li.debounce_period.is_some() {
-        db = format!("debounce-period={:?}", li.debounce_period.unwrap());
+        db = format!(
+            "debounce-period={:?}",
+            li.debounce_period.expect("debounce is_some")
+        );
         attrs.push(&db);
     }
     let consumer;
@@ -397,11 +408,17 @@ pub fn format_time(evtime: u64, timefmt: &TimeFmt) -> String {
     match timefmt {
         TimeFmt::Seconds => format!("{ts_sec}.{ts_nsec:09}"),
         TimeFmt::Localtime => {
-            let t = Local.timestamp_opt(ts_sec, ts_nsec).unwrap();
+            let t = Local
+                .timestamp_opt(ts_sec, ts_nsec)
+                .single()
+                .expect("event time should be valid");
             format!("{}", t.format("%FT%T%.9f"))
         }
         TimeFmt::Utc => {
-            let t = Utc.timestamp_opt(ts_sec, ts_nsec).unwrap();
+            let t = Utc
+                .timestamp_opt(ts_sec, ts_nsec)
+                .single()
+                .expect("event time should be valid");
             format!("{}", t.format("%FT%T%.9fZ"))
         }
     }
@@ -436,17 +453,32 @@ mod tests {
             use super::{parse_duration, ParseDurationError};
             use std::time::Duration;
 
-            assert_eq!(parse_duration("0").unwrap(), Duration::ZERO);
-            assert_eq!(parse_duration("1").unwrap(), Duration::from_millis(1));
-            assert_eq!(parse_duration("2ms").unwrap(), Duration::from_millis(2));
-            assert_eq!(parse_duration("3us").unwrap(), Duration::from_micros(3));
-            assert_eq!(parse_duration("4s").unwrap(), Duration::new(4, 0));
             assert_eq!(
-                parse_duration("5ns").unwrap_err(),
+                parse_duration("0").expect("duration should be valid"),
+                Duration::ZERO
+            );
+            assert_eq!(
+                parse_duration("1").expect("duration should be valid"),
+                Duration::from_millis(1)
+            );
+            assert_eq!(
+                parse_duration("2ms").expect("duration should be valid"),
+                Duration::from_millis(2)
+            );
+            assert_eq!(
+                parse_duration("3us").expect("duration should be valid"),
+                Duration::from_micros(3)
+            );
+            assert_eq!(
+                parse_duration("4s").expect("duration should be valid"),
+                Duration::new(4, 0)
+            );
+            assert_eq!(
+                parse_duration("5ns").expect_err("duration should be invalid"),
                 ParseDurationError::Units("5ns".to_string())
             );
             assert_eq!(
-                parse_duration("bad").unwrap_err(),
+                parse_duration("bad").expect_err("duration should be invalid"),
                 ParseDurationError::NoDigits("bad".to_string())
             );
         }

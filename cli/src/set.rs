@@ -191,7 +191,7 @@ impl Setter {
 
         // find set of lines for each chip
         for (id, v) in &opts.line_values {
-            let co = r.lines.get(id).unwrap();
+            let co = r.lines.get(id).expect("id should've resolved");
             self.lines.insert(
                 id.to_owned(),
                 Line {
@@ -308,7 +308,7 @@ impl Setter {
         if words.inquote {
             return Err(anyhow!(format!(
                 "missing closing quote in '{}'",
-                args.last().unwrap()
+                args.last().expect("args cannot be empty")
             )));
         }
         Ok(cmd.try_get_matches_from_mut(args)?)
@@ -328,13 +328,16 @@ impl Setter {
                 "set" => {
                     let lvs: Vec<(String, LineValue)> = am
                         .get_many::<(String, LineValue)>("line_values")
-                        .unwrap()
+                        .expect("A LineValue is required")
                         .cloned()
                         .collect();
                     self.do_set(lvs.as_slice())
                 }
                 "sleep" => {
-                    let d: Duration = am.get_one::<Duration>("duration").unwrap().to_owned();
+                    let d: Duration = am
+                        .get_one::<Duration>("duration")
+                        .expect("duration is required")
+                        .to_owned();
                     self.do_sleep(d)
                 }
                 "toggle" => {
@@ -378,7 +381,7 @@ impl Setter {
         if print_values.is_empty() {
             // no lines specified, so return all lines
             for id in &self.line_ids {
-                let value = self.lines.get(id).unwrap().value;
+                let value = self.lines.get(id).expect("id must be in lines").value;
                 print_values.push(format_line_value(&opts.emit, id, value));
             }
         }
@@ -653,9 +656,18 @@ mod tests {
         #[test]
         fn line() {
             use super::parse_line;
-            assert_eq!(parse_line("unquoted").unwrap(), "unquoted".to_string());
-            assert_eq!(parse_line("\"semi").unwrap(), "\"semi".to_string());
-            assert_eq!(parse_line("\"quoted\"").unwrap(), "quoted".to_string());
+            assert_eq!(
+                parse_line("unquoted").expect("should parse"),
+                "unquoted".to_string()
+            );
+            assert_eq!(
+                parse_line("\"semi").expect("should parse"),
+                "\"semi".to_string()
+            );
+            assert_eq!(
+                parse_line("\"quoted\"").expect("should parse"),
+                "quoted".to_string()
+            );
         }
 
         #[test]
@@ -663,65 +675,67 @@ mod tests {
             use super::{parse_line_value, LineValue};
             use gpiocdev::line::Value;
             assert_eq!(
-                parse_line_value("blah=0").unwrap(),
+                parse_line_value("blah=0").expect("should parse"),
                 ("blah".to_string(), LineValue(Value::Inactive))
             );
             assert_eq!(
-                parse_line_value("l=1").unwrap(),
+                parse_line_value("l=1").expect("should parse"),
                 ("l".to_string(), LineValue(Value::Active))
             );
             assert_eq!(
-                parse_line_value("l=active").unwrap(),
+                parse_line_value("l=active").expect("should parse"),
                 ("l".to_string(), LineValue(Value::Active))
             );
             assert_eq!(
-                parse_line_value("l=inactive").unwrap(),
+                parse_line_value("l=inactive").expect("should parse"),
                 ("l".to_string(), LineValue(Value::Inactive))
             );
             assert_eq!(
-                parse_line_value("l=on").unwrap(),
+                parse_line_value("l=on").expect("should parse"),
                 ("l".to_string(), LineValue(Value::Active))
             );
             assert_eq!(
-                parse_line_value("l=off").unwrap(),
+                parse_line_value("l=off").expect("should parse"),
                 ("l".to_string(), LineValue(Value::Inactive))
             );
             assert_eq!(
-                parse_line_value("l=true").unwrap(),
+                parse_line_value("l=true").expect("should parse"),
                 ("l".to_string(), LineValue(Value::Active))
             );
             assert_eq!(
-                parse_line_value("l=false").unwrap(),
+                parse_line_value("l=false").expect("should parse"),
                 ("l".to_string(), LineValue(Value::Inactive))
             );
             assert_eq!(
-                parse_line_value("\"quoted\"=false").unwrap(),
+                parse_line_value("\"quoted\"=false").expect("should parse"),
                 ("quoted".to_string(), LineValue(Value::Inactive))
             );
             assert_eq!(
-                parse_line_value("\"quoted\\ name\"=1").unwrap(),
+                parse_line_value("\"quoted\\ name\"=1").expect("should parse"),
                 ("quoted\\ name".to_string(), LineValue(Value::Active))
             );
             assert_eq!(
                 parse_line_value("\"quoted=false")
-                    .err()
-                    .unwrap()
+                    .expect_err("should not parse")
                     .to_string(),
                 "invalid line=value: semi-quoted line name in '\"quoted=false'"
             );
             assert_eq!(
                 parse_line_value("unquoted\"=false")
-                    .err()
-                    .unwrap()
+                    .expect_err("should not parse")
                     .to_string(),
                 "invalid line=value: semi-quoted line name in 'unquoted\"=false'"
             );
             assert_eq!(
-                parse_line_value("5").err().unwrap().to_string(),
+                parse_line_value("5")
+                    .expect_err("should not parse")
+                    .to_string(),
                 "invalid line=value: no '=' found in '5'"
             );
             assert_eq!(
-                parse_line_value("blah=3").err().unwrap().to_string(),
+                parse_line_value("blah=3")
+                    .expect_err("should not parse")
+                    .to_string(),
                 "invalid line value: '3'"
             );
         }
@@ -732,44 +746,48 @@ mod tests {
             use crate::common::ParseDurationError;
             use std::time::Duration;
             assert!(parse_time_sequence("0")
-                .unwrap()
+                .expect("should parse")
                 .0
                 .iter()
                 .eq([Duration::ZERO].iter()));
             assert!(parse_time_sequence("1")
-                .unwrap()
+                .expect("should parse")
                 .0
                 .iter()
                 .eq([Duration::from_millis(1)].iter()));
             assert!(parse_time_sequence("2ms")
-                .unwrap()
+                .expect("should parse")
                 .0
                 .iter()
                 .eq([Duration::from_millis(2)].iter()));
             assert!(parse_time_sequence("3us")
-                .unwrap()
+                .expect("should parse")
                 .0
                 .iter()
                 .eq([Duration::from_micros(3)].iter()));
             assert!(parse_time_sequence("4s")
-                .unwrap()
+                .expect("should parse")
                 .0
                 .iter()
                 .eq([Duration::new(4, 0)].iter()));
-            assert!(parse_time_sequence("1,2ms,3us,4s,0").unwrap().0.iter().eq([
-                Duration::from_millis(1),
-                Duration::from_millis(2),
-                Duration::from_micros(3),
-                Duration::new(4, 0),
-                Duration::ZERO
-            ]
-            .iter()));
+            assert!(parse_time_sequence("1,2ms,3us,4s,0")
+                .expect("should parse")
+                .0
+                .iter()
+                .eq([
+                    Duration::from_millis(1),
+                    Duration::from_millis(2),
+                    Duration::from_micros(3),
+                    Duration::new(4, 0),
+                    Duration::ZERO
+                ]
+                .iter()));
             assert_eq!(
-                parse_time_sequence("5ns").unwrap_err(),
+                parse_time_sequence("5ns").expect_err("nanoseconds are invalid"),
                 ParseDurationError::Units("5ns".to_string())
             );
             assert_eq!(
-                parse_time_sequence("bad").unwrap_err(),
+                parse_time_sequence("bad").expect_err("no digits"),
                 ParseDurationError::NoDigits("bad".to_string())
             );
         }

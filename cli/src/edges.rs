@@ -303,7 +303,10 @@ impl CmdResult {
     fn emit(&self) {
         #[cfg(feature = "json")]
         if self.opts.json {
-            println!("{}", serde_json::to_string(self).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string(self).expect("serialize should succeed")
+            );
             return;
         }
         for e in &self.errors {
@@ -356,7 +359,10 @@ fn emit_edge(edge: EdgeEvent, ci: &ChipInfo, opts: &Opts, timefmt: &TimeFmt) {
 
     #[cfg(feature = "json")]
     if opts.emit.json {
-        println!("{}", serde_json::to_string(&event).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string(&event).expect("serialize should succeed")
+        );
         return;
     }
     if let Some(format) = &opts.format {

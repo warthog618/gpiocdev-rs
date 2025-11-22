@@ -145,7 +145,7 @@ impl Values {
         }
     }
 
-    // updates the values in dst with values from src.
+    // updates the values with values from src.
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     pub(crate) fn update_from_v2(&mut self, offsets: &[Offset], src: &v2::LineValues) {
         // requested full set
@@ -154,7 +154,7 @@ impl Values {
             for (idx, offset) in offsets.iter().enumerate() {
                 self.0.push(LineValue {
                     offset: *offset,
-                    value: Value::from(src.get(idx).unwrap()),
+                    value: Value::from(src.get(idx).expect("idx should exist")),
                 });
             }
             return;
@@ -263,7 +263,7 @@ impl Values {
     #[inline]
     pub fn get(&self, offset: Offset) -> Option<Value> {
         match self.0.binary_search_by(|lv| lv.offset.cmp(&offset)) {
-            Ok(idx) => Some(self.0.get(idx).unwrap().value),
+            Ok(idx) => Some(self.0.get(idx).expect("idx should exist").value),
             Err(_idx) => None,
         }
     }
@@ -281,7 +281,7 @@ impl Values {
         // slow path - inserting
         match self.0.binary_search_by(|lv| lv.offset.cmp(&offset)) {
             Ok(idx) => {
-                self.0.get_mut(idx).unwrap().value = value;
+                self.0.get_mut(idx).expect("idx should exist").value = value;
             }
             Err(idx) => self.0.insert(idx, LineValue { offset, value }),
         }
@@ -303,7 +303,7 @@ impl Values {
     pub fn toggle(&mut self, offset: Offset) {
         match self.0.binary_search_by(|lv| lv.offset.cmp(&offset)) {
             Ok(idx) => {
-                let lv = self.0.get_mut(idx).unwrap();
+                let lv = self.0.get_mut(idx).expect("idx should exist");
                 lv.value = lv.value.not();
             }
             Err(idx) => self.0.insert(
@@ -561,10 +561,10 @@ mod tests {
             src.set(7, Value::Active); // should be ignored
             src.set(8, Value::Active);
             let dst = src.to_v2(&offsets);
-            assert!(dst.get(0).unwrap()); // 1
-            assert!(!dst.get(1).unwrap()); // 3
+            assert!(dst.get(0).expect("idx should exist")); // 1
+            assert!(!dst.get(1).expect("idx should exist")); // 3
             assert!(dst.get(2).is_none()); // 5
-            assert!(dst.get(3).unwrap()); // 8
+            assert!(dst.get(3).expect("idx should exist")); // 8
             assert_eq!(dst.mask, 0b1011); // only 3 entries set
         }
 
@@ -742,7 +742,7 @@ mod tests {
                     value: Value::Inactive
                 })
             );
-            lv.unwrap().value = Value::Active;
+            lv.expect("value should exist").value = Value::Active;
             lv = i.next();
             assert_eq!(
                 lv,
@@ -751,7 +751,7 @@ mod tests {
                     value: Value::Active
                 })
             );
-            lv.unwrap().value = Value::Inactive;
+            lv.expect("value should exist").value = Value::Inactive;
             lv = i.next();
             assert_eq!(
                 lv,
@@ -760,7 +760,7 @@ mod tests {
                     value: Value::Inactive
                 })
             );
-            lv.unwrap().value = Value::Active;
+            lv.expect("value should exist").value = Value::Active;
             assert_eq!(i.next(), None);
             assert_eq!(
                 vv.iter().map(|lv| lv.value).collect::<Vec<Value>>(),

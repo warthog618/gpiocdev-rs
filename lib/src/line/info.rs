@@ -213,7 +213,7 @@ mod tests {
     #[cfg(any(feature = "uapi_v2", not(feature = "uapi_v1")))]
     fn info_try_from_v2_line_info() {
         let v2info: v2::LineInfo = Default::default();
-        let info = Info::try_from(&v2info).unwrap();
+        let info = Info::try_from(&v2info).expect("info should be valid");
         assert_eq!(info.offset, 0);
         assert!(info.name.is_empty());
         assert!(info.consumer.is_empty());
@@ -238,7 +238,7 @@ mod tests {
             attrs: Default::default(),
             padding: Default::default(),
         };
-        let info = Info::try_from(&v2info).unwrap();
+        let info = Info::try_from(&v2info).expect("info should be valid");
         assert_eq!(info.offset, 32);
         assert_eq!(info.name, "banana");
         assert_eq!(info.consumer, "jam");
@@ -263,7 +263,7 @@ mod tests {
             attrs: Default::default(),
             padding: Default::default(),
         };
-        let info = Info::try_from(&v2info).unwrap();
+        let info = Info::try_from(&v2info).expect("info should be valid");
         assert_eq!(info.offset, 32);
         assert_eq!(info.name, "banana");
         assert_eq!(info.consumer, "jam");
@@ -290,7 +290,7 @@ mod tests {
         };
         v2info.attr_mut(0).set_debounce_period_us(24);
 
-        let info = Info::try_from(&v2info).unwrap();
+        let info = Info::try_from(&v2info).expect("info should be valid");
         assert_eq!(info.offset, 32);
         assert_eq!(info.name, "banana");
         assert_eq!(info.consumer, "jam");
@@ -315,7 +315,7 @@ mod tests {
             attrs: Default::default(),
             padding: Default::default(),
         };
-        let err = Info::try_from(&v2info).unwrap_err();
+        let err = Info::try_from(&v2info).expect_err("info should be invalid");
         assert_eq!(
             err,
             Error::UnexpectedResponse(UapiField::NumAttrs, "11".into())
