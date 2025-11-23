@@ -48,19 +48,20 @@ fn edge_latency(b: &mut Bencher, abiv: AbiVersion) {
         .with_line(offset)
         .with_edge_detection(EdgeDetection::BothEdges)
         .request()
-        .unwrap();
+        .expect("request should succeed");
 
     let mut pull = Level::High;
     let mut event = vec![0_u64; req.edge_event_u64_size()];
 
     b.iter(|| {
-        s.set_pull(offset, pull).unwrap();
+        s.set_pull(offset, pull).expect("set_pull shgould succeed");
         pull = match pull {
             Level::High => Level::Low,
             Level::Low => Level::High,
         };
         // read into slice to avoid allocating
-        req.read_edge_events_into_slice(&mut event).unwrap();
+        req.read_edge_events_into_slice(&mut event)
+            .expect("read_edge_events_into_slice should succeed");
     });
 }
 
@@ -79,21 +80,22 @@ fn ten_edge_events(b: &mut Bencher, abiv: AbiVersion) {
         .with_line(offset)
         .with_edge_detection(EdgeDetection::BothEdges)
         .request()
-        .unwrap();
+        .expect("request should succeed");
 
     let mut pull = Level::High;
     let mut event = vec![0; req.edge_event_size() * 10];
 
     b.iter(|| {
         for _ in 0..10 {
-            s.set_pull(offset, pull).unwrap();
+            s.set_pull(offset, pull).expect("set_pull should succeed");
             pull = match pull {
                 Level::High => Level::Low,
                 Level::Low => Level::High,
             };
         }
         // read into slice to avoid allocating
-        req.read_edge_events_into_slice(&mut event).unwrap();
+        req.read_edge_events_into_slice(&mut event)
+            .expect("read_edge_events_into_slice should succeed");
     });
 }
 
@@ -112,17 +114,19 @@ fn edge_event_object(b: &mut Bencher, abiv: AbiVersion) {
         .with_line(offset)
         .with_edge_detection(EdgeDetection::BothEdges)
         .request()
-        .unwrap();
+        .expect("request should succeed");
 
     let mut pull = Level::High;
 
     b.iter(|| {
-        s.set_pull(offset, pull).unwrap();
+        s.set_pull(offset, pull).expect("set_pull should succeed");
         pull = match pull {
             Level::High => Level::Low,
             Level::Low => Level::High,
         };
         // returning the event
-        let _ = req.read_edge_event().unwrap();
+        let _ = req
+            .read_edge_event()
+            .expect("read_edge_event should succeed");
     });
 }

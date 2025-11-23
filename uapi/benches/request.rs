@@ -29,7 +29,7 @@ mod v1 {
     fn open_chip_and_request_one(b: &mut Bencher) {
         let s = Simpleton::new(10);
         b.iter(|| {
-            let cf = fs::File::open(s.dev_path()).unwrap();
+            let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
             let mut hr = HandleRequest {
                 num_lines: 1,
                 consumer: "open_chip_and_request_one".into(),
@@ -39,7 +39,7 @@ mod v1 {
             // doesn't have to be in order, but just keeping it simple...
             hr.offsets.copy_from_slice(&[1]);
 
-            let l = get_line_handle(&cf, hr).unwrap();
+            let l = get_line_handle(&cf, hr).expect("get_line_handle should succeed");
             drop(l);
             drop(cf);
         });
@@ -47,7 +47,7 @@ mod v1 {
     // determine time taken to request one line
     fn request_one(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         b.iter(|| {
             let mut hr = HandleRequest {
                 num_lines: 1,
@@ -58,7 +58,7 @@ mod v1 {
             // doesn't have to be in order, but just keeping it simple...
             hr.offsets.copy_from_slice(&[1]);
 
-            let l = get_line_handle(&cf, hr).unwrap();
+            let l = get_line_handle(&cf, hr).expect("get_line_handle should succeed");
             drop(l);
         });
     }
@@ -66,7 +66,7 @@ mod v1 {
     // determine time taken to requst ten lines
     fn request_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         b.iter(|| {
             let mut hr = HandleRequest {
                 num_lines: 10,
@@ -78,7 +78,7 @@ mod v1 {
             let offsets: Vec<Offset> = (0..10).collect();
             hr.offsets.copy_from_slice(&offsets);
 
-            let l = get_line_handle(&cf, hr).unwrap();
+            let l = get_line_handle(&cf, hr).expect("get_line_handle should succeed");
             drop(l);
         });
     }
@@ -86,7 +86,7 @@ mod v1 {
     // determine time taken to request the maxiumum number of lines
     fn request_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         b.iter(|| {
             let mut hr = HandleRequest {
                 num_lines: 64,
@@ -98,7 +98,7 @@ mod v1 {
             let offsets: Vec<Offset> = (0..64).collect();
             hr.offsets.copy_from_slice(&offsets);
 
-            let l = get_line_handle(&cf, hr).unwrap();
+            let l = get_line_handle(&cf, hr).expect("get_line_handle should succeed");
             drop(l);
         });
     }
@@ -130,7 +130,7 @@ mod v2 {
         let s = Simpleton::new(10);
         let offset = 2;
         b.iter(|| {
-            let cf = fs::File::open(s.dev_path()).unwrap();
+            let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
             let mut lr = LineRequest {
                 num_lines: 1,
                 consumer: "open_chip_and_request_one".into(),
@@ -143,7 +143,7 @@ mod v2 {
             // doesn't have to be in order, but just keeping it simple...
             lr.offsets.copy_from_slice(&[offset]);
 
-            let l = get_line(&cf, lr).unwrap();
+            let l = get_line(&cf, lr).expect("get_line should succeed");
             drop(l);
             drop(cf);
         });
@@ -151,7 +151,7 @@ mod v2 {
     // determine time taken to request one line
     fn request_one(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 2;
         b.iter(|| {
             let mut lr = LineRequest {
@@ -166,7 +166,7 @@ mod v2 {
             // doesn't have to be in order, but just keeping it simple...
             lr.offsets.copy_from_slice(&[offset]);
 
-            let l = get_line(&cf, lr).unwrap();
+            let l = get_line(&cf, lr).expect("get_line should succeed");
             drop(l);
         });
     }
@@ -174,7 +174,7 @@ mod v2 {
     // determine time taken to request ten lines
     fn request_ten(b: &mut Bencher) {
         let s = Simpleton::new(10);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         b.iter(|| {
             let mut lr = LineRequest {
                 num_lines: 10,
@@ -189,7 +189,7 @@ mod v2 {
             let offsets: Vec<Offset> = (0..10).collect();
             lr.offsets.copy_from_slice(&offsets);
 
-            let l = get_line(&cf, lr).unwrap();
+            let l = get_line(&cf, lr).expect("get_line should succeed");
             drop(l);
         });
     }
@@ -197,7 +197,7 @@ mod v2 {
     // determine time taken to request maximum number of lines
     fn request_maxlen(b: &mut Bencher) {
         let s = Simpleton::new(64);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         b.iter(|| {
             let mut lr = LineRequest {
                 num_lines: 64,
@@ -212,7 +212,7 @@ mod v2 {
             let offsets: Vec<Offset> = (0..64).collect();
             lr.offsets.copy_from_slice(&offsets);
 
-            let l = get_line(&cf, lr).unwrap();
+            let l = get_line(&cf, lr).expect("get_line should succeed");
             drop(l);
         });
     }

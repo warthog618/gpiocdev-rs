@@ -29,7 +29,7 @@ mod v1 {
     // determine time taken to reconfigure one line to input
     fn reconfigure_input(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let mut hr = HandleRequest {
             num_lines: 1,
             consumer: "reconfigure_input".into(),
@@ -38,7 +38,7 @@ mod v1 {
         };
         hr.offsets.copy_from_slice(&[1]);
 
-        let l = get_line_handle(&cf, hr).unwrap();
+        let l = get_line_handle(&cf, hr).expect("get_line_handle should succeed");
 
         b.iter(|| {
             let hc = HandleConfig {
@@ -46,14 +46,14 @@ mod v1 {
                 ..Default::default()
             };
 
-            set_line_config(&l, hc).unwrap();
+            set_line_config(&l, hc).expect("set_line_config should succeed");
         });
     }
 
     // determine time taken to reconfigure one line to output
     fn reconfigure_output(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let mut hr = HandleRequest {
             num_lines: 1,
             consumer: "reconfigure_output".into(),
@@ -62,7 +62,7 @@ mod v1 {
         };
         hr.offsets.copy_from_slice(&[1]);
 
-        let l = get_line_handle(&cf, hr).unwrap();
+        let l = get_line_handle(&cf, hr).expect("get_line_handle should succeed");
 
         b.iter(|| {
             let hc = HandleConfig {
@@ -70,14 +70,14 @@ mod v1 {
                 ..Default::default()
             };
 
-            set_line_config(&l, hc).unwrap();
+            set_line_config(&l, hc).expect("set_line_config should succeed");
         });
     }
 
     // determine time taken to reconfigure one line to input then output
     fn reconfigure_input_output(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let mut hr = HandleRequest {
             num_lines: 1,
             consumer: "reconfigure_input_output".into(),
@@ -86,7 +86,7 @@ mod v1 {
         };
         hr.offsets.copy_from_slice(&[1]);
 
-        let l = get_line_handle(&cf, hr).unwrap();
+        let l = get_line_handle(&cf, hr).expect("get_line_handle should succeed");
 
         b.iter(|| {
             let hc = HandleConfig {
@@ -94,14 +94,14 @@ mod v1 {
                 ..Default::default()
             };
 
-            set_line_config(&l, hc).unwrap();
+            set_line_config(&l, hc).expect("set_line_config should succeed");
 
             let hc = HandleConfig {
                 flags: HandleRequestFlags::INPUT,
                 ..Default::default()
             };
 
-            set_line_config(&l, hc).unwrap();
+            set_line_config(&l, hc).expect("set_line_config should succeed");
         });
     }
 }
@@ -129,7 +129,7 @@ mod v2 {
     // determine time taken to reconfigure one line to input
     fn reconfigure_input(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let mut lr = LineRequest {
             num_lines: 1,
             consumer: "reconfigure_input".into(),
@@ -141,7 +141,7 @@ mod v2 {
         };
         lr.offsets.copy_from_slice(&[1]);
 
-        let l = get_line(&cf, lr).unwrap();
+        let l = get_line(&cf, lr).expect("get_line should succeed");
 
         b.iter(|| {
             let lc = LineConfig {
@@ -149,14 +149,14 @@ mod v2 {
                 ..Default::default()
             };
 
-            set_line_config(&l, lc).unwrap();
+            set_line_config(&l, lc).expect("set_line_config should succeed");
         });
     }
 
     // determine time taken to reconfigure one line to output
     fn reconfigure_output(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let mut lr = LineRequest {
             num_lines: 1,
             consumer: "reconfigure_output".into(),
@@ -168,7 +168,7 @@ mod v2 {
         };
         lr.offsets.copy_from_slice(&[1]);
 
-        let l = get_line(&cf, lr).unwrap();
+        let l = get_line(&cf, lr).expect("get_line should succeed");
 
         b.iter(|| {
             let lc = LineConfig {
@@ -176,14 +176,14 @@ mod v2 {
                 ..Default::default()
             };
 
-            set_line_config(&l, lc).unwrap();
+            set_line_config(&l, lc).expect("set_line_config should succeed");
         });
     }
 
     // determine time taken to reconfigure one line to input then output
     fn reconfigure_input_output(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let mut lr = LineRequest {
             num_lines: 1,
             consumer: "reconfigure_output".into(),
@@ -195,7 +195,7 @@ mod v2 {
         };
         lr.offsets.copy_from_slice(&[1]);
 
-        let l = get_line(&cf, lr).unwrap();
+        let l = get_line(&cf, lr).expect("get_line should succeed");
 
         b.iter(|| {
             let lc = LineConfig {
@@ -203,14 +203,14 @@ mod v2 {
                 ..Default::default()
             };
 
-            set_line_config(&l, lc).unwrap();
+            set_line_config(&l, lc).expect("set_line_config should succeed");
 
             let lc = LineConfig {
                 flags: LineFlags::INPUT,
                 ..Default::default()
             };
 
-            set_line_config(&l, lc).unwrap();
+            set_line_config(&l, lc).expect("set_line_config should succeed");
         });
     }
 }

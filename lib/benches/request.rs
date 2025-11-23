@@ -46,7 +46,11 @@ fn one_input(b: &mut Bencher, abiv: AbiVersion) {
     builder.using_abi_version(abiv);
 
     b.iter(|| {
-        let req = builder.with_line(offset).as_input().request().unwrap();
+        let req = builder
+            .with_line(offset)
+            .as_input()
+            .request()
+            .expect("request should succeed");
         drop(req);
     });
 }
@@ -62,7 +66,11 @@ fn ten_inputs(b: &mut Bencher, abiv: AbiVersion) {
     builder.using_abi_version(abiv);
 
     b.iter(|| {
-        let req = builder.with_lines(&offsets).as_input().request().unwrap();
+        let req = builder
+            .with_lines(&offsets)
+            .as_input()
+            .request()
+            .expect("request should succeed");
         drop(req);
     });
 }
@@ -82,7 +90,7 @@ fn one_output(b: &mut Bencher, abiv: AbiVersion) {
             .with_line(offset)
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         drop(req);
     });
 }
@@ -102,7 +110,7 @@ fn ten_outputs(b: &mut Bencher, abiv: AbiVersion) {
             .with_lines(&offsets)
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         drop(req);
     });
 }

@@ -49,7 +49,11 @@ fn get_one(b: &mut Bencher, abiv: AbiVersion) {
     builder.on_chip(s.dev_path());
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     builder.using_abi_version(abiv);
-    let req = builder.with_line(offset).as_input().request().unwrap();
+    let req = builder
+        .with_line(offset)
+        .as_input()
+        .request()
+        .expect("request should succeed");
 
     b.iter(|| {
         let value = req.lone_value();
@@ -66,11 +70,15 @@ fn get_ten(b: &mut Bencher, abiv: AbiVersion) {
     builder.on_chip(s.dev_path());
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     builder.using_abi_version(abiv);
-    let req = builder.with_lines(&offsets).as_input().request().unwrap();
+    let req = builder
+        .with_lines(&offsets)
+        .as_input()
+        .request()
+        .expect("request should succeed");
     let mut values = Values::from_offsets(&offsets);
 
     b.iter(|| {
-        req.values(&mut values).unwrap();
+        req.values(&mut values).expect("values should succeed");
     });
 }
 
@@ -84,11 +92,15 @@ fn get_maxlen(b: &mut Bencher, abiv: AbiVersion) {
     builder.on_chip(s.dev_path());
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     builder.using_abi_version(abiv);
-    let req = builder.with_lines(&offsets).as_input().request().unwrap();
+    let req = builder
+        .with_lines(&offsets)
+        .as_input()
+        .request()
+        .expect("request should succeed");
     let mut values = Values::from_offsets(&offsets);
 
     b.iter(|| {
-        req.values(&mut values).unwrap();
+        req.values(&mut values).expect("values should succeed");
     });
 }
 
@@ -106,10 +118,11 @@ fn set_one(b: &mut Bencher, abiv: AbiVersion) {
         .with_line(offset)
         .as_output(Value::Active)
         .request()
-        .unwrap();
+        .expect("request should succeed");
 
     b.iter(|| {
-        req.set_lone_value(Value::Active).unwrap();
+        req.set_lone_value(Value::Active)
+            .expect("set_lone_value should succeed");
     });
 }
 
@@ -127,11 +140,11 @@ fn set_ten(b: &mut Bencher, abiv: AbiVersion) {
         .with_lines(&offsets)
         .as_output(Value::Active)
         .request()
-        .unwrap();
+        .expect("request should succeed");
     let values = Values::from_offsets(&offsets);
 
     b.iter(|| {
-        req.set_values(&values).unwrap();
+        req.set_values(&values).expect("set_values should succeed");
     });
 }
 
@@ -149,10 +162,10 @@ fn set_maxlen(b: &mut Bencher, abiv: AbiVersion) {
         .with_lines(&offsets)
         .as_output(Value::Active)
         .request()
-        .unwrap();
+        .expect("request should succeed");
     let values = Values::from_offsets(&offsets);
 
     b.iter(|| {
-        req.set_values(&values).unwrap();
+        req.set_values(&values).expect("set_values should succeed");
     });
 }

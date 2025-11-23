@@ -27,7 +27,7 @@ mod v1 {
     // overheads are toggle time.
     fn edge_latency(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 2;
         let er = EventRequest {
             offset,
@@ -36,18 +36,18 @@ mod v1 {
             ..Default::default()
         };
 
-        let l = get_line_event(&cf, er).unwrap();
+        let l = get_line_event(&cf, er).expect("get_line_event should succeed");
 
         let mut pull = Level::High;
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
 
         b.iter(|| {
-            s.set_pull(offset, pull).unwrap();
+            s.set_pull(offset, pull).expect("set_pull should succeed");
             pull = match pull {
                 Level::High => Level::Low,
                 Level::Low => Level::High,
             };
-            let _ = read_event(&l, &mut buf).unwrap();
+            let _ = read_event(&l, &mut buf).expect("read_event should succeed");
         });
     }
 
@@ -55,7 +55,7 @@ mod v1 {
     // overheads are 10 * toggle time and 1 * latency.
     fn ten_edge_events(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 2;
         let er = EventRequest {
             offset,
@@ -64,27 +64,27 @@ mod v1 {
             ..Default::default()
         };
 
-        let l = get_line_event(&cf, er).unwrap();
+        let l = get_line_event(&cf, er).expect("get_line_event should succeed");
 
         let mut pull = Level::High;
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size() * 10];
 
         b.iter(|| {
             for _ in 0..10 {
-                s.set_pull(offset, pull).unwrap();
+                s.set_pull(offset, pull).expect("set_pull should succeed");
                 pull = match pull {
                     Level::High => Level::Low,
                     Level::Low => Level::High,
                 };
             }
-            let _ = read_event(&l, &mut buf).unwrap();
+            let _ = read_event(&l, &mut buf).expect("read_event should succeed");
         });
     }
 
     // determine the time taken to read an event from a buffer
     fn edge_event_object(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 2;
         let er = EventRequest {
             offset,
@@ -93,15 +93,18 @@ mod v1 {
             ..Default::default()
         };
 
-        let l = get_line_event(&cf, er).unwrap();
+        let l = get_line_event(&cf, er).expect("get_line_event should succeed");
 
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
 
-        s.pullup(offset).unwrap();
-        assert_eq!(read_event(&l, &mut buf).unwrap(), LineEdgeEvent::u64_size());
+        s.pullup(offset).expect("pullup should succeed");
+        assert_eq!(
+            read_event(&l, &mut buf).expect("read_event should succeed"),
+            LineEdgeEvent::u64_size()
+        );
 
         b.iter(|| {
-            let _ = LineEdgeEvent::from_slice(&buf).unwrap();
+            let _ = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
         });
     }
 }
@@ -129,7 +132,7 @@ mod v2 {
     // overheads are toggle time.
     fn edge_latency(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 2;
         let mut lr = LineRequest {
             num_lines: 1,
@@ -142,18 +145,18 @@ mod v2 {
         };
         lr.offsets.set(0, offset);
 
-        let l = get_line(&cf, lr).unwrap();
+        let l = get_line(&cf, lr).expect("get_line should succeed");
 
         let mut pull = Level::High;
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
 
         b.iter(|| {
-            s.set_pull(offset, pull).unwrap();
+            s.set_pull(offset, pull).expect("set_pull should succeed");
             pull = match pull {
                 Level::High => Level::Low,
                 Level::Low => Level::High,
             };
-            let _ = read_event(&l, &mut buf).unwrap();
+            let _ = read_event(&l, &mut buf).expect("read_event should succeed");
         });
     }
 
@@ -161,7 +164,7 @@ mod v2 {
     // overheads are 10 * toggle time and 1 * latency.
     fn ten_edge_events(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 2;
         let mut lr = LineRequest {
             num_lines: 1,
@@ -174,27 +177,27 @@ mod v2 {
         };
         lr.offsets.set(0, offset);
 
-        let l = get_line(&cf, lr).unwrap();
+        let l = get_line(&cf, lr).expect("get_line should succeed");
 
         let mut pull = Level::High;
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size() * 10];
 
         b.iter(|| {
             for _ in 0..10 {
-                s.set_pull(offset, pull).unwrap();
+                s.set_pull(offset, pull).expect("set_pull should succeed");
                 pull = match pull {
                     Level::High => Level::Low,
                     Level::Low => Level::High,
                 };
             }
-            let _ = read_event(&l, &mut buf).unwrap();
+            let _ = read_event(&l, &mut buf).expect("read_event should succeed");
         });
     }
 
     // determine the time taken to read an event from a buffer
     fn edge_event_object(b: &mut Bencher) {
         let s = Simpleton::new(4);
-        let cf = fs::File::open(s.dev_path()).unwrap();
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 2;
         let mut lr = LineRequest {
             num_lines: 1,
@@ -207,15 +210,18 @@ mod v2 {
         };
         lr.offsets.set(0, offset);
 
-        let l = get_line(&cf, lr).unwrap();
+        let l = get_line(&cf, lr).expect("get_line should succeed");
 
         let mut buf: Vec<u64> = vec![0_u64; LineEdgeEvent::u64_size()];
 
-        s.pullup(offset).unwrap();
-        assert_eq!(read_event(&l, &mut buf).unwrap(), LineEdgeEvent::u64_size());
+        s.pullup(offset).expect("pullup should succeed");
+        assert_eq!(
+            read_event(&l, &mut buf).expect("read_event should succeed"),
+            LineEdgeEvent::u64_size()
+        );
 
         b.iter(|| {
-            let _ = LineEdgeEvent::from_slice(&buf).unwrap();
+            let _ = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
         });
     }
 }

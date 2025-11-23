@@ -14,7 +14,7 @@ fn toggle_line(c: &mut Criterion) {
 
     c.bench_function("toggle_line", |b| {
         b.iter(|| {
-            s.set_pull(offset, pull).unwrap();
+            s.set_pull(offset, pull).expect("set_pull should succeed");
             pull = match pull {
                 Level::High => Level::Low,
                 Level::Low => Level::High,

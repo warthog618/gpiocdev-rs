@@ -51,12 +51,12 @@ fn reconfigure_input(b: &mut Bencher, abiv: AbiVersion) {
         .with_line(offset)
         .as_output(Value::Active)
         .request()
-        .unwrap();
+        .expect("request should succeed");
     let mut cfg = req.config();
     cfg.as_input();
 
     b.iter(|| {
-        req.reconfigure(&cfg).unwrap();
+        req.reconfigure(&cfg).expect("reconfigure should succeed");
     });
 }
 
@@ -70,12 +70,16 @@ fn reconfigure_output(b: &mut Bencher, abiv: AbiVersion) {
     builder.on_chip(s.dev_path());
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     builder.using_abi_version(abiv);
-    let req = builder.with_line(offset).as_input().request().unwrap();
+    let req = builder
+        .with_line(offset)
+        .as_input()
+        .request()
+        .expect("request should succeed");
     let mut cfg = req.config();
     cfg.as_output(Value::Active);
 
     b.iter(|| {
-        req.reconfigure(&cfg).unwrap();
+        req.reconfigure(&cfg).expect("reconfigure should succeed");
     });
 }
 
@@ -90,14 +94,20 @@ fn reconfigure_input_output(b: &mut Bencher, abiv: AbiVersion) {
     builder.on_chip(s.dev_path());
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     builder.using_abi_version(abiv);
-    let req = builder.with_line(offset).as_input().request().unwrap();
+    let req = builder
+        .with_line(offset)
+        .as_input()
+        .request()
+        .expect("request should succeed");
     let mut in_cfg = req.config();
     in_cfg.as_input();
     let mut out_cfg = req.config();
     out_cfg.as_output(Value::Active);
 
     b.iter(|| {
-        req.reconfigure(&out_cfg).unwrap();
-        req.reconfigure(&in_cfg).unwrap();
+        req.reconfigure(&out_cfg)
+            .expect("reconfigure should succeed");
+        req.reconfigure(&in_cfg)
+            .expect("reconfigure should succeed");
     });
 }
