@@ -10,7 +10,11 @@ fn main() {
         Some(gpio22) => {
             println!(
                 "{line_name}: {} {}",
-                gpio22.chip.file_name().unwrap().to_string_lossy(),
+                gpio22
+                    .chip
+                    .file_name()
+                    .expect("chip file_name should exist")
+                    .to_string_lossy(),
                 gpio22.info.offset
             )
         }

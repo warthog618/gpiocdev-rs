@@ -11,7 +11,7 @@ use std::time::Instant;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let gpio22 = gpiocdev::find_named_line("GPIO22").unwrap();
+    let gpio22 = gpiocdev::find_named_line("GPIO22").expect("line GPIO22 should exist");
     let req = Request::builder()
         .with_found_line(&gpio22)
         .with_consumer("tokio-ticking-watch-line-value")
