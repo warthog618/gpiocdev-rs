@@ -23,7 +23,7 @@ fn bag_of_chips() -> Sim {
         .with_bank(&Bank::new(12, "babel"))
         .with_bank(&Bank::new(6, "woggle"))
         .live()
-        .unwrap()
+        .expect("gpiosim should go live")
 }
 
 struct Symlink {
@@ -51,7 +51,7 @@ fn is_chip() {
     let cc = bag_of_chips();
     for c in cc.chips() {
         assert_eq!(
-            gpiocdev::chip::is_chip(c.dev_path()).unwrap(),
+            gpiocdev::chip::is_chip(c.dev_path()).expect("gpiosim chip should exist"),
             *c.dev_path()
         );
     }
@@ -62,9 +62,12 @@ fn is_chip_symlink() {
     let cc = bag_of_chips();
     let mut path = PathBuf::from("/tmp");
     path.push(gpiosim::unique_name("gpiocdev_chip", None));
-    let link = Symlink::new(cc.chips()[0].dev_path(), &path).unwrap();
+    let link = Symlink::new(cc.chips()[0].dev_path(), &path).expect("symlink should succeed");
     // locates and reports the path of the actual device
-    assert_eq!(*gpiocdev::chip::is_chip(&link.src).unwrap(), *link.dst);
+    assert_eq!(
+        *gpiocdev::chip::is_chip(&link.src).expect("chip should exist"),
+        *link.dst
+    );
 }
 
 #[test]
@@ -97,7 +100,7 @@ fn is_chip_not_gpio_device() {
 #[test]
 fn chips() {
     let cc = bag_of_chips();
-    let system_chips = gpiocdev::chip::chips().unwrap();
+    let system_chips = gpiocdev::chip::chips().expect("chips should exist");
     for c in cc.chips() {
         // all chips in the test set must be in the system
         assert!(
@@ -144,7 +147,7 @@ mod chip {
                     .hog(7, "hogster", Direction::OutputHigh),
             )
             .live()
-            .unwrap()
+            .expect("gpiosim should go live")
     }
 
     #[test]
@@ -176,16 +179,21 @@ mod chip {
         let cc = bag_of_chips();
         let mut path = PathBuf::from("/tmp");
         path.push(gpiosim::unique_name("gpiocdev_chip", None));
-        let link = Symlink::new(cc.chips()[0].dev_path(), &path).unwrap();
+        let link = Symlink::new(cc.chips()[0].dev_path(), &path).expect("symlink should exist");
         // constructs and reports the path of the actual device
-        assert_eq!(Chip::from_path(&link.src).unwrap().path(), link.dst);
+        assert_eq!(
+            Chip::from_path(&link.src)
+                .expect("chip should exist")
+                .path(),
+            link.dst
+        );
     }
 
     #[test]
     fn from_path_nonexistent() {
         let path = PathBuf::from("/dev/gpiochip_nonexistent");
         assert_eq!(
-            Chip::from_path(path).unwrap_err(),
+            Chip::from_path(path).expect_err("chip construction should fail"),
             gpiocdev::Error::Os(gpiocdev_uapi::Errno(2))
         );
     }
@@ -194,7 +202,7 @@ mod chip {
     fn from_path_not_character_device() {
         let path = PathBuf::from("/tmp");
         assert_eq!(
-            Chip::from_path(&path).unwrap_err(),
+            Chip::from_path(&path).expect_err("chip construction should fail"),
             ChipError(path, ErrorKind::NotCharacterDevice)
         );
     }
@@ -203,7 +211,7 @@ mod chip {
     fn from_path_no_gpio_device() {
         let path = PathBuf::from("/dev/null");
         assert_eq!(
-            Chip::from_path(&path).unwrap_err(),
+            Chip::from_path(&path).expect_err("chip construction should fail"),
             ChipError(path, ErrorKind::NotGpioDevice)
         );
     }
@@ -212,8 +220,8 @@ mod chip {
     fn info() {
         let s = bag_of_chips();
         for sc in s.chips() {
-            let c = Chip::from_path(sc.dev_path()).unwrap();
-            let info = c.info().unwrap();
+            let c = Chip::from_path(sc.dev_path()).expect("gpiosim chip should exist");
+            let info = c.info().expect("info should succeed");
             assert_eq!(info.num_lines, sc.config().num_lines);
             assert_eq!(info.label.as_str(), sc.config().label);
             assert_eq!(info.name.as_str(), sc.chip_name);
@@ -224,7 +232,7 @@ mod chip {
     fn name() {
         let s = bag_of_chips();
         for sc in s.chips() {
-            let ch = Chip::from_path(sc.dev_path()).unwrap();
+            let ch = Chip::from_path(sc.dev_path()).expect("gpiosim chip should exist");
             assert_eq!(ch.name().as_str(), sc.chip_name);
         }
     }
@@ -233,7 +241,7 @@ mod chip {
     fn path() {
         let s = bag_of_chips();
         for sc in s.chips() {
-            let c = Chip::from_path(sc.dev_path()).unwrap();
+            let c = Chip::from_path(sc.dev_path()).expect("gpiosim chip should exist");
             assert_eq!(c.path(), sc.dev_path());
         }
     }
@@ -242,9 +250,11 @@ mod chip {
     fn find_line_info() {
         let s = detailed_sim();
         for sc in s.chips() {
-            let c = Chip::from_path(sc.dev_path()).unwrap();
+            let c = Chip::from_path(sc.dev_path()).expect("gpiosim chip should exist");
             for (offset, name) in &sc.config().names {
-                let info = c.find_line_info(name).unwrap();
+                let info = c
+                    .find_line_info(name)
+                    .expect("find_line_info should succeed");
                 assert_eq!(info.offset, *offset);
                 assert_eq!(info.name, *name);
             }
@@ -260,7 +270,7 @@ mod chip {
             let c = new_chip(sc.dev_path(), abiv);
             // names, offsets and used
             for (offset, name) in &sc.config().names {
-                let info = c.line_info(*offset).unwrap();
+                let info = c.line_info(*offset).expect("line_info should exist");
                 assert_eq!(info.name.as_str(), name);
                 assert_eq!(info.offset, *offset);
                 assert_eq!(info.used, sc.config().hogs.contains_key(offset))
@@ -268,7 +278,7 @@ mod chip {
 
             // consumer, direction and used
             for (offset, hog) in &sc.config().hogs {
-                let info = c.line_info(*offset).unwrap();
+                let info = c.line_info(*offset).expect("line_info should exist");
                 assert_eq!(info.consumer.as_str(), &hog.consumer);
                 assert_eq!(info.offset, *offset);
                 assert_eq!(
@@ -292,9 +302,8 @@ mod chip {
         builder.on_chip(s.dev_path()).with_line(offset);
 
         let c = new_chip(s.dev_path(), abiv);
-        let res = c.line_info(11);
         assert_eq!(
-            res,
+            c.line_info(11),
             Err(gpiocdev::Error::Uapi(
                 gpiocdev::UapiCall::GetLineInfo,
                 gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
@@ -306,9 +315,9 @@ mod chip {
             .with_bias(gpiocdev::line::Bias::PullDown)
             .with_drive(gpiocdev::line::Drive::OpenDrain)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(info.active_low);
         assert_eq!(info.direction, gpiocdev::line::Direction::Output);
         assert_eq!(info.bias, Some(gpiocdev::line::Bias::PullDown));
@@ -318,8 +327,8 @@ mod chip {
         cfg.with_bias(gpiocdev::line::Bias::PullUp)
             .with_drive(gpiocdev::line::Drive::OpenSource)
             .as_active_high();
-        req.reconfigure(&cfg).unwrap();
-        let info = c.line_info(offset).unwrap();
+        req.reconfigure(&cfg).expect("reconfigure should succeed");
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, gpiocdev::line::Direction::Output);
         assert_eq!(info.bias, Some(gpiocdev::line::Bias::PullUp));
@@ -327,8 +336,8 @@ mod chip {
 
         cfg.with_bias(gpiocdev::line::Bias::Disabled)
             .with_drive(gpiocdev::line::Drive::PushPull);
-        req.reconfigure(&cfg).unwrap();
-        let info = c.line_info(offset).unwrap();
+        req.reconfigure(&cfg).expect("reconfigure should succeed");
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, gpiocdev::line::Direction::Output);
         assert_eq!(info.bias, Some(gpiocdev::line::Bias::Disabled));
@@ -340,8 +349,11 @@ mod chip {
         // can't reconfigure edges with v1, so re-request
         drop(req);
         cfg.with_edge_detection(gpiocdev::line::EdgeDetection::RisingEdge);
-        let req = builder.with_config(cfg.clone()).request().unwrap();
-        let info = c.line_info(offset).unwrap();
+        let req = builder
+            .with_config(cfg.clone())
+            .request()
+            .expect("request should succeed");
+        let info = c.line_info(offset).expect("line_info should exist");
         assert_eq!(info.direction, gpiocdev::line::Direction::Input);
         if abiv == gpiocdev::AbiVersion::V1 {
             assert_eq!(info.edge_detection, None);
@@ -359,8 +371,11 @@ mod chip {
 
         drop(req);
         cfg.with_edge_detection(gpiocdev::line::EdgeDetection::FallingEdge);
-        let req = builder.with_config(cfg.clone()).request().unwrap();
-        let info = c.line_info(offset).unwrap();
+        let req = builder
+            .with_config(cfg.clone())
+            .request()
+            .expect("request should succeed");
+        let info = c.line_info(offset).expect("line_info should exist");
         assert_eq!(info.direction, gpiocdev::line::Direction::Input);
         if abiv == gpiocdev::AbiVersion::V1 {
             assert_eq!(info.edge_detection, None);
@@ -378,8 +393,11 @@ mod chip {
 
         drop(req);
         cfg.with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges);
-        let req = builder.with_config(cfg.clone()).request().unwrap();
-        let info = c.line_info(offset).unwrap();
+        let req = builder
+            .with_config(cfg.clone())
+            .request()
+            .expect("request should succeed");
+        let info = c.line_info(offset).expect("line_info should exist");
         assert_eq!(info.direction, gpiocdev::line::Direction::Input);
         if abiv == gpiocdev::AbiVersion::V1 {
             assert_eq!(info.edge_detection, None);
@@ -409,10 +427,10 @@ mod chip {
                 // .with_event_clock(gpiocdev::line::EventClock::HTE)
                 // would be nice, but requires a kernel with HTE support...
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
-            let c = Chip::from_path(s.dev_path()).unwrap();
-            let info = c.line_info(0).unwrap();
+            let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
+            let info = c.line_info(0).expect("line_info should exist");
             assert_eq!(info.direction, gpiocdev::line::Direction::Input);
             assert_eq!(
                 info.edge_detection,
@@ -422,7 +440,7 @@ mod chip {
             assert_eq!(info.event_clock, Some(gpiocdev::line::EventClock::Realtime));
             assert_eq!(info.debounce_period, Some(Duration::from_millis(10)));
 
-            let info = c.line_info(1).unwrap();
+            let info = c.line_info(1).expect("line_info should exist");
             assert_eq!(info.direction, gpiocdev::line::Direction::Input);
             assert_eq!(
                 info.edge_detection,
@@ -485,7 +503,7 @@ mod chip {
             .as_input()
             .with_bias(gpiocdev::line::Bias::PullUp)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         let xinfo = gpiocdev::line::Info {
             offset,
@@ -511,7 +529,7 @@ mod chip {
     #[test]
     fn unwatch_line_info() {
         let s = Simpleton::new(4);
-        let c = Chip::from_path(s.dev_path()).unwrap();
+        let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 3;
 
         assert_eq!(
@@ -526,7 +544,7 @@ mod chip {
             .on_chip(s.dev_path())
             .with_line(offset)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         assert!(c.watch_line_info(offset).is_ok());
         assert_eq!(
@@ -546,7 +564,7 @@ mod chip {
             .on_chip(s.dev_path())
             .with_line(offset)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         assert_eq!(
             c.wait_line_info_change_event(INFO_CHANGE_EVENT_WAIT),
             Ok(false)
@@ -572,7 +590,7 @@ mod chip {
                 .on_chip(s.dev_path())
                 .with_line(offset)
                 .request()
-                .unwrap();
+                .expect("request should succeed");
             assert_eq!(
                 c.wait_line_info_change_event(INFO_CHANGE_EVENT_WAIT),
                 Ok(true)
@@ -606,12 +624,14 @@ mod chip {
                 .with_line(offset)
                 .as_input()
                 .request()
-                .unwrap();
+                .expect("request should succeed");
             assert_eq!(
                 c.wait_line_info_change_event(INFO_CHANGE_EVENT_WAIT),
                 Ok(true)
             );
-            let evt = c.read_line_info_change_event().unwrap();
+            let evt = c
+                .read_line_info_change_event()
+                .expect("read_line_info_change_event should succeed");
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Requested);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
@@ -626,12 +646,14 @@ mod chip {
                 cfg.with_edge_detection(gpiocdev::line::EdgeDetection::RisingEdge)
                     .with_debounce_period(Duration::from_millis(10));
             }
-            req.reconfigure(&cfg).unwrap();
+            req.reconfigure(&cfg).expect("reconfigure should succeed");
             assert_eq!(
                 c.wait_line_info_change_event(INFO_CHANGE_EVENT_WAIT),
                 Ok(true)
             );
-            let evt = c.read_line_info_change_event().unwrap();
+            let evt = c
+                .read_line_info_change_event()
+                .expect("read_line_info_change_event should succeed");
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Reconfigured);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
@@ -649,7 +671,9 @@ mod chip {
 
             // release
             drop(req);
-            let evt = c.read_line_info_change_event().unwrap();
+            let evt = c
+                .read_line_info_change_event()
+                .expect("read_line_info_change_event should succeed");
             assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Released);
             assert_eq!(evt.info.offset, offset);
             assert_eq!(evt.info.edge_detection, None);
@@ -674,20 +698,20 @@ mod chip {
                 .with_line(offset)
                 .as_input()
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             // reconfigure pullup
-            bg_rx.recv().unwrap();
+            bg_rx.recv().expect("should recv kick from fg");
             let mut cfg = req.config();
             cfg.with_bias(Bias::PullUp);
-            req.reconfigure(&cfg).unwrap();
+            req.reconfigure(&cfg).expect("reconfigure should succeed");
 
             // reconfigure pulldown
-            bg_rx.recv().unwrap();
+            bg_rx.recv().expect("should recv kick from fg");
             cfg.with_bias(Bias::PullDown);
-            req.reconfigure(&cfg).unwrap();
+            req.reconfigure(&cfg).expect("reconfigure should succeed");
 
-            bg_rx.recv().unwrap();
+            bg_rx.recv().expect("should recv kick from fg");
             drop(req);
         });
         let mut count = 0;
@@ -716,7 +740,7 @@ mod chip {
                 }
                 count += 1;
                 // kick the bg thread
-                bg_tx.send(1).unwrap();
+                bg_tx.send(1).expect("kick bg should succeed");
             }
         }
         let res = t.join();
@@ -738,7 +762,7 @@ mod chip {
             .on_chip(s.dev_path())
             .with_line(offset)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         assert_eq!(
             c.wait_line_info_change_event(INFO_CHANGE_EVENT_WAIT),
@@ -762,7 +786,7 @@ mod chip {
     fn detect_abi_version() {
         // assumes a kernel with both v1 and v2 supported.
         let s = Simpleton::new(4);
-        let c = Chip::from_path(s.dev_path()).unwrap();
+        let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
         #[cfg(feature = "uapi_v2")]
         assert_eq!(c.detect_abi_version(), Ok(gpiocdev::AbiVersion::V2));
         #[cfg(not(feature = "uapi_v2"))]
@@ -773,7 +797,7 @@ mod chip {
     fn supports_abi_version() {
         // assumes a kernel with both v1 and v2 supported.
         let s = Simpleton::new(4);
-        let c = Chip::from_path(s.dev_path()).unwrap();
+        let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
         #[cfg(feature = "uapi_v1")]
         assert_eq!(c.supports_abi_version(gpiocdev::AbiVersion::V1), Ok(()));
         #[cfg(not(feature = "uapi_v1"))]
@@ -802,7 +826,7 @@ mod chip {
         let s = Simpleton::new(3);
         let offset = 2;
 
-        let mut c = Chip::from_path(s.dev_path()).unwrap();
+        let mut c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
 
         let req = Request::builder()
             .on_chip(s.dev_path())
@@ -811,10 +835,10 @@ mod chip {
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
             .with_event_clock(gpiocdev::line::EventClock::Realtime)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         // defaults to v2
-        let info_v2 = c.line_info(offset).unwrap();
+        let info_v2 = c.line_info(offset).expect("line_info should exist");
         assert_eq!(info_v2.direction, gpiocdev::line::Direction::Input);
         assert_eq!(
             info_v2.edge_detection,
@@ -827,7 +851,7 @@ mod chip {
 
         // using v1
         c.using_abi_version(gpiocdev::AbiVersion::V1);
-        let info_v1 = c.line_info(offset).unwrap();
+        let info_v1 = c.line_info(offset).expect("line_info should exist");
         assert_eq!(info_v1.offset, offset);
         assert_eq!(info_v1.direction, gpiocdev::line::Direction::Input);
         // v1 does not report edge detection, event clock or debounce period
@@ -839,7 +863,7 @@ mod chip {
         c.using_abi_version(gpiocdev::AbiVersion::V2);
 
         // using v2 again
-        let info_v2b = c.line_info(offset).unwrap();
+        let info_v2b = c.line_info(offset).expect("line_info should exist");
         assert_eq!(info_v2, info_v2b);
 
         drop(req);
@@ -847,12 +871,12 @@ mod chip {
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn new_chip(path: &Path, abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
-        let mut c = Chip::from_path(path).unwrap();
+        let mut c = Chip::from_path(path).expect("chip should exist");
         c.using_abi_version(abiv);
         c
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn new_chip(path: &Path, _abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
-        Chip::from_path(path).unwrap()
+        Chip::from_path(path).expect("chip should exist")
     }
 }

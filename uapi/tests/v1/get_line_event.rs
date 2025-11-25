@@ -8,7 +8,7 @@ use crate::common::{wait_propagation_delay, EVENT_WAIT_TIMEOUT};
 #[test]
 fn as_is() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er = EventRequest {
         consumer: "as_is".into(),
@@ -18,8 +18,8 @@ fn as_is() {
         ..Default::default()
     };
 
-    let l = get_line_event(&f, er.clone()).unwrap();
-    let info = get_line_info(&f, offset).unwrap();
+    let l = get_line_event(&f, er.clone()).expect("get_line_event should succeed");
+    let info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, LineInfoFlags::USED);
     // v1 does not report edge flags in the info, so nothing more to check
@@ -33,12 +33,12 @@ fn as_is() {
         ..Default::default()
     };
     hr.offsets.set(0, offset);
-    let l = get_line_handle(&f, hr).unwrap();
+    let l = get_line_handle(&f, hr).expect("get_line_handle should succeed");
     drop(l);
 
     // switched to input
-    let l = get_line_event(&f, er).unwrap();
-    let info = get_line_info(&f, offset).unwrap();
+    let l = get_line_event(&f, er).expect("get_line_event should succeed");
+    let info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_is");
     assert_eq!(info.flags, LineInfoFlags::USED);
     // v1 does not report edge flags in the info, so nothing more to check
@@ -48,7 +48,7 @@ fn as_is() {
 #[test]
 fn as_input() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er = EventRequest {
         consumer: "as_input".into(),
@@ -58,8 +58,8 @@ fn as_input() {
         ..Default::default()
     };
 
-    let l = get_line_event(&f, er).unwrap();
-    let info = get_line_info(&f, offset).unwrap();
+    let l = get_line_event(&f, er).expect("get_line_event should succeed");
+    let info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "as_input");
     assert_eq!(info.flags, LineInfoFlags::USED);
     // v1 does not report edge flags in the info, so nothing more to check
@@ -69,7 +69,7 @@ fn as_input() {
 #[test]
 fn as_output() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er = EventRequest {
         consumer: "as_output".into(),
@@ -80,7 +80,7 @@ fn as_output() {
     };
 
     assert_eq!(
-        get_line_event(&f, er).unwrap_err(),
+        get_line_event(&f, er).expect_err("get_line_event should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -88,7 +88,7 @@ fn as_output() {
 #[test]
 fn with_both_edges() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er = EventRequest {
         offset,
@@ -97,39 +97,39 @@ fn with_both_edges() {
         ..Default::default()
     };
 
-    let l = get_line_event(&f, er).unwrap();
+    let l = get_line_event(&f, er).expect("get_line_event should succeed");
 
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
 
     let mut buf = vec![0_u64; LineEdgeEvent::u64_size()];
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
+    let mut event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
 
-    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
+    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).expect("wait_event should succeed"));
 
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
 
     drop(l);
@@ -138,7 +138,7 @@ fn with_both_edges() {
 #[test]
 fn with_rising_edge() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er = EventRequest {
         offset,
@@ -147,41 +147,41 @@ fn with_rising_edge() {
         ..Default::default()
     };
 
-    let l = get_line_event(&f, er).unwrap();
+    let l = get_line_event(&f, er).expect("get_line_event should succeed");
 
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
 
     let mut buf = vec![0_u64; LineEdgeEvent::u64_size()];
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
+    let mut event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
 
-    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
+    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).expect("wait_event should succeed"));
 
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
 
-    assert!(!has_event(&l).unwrap());
+    assert!(!has_event(&l).expect("has_event should succeed"));
 
     drop(l);
 }
@@ -189,7 +189,7 @@ fn with_rising_edge() {
 #[test]
 fn with_falling_edge() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er = EventRequest {
         offset,
@@ -198,41 +198,41 @@ fn with_falling_edge() {
         ..Default::default()
     };
 
-    let l = get_line_event(&f, er).unwrap();
+    let l = get_line_event(&f, er).expect("get_line_event should succeed");
 
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
 
     let mut buf = vec![0_u64; LineEdgeEvent::u64_size()];
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
+    let mut event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
 
-    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
+    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).expect("wait_event should succeed"));
 
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
 
-    assert!(!has_event(&l).unwrap());
+    assert!(!has_event(&l).expect("has_event should succeed"));
 
     drop(l);
 }
@@ -240,7 +240,7 @@ fn with_falling_edge() {
 #[test]
 fn without_consumer() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er = EventRequest {
         offset,
@@ -248,39 +248,39 @@ fn without_consumer() {
         ..Default::default()
     };
 
-    let l = get_line_event(&f, er).unwrap();
+    let l = get_line_event(&f, er).expect("get_line_event should succeed");
 
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
 
     let mut buf = vec![0_u64; LineEdgeEvent::u64_size()];
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    let mut event = LineEdgeEvent::from_slice(&buf).unwrap();
+    let mut event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
 
-    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).unwrap());
+    assert!(!wait_event(&l, EVENT_WAIT_TIMEOUT).expect("wait_event should succeed"));
 
-    s.pullup(offset).unwrap();
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    s.pulldown(offset).unwrap();
+    s.pulldown(offset).expect("pulldown should succeed");
     wait_propagation_delay();
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::RisingEdge as u32);
 
-    assert!(has_event(&l).unwrap());
+    assert!(has_event(&l).expect("has_event should succeed"));
     assert_eq!(read_event(&l, &mut buf), Ok(LineEdgeEvent::u64_size()));
-    event = LineEdgeEvent::from_slice(&buf).unwrap();
+    event = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
     assert_eq!(event.kind, LineEdgeEventKind::FallingEdge as u32);
 
     drop(l);
@@ -289,7 +289,7 @@ fn without_consumer() {
 #[test]
 fn with_offset_out_of_range() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 4;
     let er = EventRequest {
         offset,
@@ -299,7 +299,7 @@ fn with_offset_out_of_range() {
         ..Default::default()
     };
     assert_eq!(
-        get_line_event(&f, er).unwrap_err(),
+        get_line_event(&f, er).expect_err("get_line_event should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -307,7 +307,7 @@ fn with_offset_out_of_range() {
 #[test]
 fn while_busy() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er = EventRequest {
         consumer: "while_busy".into(),
@@ -317,10 +317,10 @@ fn while_busy() {
         ..Default::default()
     };
 
-    let l: fs::File = get_line_event(&f, er.clone()).unwrap();
+    let l: fs::File = get_line_event(&f, er.clone()).expect("get_line_event should succeed");
 
     assert_eq!(
-        get_line_event(&f, er).unwrap_err(),
+        get_line_event(&f, er).expect_err("get_line_event should fail"),
         Error::Os(Errno(libc::EBUSY))
     );
     drop(l);
@@ -329,7 +329,7 @@ fn while_busy() {
 #[test]
 fn with_multiple_bias_flags() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er_base = EventRequest {
         consumer: "with_multiple_bias_flags".into(),
@@ -343,7 +343,7 @@ fn with_multiple_bias_flags() {
     er.handleflags |= HandleRequestFlags::BIAS_PULL_UP;
     er.handleflags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        get_line_event(&f, er).unwrap_err(),
+        get_line_event(&f, er).expect_err("get_line_event should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
 
@@ -351,7 +351,7 @@ fn with_multiple_bias_flags() {
     er.handleflags |= HandleRequestFlags::BIAS_PULL_UP;
     er.handleflags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        get_line_event(&f, er).unwrap_err(),
+        get_line_event(&f, er).expect_err("get_line_event should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
 
@@ -359,7 +359,7 @@ fn with_multiple_bias_flags() {
     er.handleflags |= HandleRequestFlags::BIAS_PULL_DOWN;
     er.handleflags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        get_line_event(&f, er).unwrap_err(),
+        get_line_event(&f, er).expect_err("get_line_event should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
 }
@@ -367,7 +367,7 @@ fn with_multiple_bias_flags() {
 #[test]
 fn with_drive_flags() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let er_base = EventRequest {
         consumer: "with_drive_flags".into(),
@@ -379,14 +379,14 @@ fn with_drive_flags() {
     let mut er = er_base.clone();
     er.handleflags |= HandleRequestFlags::OPEN_DRAIN;
     assert_eq!(
-        get_line_event(&f, er).unwrap_err(),
+        get_line_event(&f, er).expect_err("get_line_event should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
 
     er = er_base;
     er.handleflags |= HandleRequestFlags::OPEN_SOURCE;
     assert_eq!(
-        get_line_event(&f, er).unwrap_err(),
+        get_line_event(&f, er).expect_err("get_line_event should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
 }

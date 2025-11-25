@@ -26,17 +26,17 @@ fn find_named_line() {
                 .name(5, "fl apple"),
         )
         .live()
-        .unwrap();
+        .expect("gpiosim should go live");
 
-    let l = gpiocdev::find_named_line("fl banana").unwrap();
+    let l = gpiocdev::find_named_line("fl banana").expect("line should be found");
     assert_eq!(l.chip, *sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
 
-    let l = gpiocdev::find_named_line("fl piggly").unwrap();
+    let l = gpiocdev::find_named_line("fl piggly").expect("line should be found");
     assert_eq!(&l.chip, sim.chips()[1].dev_path());
     assert_eq!(l.info.offset, 4);
 
-    let l = gpiocdev::find_named_line("fl apple").unwrap();
+    let l = gpiocdev::find_named_line("fl apple").expect("line should be found");
     // depending on how other tests are running, the order of the sim chips is not 100% predictable.
     if path_compare(sim.chips()[0].dev_path(), sim.chips()[1].dev_path()) == Ordering::Less {
         assert_eq!(&l.chip, sim.chips()[0].dev_path());
@@ -64,23 +64,23 @@ fn find_named_lines() {
                 .name(5, "fls apple"),
         )
         .live()
-        .unwrap();
+        .expect("gpiosim should go live");
 
-    let found = gpiocdev::find_named_lines(&["fls banana"], true).unwrap();
+    let found = gpiocdev::find_named_lines(&["fls banana"], true).expect("line should be found");
     assert_eq!(found.len(), 1);
-    let l = found.get(&"fls banana").unwrap();
+    let l = found.get(&"fls banana").expect("line should be found");
     assert_eq!(&l.chip, sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
 
-    let found = gpiocdev::find_named_lines(&["fls piggly"], true).unwrap();
+    let found = gpiocdev::find_named_lines(&["fls piggly"], true).expect("line should be found");
     assert_eq!(found.len(), 1);
-    let l = found.get(&"fls piggly").unwrap();
+    let l = found.get(&"fls piggly").expect("line should be found");
     assert_eq!(&l.chip, sim.chips()[1].dev_path());
     assert_eq!(l.info.offset, 4);
 
-    let found = gpiocdev::find_named_lines(&["fls apple"], false).unwrap();
+    let found = gpiocdev::find_named_lines(&["fls apple"], false).expect("line should be found");
     assert_eq!(found.len(), 1);
-    let l = found.get(&"fls apple").unwrap();
+    let l = found.get(&"fls apple").expect("line should be found");
     if path_compare(sim.chips()[0].dev_path(), sim.chips()[1].dev_path()) == Ordering::Less {
         assert_eq!(&l.chip, sim.chips()[0].dev_path());
         assert_eq!(l.info.offset, 6);
@@ -95,18 +95,19 @@ fn find_named_lines() {
         Err(gpiocdev::Error::NonuniqueLineName("fls apple".to_string()))
     );
 
-    let found = gpiocdev::find_named_lines(&["fls banana", "fls piggly"], true).unwrap();
+    let found = gpiocdev::find_named_lines(&["fls banana", "fls piggly"], true)
+        .expect("line should be found");
     assert_eq!(found.len(), 2);
 
-    let found = gpiocdev::find_named_lines(&["fls nada"], true).unwrap();
+    let found = gpiocdev::find_named_lines(&["fls nada"], true).expect("line should be found");
     assert_eq!(found.len(), 0);
 
-    let found =
-        gpiocdev::find_named_lines(&["fls apple", "fls banana", "fls nada"], false).unwrap();
-    let l = found.get(&"fls banana").unwrap();
+    let found = gpiocdev::find_named_lines(&["fls apple", "fls banana", "fls nada"], false)
+        .expect("line should be found");
+    let l = found.get(&"fls banana").expect("line should be found");
     assert_eq!(&l.chip, sim.chips()[0].dev_path());
     assert_eq!(l.info.offset, 3);
-    let l = found.get(&"fls apple").unwrap();
+    let l = found.get(&"fls apple").expect("line should be found");
     if path_compare(sim.chips()[0].dev_path(), sim.chips()[1].dev_path()) == Ordering::Less {
         assert_eq!(&l.chip, sim.chips()[0].dev_path());
         assert_eq!(l.info.offset, 6);

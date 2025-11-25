@@ -70,26 +70,38 @@ mod chip {
             .with_line(offset)
             .as_input()
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         async_io::block_on(async {
-            let evt = events.next().await.unwrap().unwrap();
+            let evt = events
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.kind, InfoChangeKind::Requested);
             assert_eq!(evt.info.offset, offset);
 
             // reconfigure
             let mut cfg = req.config();
             cfg.with_bias(gpiocdev::line::Bias::PullUp);
-            req.reconfigure(&cfg).unwrap();
+            req.reconfigure(&cfg).expect("reconfigure should succeed");
 
-            let evt = events.next().await.unwrap().unwrap();
+            let evt = events
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.kind, InfoChangeKind::Reconfigured);
             assert_eq!(evt.info.offset, offset);
 
             // release
             drop(req);
 
-            let evt = events.next().await.unwrap().unwrap();
+            let evt = events
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.kind, InfoChangeKind::Released);
             assert_eq!(evt.info.offset, offset);
         })
@@ -114,7 +126,7 @@ mod chip {
                 .with_line(offset)
                 .as_input()
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             async_io::block_on(async {
                 assert_eq!(
@@ -122,7 +134,10 @@ mod chip {
                     Ok(true)
                 );
                 assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(true));
-                let evt = ac.read_line_info_change_event().await.unwrap();
+                let evt = ac
+                    .read_line_info_change_event()
+                    .await
+                    .expect("read_line_info_change_event should succeed");
                 assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Requested);
                 assert_eq!(evt.info.offset, offset);
                 assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
@@ -138,13 +153,16 @@ mod chip {
                         .with_debounce_period(Duration::from_millis(10));
                 }
                 assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(false));
-                req.reconfigure(&cfg).unwrap();
+                req.reconfigure(&cfg).expect("reconfigure should succeed");
                 assert_eq!(
                     ac.as_ref().wait_line_info_change_event(PROPAGATION_DELAY),
                     Ok(true)
                 );
                 assert_eq!(ac.as_ref().has_line_info_change_event(), Ok(true));
-                let evt = ac.read_line_info_change_event().await.unwrap();
+                let evt = ac
+                    .read_line_info_change_event()
+                    .await
+                    .expect("read_line_info_change_event should succeed");
                 assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Reconfigured);
                 assert_eq!(evt.info.offset, offset);
                 assert_eq!(evt.info.direction, gpiocdev::line::Direction::Input);
@@ -162,7 +180,10 @@ mod chip {
 
                 // release
                 drop(req);
-                let evt = ac.read_line_info_change_event().await.unwrap();
+                let evt = ac
+                    .read_line_info_change_event()
+                    .await
+                    .expect("read_line_info_change_event should succeed");
                 assert_eq!(evt.kind, gpiocdev::line::InfoChangeKind::Released);
                 assert_eq!(evt.info.offset, offset);
                 assert_eq!(evt.info.edge_detection, None);
@@ -173,13 +194,13 @@ mod chip {
 
     #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
     fn new_chip(path: &Path, abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
-        let mut c = Chip::from_path(path).unwrap();
+        let mut c = Chip::from_path(path).expect("chip should exist");
         c.using_abi_version(abiv);
         c
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn new_chip(path: &Path, _abiv: gpiocdev::AbiVersion) -> gpiocdev::chip::Chip {
-        Chip::from_path(path).unwrap()
+        Chip::from_path(path).expect("chip should exist")
     }
 }
 
@@ -240,8 +261,11 @@ mod request {
             let res = future::timeout(Duration::from_millis(10), req.read_edge_event()).await;
             assert!(res.is_err());
 
-            s.pullup(offset).unwrap();
-            let evt = req.read_edge_event().await.unwrap();
+            s.pullup(offset).expect("pullup should succeed");
+            let evt = req
+                .read_edge_event()
+                .await
+                .expect("read_edge_event should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Rising);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -253,8 +277,11 @@ mod request {
             let res = future::timeout(Duration::from_millis(10), req.read_edge_event()).await;
             assert!(res.is_err());
 
-            s.pulldown(offset).unwrap();
-            let evt = req.read_edge_event().await.unwrap();
+            s.pulldown(offset).expect("pulldown should succeed");
+            let evt = req
+                .read_edge_event()
+                .await
+                .expect("read_edge_event should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Falling);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -278,13 +305,13 @@ mod request {
         let mut buf = vec![0_u64; evt_u64_size * 3];
 
         // create four events
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
 
         async_io::block_on(async {
@@ -292,10 +319,13 @@ mod request {
             let wlen = req
                 .read_edge_events_into_slice(buf.as_mut_slice())
                 .await
-                .unwrap();
+                .expect("read_edge_events_into_slice should succeed");
             assert_eq!(wlen, buf.capacity());
 
-            let evt = req.as_ref().edge_event_from_slice(buf.as_slice()).unwrap();
+            let evt = req
+                .as_ref()
+                .edge_event_from_slice(buf.as_slice())
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Rising);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -309,7 +339,7 @@ mod request {
             let evt = req
                 .as_ref()
                 .edge_event_from_slice(&buf.as_slice()[evt_u64_size..])
-                .unwrap();
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Falling);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -323,7 +353,7 @@ mod request {
             let evt = req
                 .as_ref()
                 .edge_event_from_slice(&buf.as_slice()[evt_u64_size * 2..])
-                .unwrap();
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Rising);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -338,10 +368,13 @@ mod request {
             let wlen = req
                 .read_edge_events_into_slice(buf.as_mut_slice())
                 .await
-                .unwrap();
+                .expect("read_edge_events_into_slice should succeed");
             assert_eq!(wlen, req.as_ref().edge_event_u64_size());
 
-            let evt = req.as_ref().edge_event_from_slice(buf.as_slice()).unwrap();
+            let evt = req
+                .as_ref()
+                .edge_event_from_slice(buf.as_slice())
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Falling);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -361,19 +394,23 @@ mod request {
         let req = AsyncRequest::new(new_request(s.dev_path(), offset, abiv));
 
         // create four events
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
 
         let mut iter = req.new_edge_event_stream(2);
 
         async_io::block_on(async {
-            let evt = iter.next().await.unwrap().unwrap();
+            let evt = iter
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Rising);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -384,7 +421,11 @@ mod request {
                 assert_eq!(evt.seqno, 0);
             }
 
-            let evt = iter.next().await.unwrap().unwrap();
+            let evt = iter
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Falling);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -395,7 +436,11 @@ mod request {
                 assert_eq!(evt.seqno, 0);
             }
 
-            let evt = iter.next().await.unwrap().unwrap();
+            let evt = iter
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Rising);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -406,7 +451,11 @@ mod request {
                 assert_eq!(evt.seqno, 0);
             }
 
-            let evt = iter.next().await.unwrap().unwrap();
+            let evt = iter
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Falling);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -426,19 +475,23 @@ mod request {
         let req = AsyncRequest::new(new_request(s.dev_path(), offset, abiv));
 
         // create four events
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
 
         let mut iter = req.edge_events();
 
         async_io::block_on(async {
-            let evt = iter.next().await.unwrap().unwrap();
+            let evt = iter
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Rising);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -449,7 +502,11 @@ mod request {
                 assert_eq!(evt.seqno, 0);
             }
 
-            let evt = iter.next().await.unwrap().unwrap();
+            let evt = iter
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Falling);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -460,7 +517,11 @@ mod request {
                 assert_eq!(evt.seqno, 0);
             }
 
-            let evt = iter.next().await.unwrap().unwrap();
+            let evt = iter
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Rising);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -471,7 +532,11 @@ mod request {
                 assert_eq!(evt.seqno, 0);
             }
 
-            let evt = iter.next().await.unwrap().unwrap();
+            let evt = iter
+                .next()
+                .await
+                .expect("next should return Some")
+                .expect("event exists");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, gpiocdev::line::EdgeKind::Falling);
             if abiv == gpiocdev::AbiVersion::V2 {
@@ -495,7 +560,7 @@ mod request {
 
         builder.using_abi_version(abiv);
 
-        builder.request().unwrap()
+        builder.request().expect("request should succeed")
     }
     #[cfg(not(all(feature = "uapi_v1", feature = "uapi_v2")))]
     fn new_request(path: &Path, offset: Offset, _abiv: gpiocdev::AbiVersion) -> gpiocdev::Request {
@@ -506,6 +571,6 @@ mod request {
             .as_input()
             .with_edge_detection(gpiocdev::line::EdgeDetection::BothEdges)
             .request()
-            .unwrap()
+            .expect("request should succeed")
     }
 }

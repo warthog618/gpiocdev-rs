@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn check_info() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -23,8 +23,8 @@ fn check_info() {
     };
 
     // baseline
-    let l = get_line_handle(&f, hr).unwrap();
-    let mut info = get_line_info(&f, offset).unwrap();
+    let l = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    let mut info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     let xflags = LineInfoFlags::USED | LineInfoFlags::OUTPUT;
     assert_eq!(info.flags, xflags);
@@ -33,7 +33,7 @@ fn check_info() {
     let mut hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::ACTIVE_LOW;
     assert_eq!(set_line_config(&l, hc), Ok(()));
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::ACTIVE_LOW);
 
@@ -41,21 +41,21 @@ fn check_info() {
     let mut hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(set_line_config(&l, hc), Ok(()));
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::BIAS_DISABLED);
 
     hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(set_line_config(&l, hc), Ok(()));
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::BIAS_PULL_DOWN);
 
     hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::BIAS_PULL_UP;
     assert_eq!(set_line_config(&l, hc), Ok(()));
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::BIAS_PULL_UP);
 
@@ -63,14 +63,14 @@ fn check_info() {
     hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::OPEN_DRAIN;
     assert_eq!(set_line_config(&l, hc), Ok(()));
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::OPEN_DRAIN);
 
     hc = hc_base.clone();
     hc.flags |= HandleRequestFlags::OPEN_SOURCE;
     assert_eq!(set_line_config(&l, hc), Ok(()));
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, xflags | LineInfoFlags::OPEN_SOURCE);
 
@@ -78,7 +78,7 @@ fn check_info() {
     hc = hc_base;
     hc.flags = HandleRequestFlags::INPUT;
     assert_eq!(set_line_config(&l, hc), Ok(()));
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     assert_eq!(info.flags, LineInfoFlags::USED);
 
@@ -89,7 +89,7 @@ fn check_info() {
 #[test]
 fn with_multiple_bias_flags() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -105,8 +105,8 @@ fn with_multiple_bias_flags() {
     };
 
     // baseline
-    let l = get_line_handle(&f, hr).unwrap();
-    let mut info = get_line_info(&f, offset).unwrap();
+    let l = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    let mut info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -118,10 +118,10 @@ fn with_multiple_bias_flags() {
     hc.flags |= HandleRequestFlags::BIAS_PULL_UP;
     hc.flags |= HandleRequestFlags::BIAS_DISABLED;
     assert_eq!(
-        set_line_config(&f, hc).unwrap_err(),
+        set_line_config(&f, hc).expect_err("set_line_config should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -132,10 +132,10 @@ fn with_multiple_bias_flags() {
     hc.flags |= HandleRequestFlags::BIAS_PULL_UP;
     hc.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        set_line_config(&f, hc).unwrap_err(),
+        set_line_config(&f, hc).expect_err("set_line_config should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -146,10 +146,10 @@ fn with_multiple_bias_flags() {
     hc.flags |= HandleRequestFlags::BIAS_DISABLED;
     hc.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
     assert_eq!(
-        set_line_config(&f, hc).unwrap_err(),
+        set_line_config(&f, hc).expect_err("set_line_config should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_bias_flags"
@@ -162,7 +162,7 @@ fn with_multiple_bias_flags() {
 #[test]
 fn with_multiple_drive_flags() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -172,8 +172,8 @@ fn with_multiple_drive_flags() {
     };
     hr.offsets.set(0, offset);
 
-    let l = get_line_handle(&f, hr).unwrap();
-    let mut info = get_line_info(&f, offset).unwrap();
+    let l = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    let mut info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_drive_flags"
@@ -188,10 +188,10 @@ fn with_multiple_drive_flags() {
         ..Default::default()
     };
     assert_eq!(
-        set_line_config(&f, hc).unwrap_err(),
+        set_line_config(&f, hc).expect_err("set_line_config should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "with_multiple_drive_flags"
@@ -204,7 +204,7 @@ fn with_multiple_drive_flags() {
 #[test]
 fn without_direction() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let mut hr = HandleRequest {
         num_lines: 1,
@@ -214,8 +214,8 @@ fn without_direction() {
     };
     hr.offsets.set(0, offset);
 
-    let l = get_line_handle(&f, hr).unwrap();
-    let mut info = get_line_info(&f, offset).unwrap();
+    let l = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    let mut info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "without_direction"
@@ -225,10 +225,10 @@ fn without_direction() {
 
     let hc = HandleConfig::default();
     assert_eq!(
-        set_line_config(&f, hc).unwrap_err(),
+        set_line_config(&f, hc).expect_err("set_line_config should fail"),
         Error::Os(Errno(libc::EINVAL))
     );
-    info = get_line_info(&f, offset).unwrap();
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(
         info.consumer.as_os_str().to_string_lossy(),
         "without_direction"

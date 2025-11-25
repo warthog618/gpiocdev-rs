@@ -8,7 +8,7 @@ use crate::common::EVENT_WAIT_TIMEOUT;
 #[test]
 fn unwatch() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
 
     // while unwatched
@@ -18,7 +18,7 @@ fn unwatch() {
     );
 
     // watched
-    let info = watch_line_info(&f, offset).unwrap();
+    let info = watch_line_info(&f, offset).expect("watch_line_info should succeed");
     assert_eq!(info.offset, offset);
 
     assert_eq!(unwatch_line_info(&f, offset), Ok(()));
@@ -30,16 +30,16 @@ fn unwatch() {
     };
     hr.offsets.set(0, offset);
 
-    let l: fs::File = get_line_handle(&f, hr).unwrap();
-    assert!(!wait_event(&f, EVENT_WAIT_TIMEOUT).unwrap());
+    let l: fs::File = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    assert!(!wait_event(&f, EVENT_WAIT_TIMEOUT).expect("wait_event should succeed"));
     drop(l);
-    assert!(!wait_event(&f, EVENT_WAIT_TIMEOUT).unwrap());
+    assert!(!wait_event(&f, EVENT_WAIT_TIMEOUT).expect("wait_event should succeed"));
 }
 
 #[test]
 fn with_offset_out_of_range() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 4;
 
     assert_eq!(

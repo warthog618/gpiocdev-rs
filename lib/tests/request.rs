@@ -61,15 +61,15 @@ mod builder {
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             builder.using_abi_version(V1);
 
-            let res = builder
-                .on_chip(s.dev_path())
-                .with_line(1)
-                .as_input()
-                .with_edge_detection(EdgeDetection::BothEdges)
-                .with_debounce_period(Duration::from_millis(4))
-                .request();
             assert_eq!(
-                res.unwrap_err(),
+                builder
+                    .on_chip(s.dev_path())
+                    .with_line(1)
+                    .as_input()
+                    .with_edge_detection(EdgeDetection::BothEdges)
+                    .with_debounce_period(Duration::from_millis(4))
+                    .request()
+                    .expect_err("request should fail"),
                 gpiocdev::Error::AbiLimitation(V1, "does not support debounce".into(),)
             );
         }
@@ -82,15 +82,15 @@ mod builder {
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             builder.using_abi_version(V1);
 
-            let res = builder
-                .on_chip(s.dev_path())
-                .with_line(1)
-                .as_input()
-                .with_edge_detection(EdgeDetection::BothEdges)
-                .with_event_clock(gpiocdev::line::EventClock::Realtime)
-                .request();
             assert_eq!(
-                res.unwrap_err(),
+                builder
+                    .on_chip(s.dev_path())
+                    .with_line(1)
+                    .as_input()
+                    .with_edge_detection(EdgeDetection::BothEdges)
+                    .with_event_clock(gpiocdev::line::EventClock::Realtime)
+                    .request()
+                    .expect_err("request should fail"),
                 gpiocdev::Error::AbiLimitation(
                     V1,
                     "does not support selecting the event clock source".into(),
@@ -106,15 +106,15 @@ mod builder {
             #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
             builder.using_abi_version(V1);
 
-            let res = builder
-                .on_chip(s.dev_path())
-                .with_line(1)
-                .as_input()
-                .with_edge_detection(EdgeDetection::BothEdges)
-                .with_kernel_event_buffer_size(42)
-                .request();
             assert_eq!(
-                res.unwrap_err(),
+                builder
+                    .on_chip(s.dev_path())
+                    .with_line(1)
+                    .as_input()
+                    .with_edge_detection(EdgeDetection::BothEdges)
+                    .with_kernel_event_buffer_size(42)
+                    .request()
+                    .expect_err("request should fail"),
                 gpiocdev::Error::AbiLimitation(
                     V1,
                     "does not support setting event buffer size".into(),
@@ -141,20 +141,17 @@ mod builder {
                 .request();
             assert!(req.is_ok());
             if let Ok(req) = req {
-                let cfg = req.line_config(1);
-                assert!(cfg.is_none());
-                let cfg = req.line_config(2);
+                assert!(req.line_config(1).is_none());
                 assert_eq!(
-                    cfg,
+                    req.line_config(2),
                     Some(Config {
                         direction: Some(Direction::Output),
                         value: Some(Value::Inactive),
                         ..Default::default()
                     })
                 );
-                let cfg = req.line_config(3);
                 assert_eq!(
-                    cfg,
+                    req.line_config(3),
                     Some(Config {
                         direction: Some(Direction::Output),
                         value: Some(Value::Active),
@@ -193,13 +190,14 @@ mod builder {
                 cfg.with_line(offset)
                     .with_debounce_period(Duration::from_millis(offset as u64));
             }
-            let res = Request::builder()
-                .with_config(cfg)
-                .on_chip(s.dev_path())
-                .as_input()
-                .request();
             assert_eq!(
-                res.unwrap_err().to_string(),
+                Request::builder()
+                    .with_config(cfg)
+                    .on_chip(s.dev_path())
+                    .as_input()
+                    .request()
+                    .expect_err("request should fail")
+                    .to_string(),
                 "uAPI ABI v2 supports 10 attrs, configuration requires 19."
             );
         }
@@ -207,7 +205,7 @@ mod builder {
         #[test]
         fn request_debounced() {
             let s = Simpleton::new(10);
-            let c = Chip::from_path(s.dev_path()).unwrap();
+            let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
             let offset = 1;
 
             let req = Request::builder()
@@ -217,9 +215,9 @@ mod builder {
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .with_debounce_period(Duration::from_millis(4))
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
-            let info = c.line_info(offset).unwrap();
+            let info = c.line_info(offset).expect("line_info should exist");
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Input);
             assert_eq!(info.edge_detection, Some(EdgeDetection::BothEdges));
@@ -232,7 +230,7 @@ mod builder {
         #[test]
         fn request_debounced_zero() {
             let s = Simpleton::new(10);
-            let c = Chip::from_path(s.dev_path()).unwrap();
+            let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
             let offset = 1;
 
             let req = Request::builder()
@@ -242,9 +240,9 @@ mod builder {
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .with_debounce_period(Duration::ZERO)
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
-            let info = c.line_info(offset).unwrap();
+            let info = c.line_info(offset).expect("line_info should exist");
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Input);
             assert_eq!(info.edge_detection, Some(EdgeDetection::BothEdges));
@@ -257,7 +255,7 @@ mod builder {
         #[test]
         fn request_event_clock() {
             let s = Simpleton::new(10);
-            let c = Chip::from_path(s.dev_path()).unwrap();
+            let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
             let offset = 1;
 
             let mut builder = Request::builder();
@@ -268,9 +266,9 @@ mod builder {
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .with_event_clock(EventClock::Monotonic);
 
-            let req = builder.request().unwrap();
+            let req = builder.request().expect("request should succeed");
 
-            let info = c.line_info(offset).unwrap();
+            let info = c.line_info(offset).expect("line_info should exist");
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Input);
             assert_eq!(info.edge_detection, Some(EdgeDetection::BothEdges));
@@ -286,9 +284,9 @@ mod builder {
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .with_event_clock(EventClock::Realtime);
 
-            let req = builder.request().unwrap();
+            let req = builder.request().expect("request should succeed");
 
-            let info = c.line_info(offset).unwrap();
+            let info = c.line_info(offset).expect("line_info should exist");
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Input);
             assert_eq!(info.edge_detection, Some(EdgeDetection::BothEdges));
@@ -296,19 +294,18 @@ mod builder {
 
             drop(req);
 
-            let res = builder.with_event_clock(EventClock::Hte).request();
             // error code depends on kernel build.
             // - with CONFIG_HTE -> 19 (ENODEV - assuming no dev present)
             // - without CONFIG_HTE -> 95 (EOPNOTSUPP)
             assert!(matches!(
-                res.unwrap_err(),
-                gpiocdev::Error::Uapi(
+                builder.with_event_clock(EventClock::Hte).request(),
+                Err(gpiocdev::Error::Uapi(
                     gpiocdev::UapiCall::GetLine,
                     gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(19))
-                ) | gpiocdev::Error::Uapi(
+                )) | Err(gpiocdev::Error::Uapi(
                     gpiocdev::UapiCall::GetLine,
                     gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(95))
-                )
+                ))
             ));
         }
 
@@ -316,15 +313,15 @@ mod builder {
         fn request_kernel_event_buffer_size() {
             let s = Simpleton::new(10);
 
-            let res = Request::builder()
+            assert!(Request::builder()
                 .on_chip(s.dev_path())
                 .with_line(1)
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .with_kernel_event_buffer_size(128)
-                .request();
+                .request()
+                .is_ok());
 
-            assert!(res.is_ok());
             // a more complete test would be to generate events and overflow
             // the kernel buffer, but the size is only a hint, so the test would
             // have to make assumptions about kernel internals.
@@ -344,19 +341,16 @@ mod builder {
                 .request();
             assert!(req.is_ok());
             if let Ok(req) = req {
-                let cfg = req.line_config(1);
-                assert!(cfg.is_none());
-                let cfg = req.line_config(2);
+                assert!(req.line_config(1).is_none());
                 assert_eq!(
-                    cfg,
+                    req.line_config(2),
                     Some(Config {
                         direction: Some(Direction::Input),
                         ..Default::default()
                     })
                 );
-                let cfg = req.line_config(3);
                 assert_eq!(
-                    cfg,
+                    req.line_config(3),
                     Some(Config {
                         direction: Some(Direction::Output),
                         value: Some(Value::Active),
@@ -372,7 +366,7 @@ mod builder {
 
         // config menagerie on simpleton
         let s = Simpleton::new(10);
-        let c = Chip::from_path(s.dev_path()).unwrap();
+        let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 1;
 
         let mut builder = Request::builder();
@@ -382,16 +376,22 @@ mod builder {
 
         // -- single line outputs, all field variants
 
-        let req = builder.as_output(Value::Inactive).request().unwrap();
+        let req = builder
+            .as_output(Value::Inactive)
+            .request()
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, None);
         assert_eq!(info.drive, Some(Drive::PushPull));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(s.get_level(offset).unwrap(), Level::Low);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            Level::Low
+        );
 
         drop(req);
         let req = builder
@@ -399,16 +399,19 @@ mod builder {
             .with_bias(gpiocdev::line::Bias::PullUp)
             .with_drive(gpiocdev::line::Drive::OpenDrain)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::PullUp));
         assert_eq!(info.drive, Some(Drive::OpenDrain));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(s.get_level(offset).unwrap(), Level::High);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            Level::High
+        );
 
         drop(req);
         let req = builder
@@ -416,16 +419,19 @@ mod builder {
             .with_bias(gpiocdev::line::Bias::PullDown)
             .with_drive(gpiocdev::line::Drive::OpenSource)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::PullDown));
         assert_eq!(info.drive, Some(Drive::OpenSource));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(s.get_level(offset).unwrap(), Level::Low);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            Level::Low
+        );
 
         drop(req);
         let req = builder
@@ -433,16 +439,19 @@ mod builder {
             .with_drive(Drive::PushPull)
             .as_output(Value::Active)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::Disabled));
         assert_eq!(info.drive, Some(Drive::PushPull));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(s.get_level(offset).unwrap(), Level::High);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            Level::High
+        );
 
         drop(req);
 
@@ -453,18 +462,22 @@ mod builder {
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
 
-        let req = builder.request().unwrap();
+        let req = builder.request().expect("request should succeed");
 
-        s.set_pull(offset, Level::High).unwrap();
+        s.set_pull(offset, Level::High)
+            .expect("set_pull should succeed");
         wait_propagation_delay();
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Input);
         assert_eq!(info.bias, None);
         assert_eq!(info.drive, None);
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(req.value(offset).unwrap(), Value::Active);
+        assert_eq!(
+            req.value(offset).expect("get_level should succeed"),
+            Value::Active
+        );
 
         drop(req);
         let req = builder
@@ -472,9 +485,9 @@ mod builder {
             .with_bias(Bias::PullUp)
             .with_edge_detection(EdgeDetection::RisingEdge)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(info.active_low);
         assert_eq!(info.direction, Direction::Input);
         assert_eq!(info.bias, Some(Bias::PullUp));
@@ -484,7 +497,10 @@ mod builder {
         } else {
             assert_eq!(info.edge_detection, None);
         }
-        assert_eq!(req.value(offset).unwrap(), Value::Inactive);
+        assert_eq!(
+            req.value(offset).expect("get_level should succeed"),
+            Value::Inactive
+        );
 
         drop(req);
         let req = builder
@@ -492,9 +508,9 @@ mod builder {
             .with_bias(Bias::PullDown)
             .with_edge_detection(EdgeDetection::FallingEdge)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Input);
         assert_eq!(info.bias, Some(Bias::PullDown));
@@ -505,16 +521,19 @@ mod builder {
             assert_eq!(info.edge_detection, None);
         }
         assert_eq!(info.debounce_period, None);
-        assert_eq!(req.value(offset).unwrap(), Value::Inactive);
+        assert_eq!(
+            req.value(offset).expect("get_level should succeed"),
+            Value::Inactive
+        );
 
         drop(req);
         let req = builder
             .with_bias(Bias::Disabled)
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Input);
         assert_eq!(info.bias, Some(Bias::Disabled));
@@ -525,7 +544,10 @@ mod builder {
             assert_eq!(info.edge_detection, None);
         }
         assert_eq!(info.debounce_period, None);
-        assert_eq!(req.value(offset).unwrap(), Value::Inactive);
+        assert_eq!(
+            req.value(offset).expect("get_level should succeed"),
+            Value::Inactive
+        );
 
         drop(req);
 
@@ -535,9 +557,9 @@ mod builder {
         builder.on_chip(s.dev_path()).with_lines(offsets).as_input();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
-        let req = builder.request().unwrap();
+        let req = builder.request().expect("request should succeed");
         for offset in offsets {
-            let info = c.line_info(*offset).unwrap();
+            let info = c.line_info(*offset).expect("line_info should exist");
             assert!(info.used);
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Input);
@@ -551,9 +573,9 @@ mod builder {
 
         // -- multi-line output
         builder.as_output(Value::Active);
-        let req = builder.request().unwrap();
+        let req = builder.request().expect("request should succeed");
         for offset in offsets {
-            let info = c.line_info(*offset).unwrap();
+            let info = c.line_info(*offset).expect("line_info should exist");
             assert!(info.used);
             assert!(!info.active_low);
             assert_eq!(info.direction, Direction::Output);
@@ -569,7 +591,7 @@ mod builder {
     #[allow(unused_variables)]
     fn request_as_is(abiv: AbiVersion) {
         let s = Simpleton::new(4);
-        let c = Chip::from_path(s.dev_path()).unwrap();
+        let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
         let l_in = 1;
         let l_out = 3;
         let offsets = &[l_in, l_out];
@@ -583,18 +605,18 @@ mod builder {
             .with_line(l_out)
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         drop(req);
 
         let mut builder = Request::builder();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
         builder.on_chip(s.dev_path()).with_lines(offsets).as_is();
-        let req = builder.request().unwrap();
+        let req = builder.request().expect("request should succeed");
         wait_propagation_delay();
-        let info = c.line_info(l_in).unwrap();
+        let info = c.line_info(l_in).expect("line info should exist");
         assert_eq!(info.direction, Direction::Input);
-        let info = c.line_info(l_out).unwrap();
+        let info = c.line_info(l_out).expect("line_info should exist");
         assert_eq!(info.direction, Direction::Output);
 
         drop(req);
@@ -609,7 +631,7 @@ mod builder {
                     .name(5, "apple"),
             )
             .live()
-            .unwrap();
+            .expect("gpiosim should go live");
         let s = &sim.chips()[0];
 
         let line = FoundLine {
@@ -622,12 +644,16 @@ mod builder {
         let mut builder = Request::builder();
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
-        let req = builder.with_found_line(&line).as_input().request().unwrap();
-        let c = Chip::from_path(s.dev_path()).unwrap();
-        let info = c.line_info(3).unwrap();
+        let req = builder
+            .with_found_line(&line)
+            .as_input()
+            .request()
+            .expect("request should succeed");
+        let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
+        let info = c.line_info(3).expect("line_info should exist");
         assert!(info.used);
         drop(req);
-        assert!(!c.line_info(3).unwrap().used);
+        assert!(!c.line_info(3).expect("line_info should exist").used);
     }
 
     #[allow(unused_variables)]
@@ -666,13 +692,13 @@ mod builder {
             .with_found_lines(&lines)
             .as_input()
             .request()
-            .unwrap();
-        let c = Chip::from_path(s.dev_path()).unwrap();
-        assert!(c.line_info(3).unwrap().used);
-        assert!(c.line_info(5).unwrap().used);
+            .expect("request should succeed");
+        let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
+        assert!(c.line_info(3).expect("line_info should exist").used);
+        assert!(c.line_info(5).expect("line_info should exist").used);
         drop(req);
-        assert!(!c.line_info(3).unwrap().used);
-        assert!(!c.line_info(5).unwrap().used);
+        assert!(!c.line_info(3).expect("line_info should exist").used);
+        assert!(!c.line_info(5).expect("line_info should exist").used);
 
         let mut five = lines["five"].clone();
         five.chip = PathBuf::from("boguschip");
@@ -685,7 +711,7 @@ mod builder {
                 .with_found_lines(&lines)
                 .as_input()
                 .request()
-                .unwrap_err(),
+                .expect_err("request should fail"),
             gpiocdev::Error::InvalidArgument("Multiple chips requested.".into())
         );
     }
@@ -707,24 +733,33 @@ mod builder {
             .on_chip(s.dev_path())
             .with_output_lines(&vv)
             .request()
-            .unwrap();
-        let c = Chip::from_path(s.dev_path()).unwrap();
-        let linfo = c.line_info(1).unwrap();
+            .expect("request should succeed");
+        let c = Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
+        let linfo = c.line_info(1).expect("line_info should exist");
         assert!(linfo.used);
         assert_eq!(linfo.direction, Direction::Output);
-        assert_eq!(s.get_level(1).unwrap(), Level::Low);
-        let linfo = c.line_info(3).unwrap();
+        assert_eq!(
+            s.get_level(1).expect("get_level should succeed"),
+            Level::Low
+        );
+        let linfo = c.line_info(3).expect("line_info should exist");
         assert!(linfo.used);
         assert_eq!(linfo.direction, Direction::Output);
-        assert_eq!(s.get_level(3).unwrap(), Level::High);
-        let linfo = c.line_info(5).unwrap();
+        assert_eq!(
+            s.get_level(3).expect("get_level should succeed"),
+            Level::High
+        );
+        let linfo = c.line_info(5).expect("line_info should exist");
         assert!(linfo.used);
         assert_eq!(linfo.direction, Direction::Output);
-        assert_eq!(s.get_level(5).unwrap(), Level::High);
+        assert_eq!(
+            s.get_level(5).expect("get_level should succeed"),
+            Level::High
+        );
         drop(req);
-        assert!(!c.line_info(1).unwrap().used);
-        assert!(!c.line_info(3).unwrap().used);
-        assert!(!c.line_info(5).unwrap().used);
+        assert!(!c.line_info(1).expect("line_info should exist").used);
+        assert!(!c.line_info(3).expect("line_info should exist").used);
+        assert!(!c.line_info(5).expect("line_info should exist").used);
     }
 
     fn request_mixed_config(abiv: AbiVersion) {
@@ -742,7 +777,7 @@ mod builder {
         let res = builder.request();
         if abiv == AbiVersion::V1 {
             assert_eq!(
-                res.unwrap_err().to_string(),
+                res.expect_err("request should fail").to_string(),
                 "uAPI ABI v1 requires all lines to share the same configuration."
             );
         } else {
@@ -757,7 +792,7 @@ mod builder {
         #[cfg(all(feature = "uapi_v1", feature = "uapi_v2"))]
         builder.using_abi_version(abiv);
         builder.on_chip(s.dev_path()).with_line(5).as_input();
-        let res = builder.request().unwrap_err();
+        let res = builder.request().expect_err("request should fail");
         if abiv == AbiVersion::V2 {
             assert_eq!(
                 res,
@@ -774,12 +809,11 @@ mod builder {
                     gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
                 )
             );
-            let res = builder
-                .with_edge_detection(EdgeDetection::BothEdges)
-                .request()
-                .unwrap_err();
             assert_eq!(
-                res,
+                builder
+                    .with_edge_detection(EdgeDetection::BothEdges)
+                    .request()
+                    .expect_err("request should fail"),
                 gpiocdev::Error::Uapi(
                     gpiocdev::UapiCall::GetLineEvent,
                     gpiocdev_uapi::Error::Os(gpiocdev_uapi::Errno(22))
@@ -793,7 +827,7 @@ mod builder {
         let s = Simpleton::new(4);
         let mut path = PathBuf::from("/tmp");
         path.push(gpiosim::unique_name("gpiocdev_builder", None));
-        let link = Symlink::new(s.chip().dev_path(), &path).unwrap();
+        let link = Symlink::new(s.chip().dev_path(), &path).expect("symlink should succeed");
         let req = Request::builder()
             .on_chip(&link.src)
             .with_line(2)
@@ -804,13 +838,13 @@ mod builder {
 
     #[test]
     fn request_chip_nonexistent() {
-        let res = Request::builder()
-            .on_chip("/dev/nonexistent")
-            .with_line(5)
-            .as_input()
-            .request();
         assert_eq!(
-            res.unwrap_err(),
+            Request::builder()
+                .on_chip("/dev/nonexistent")
+                .with_line(5)
+                .as_input()
+                .request()
+                .expect_err("request should fail"),
             gpiocdev::Error::Os(gpiocdev_uapi::Errno(2))
         );
     }
@@ -823,17 +857,17 @@ mod builder {
             .with_bank(&Bank::new(8, "left"))
             .with_bank(&Bank::new(4, "right"))
             .live()
-            .unwrap();
+            .expect("gpiosim should go live");
 
-        let res = Request::builder()
-            .as_input()
-            .on_chip(sim.chips()[0].dev_path())
-            .with_line(5)
-            .on_chip(sim.chips()[1].dev_path())
-            .with_line(4)
-            .request();
         assert_eq!(
-            res.unwrap_err(),
+            Request::builder()
+                .as_input()
+                .on_chip(sim.chips()[0].dev_path())
+                .with_line(5)
+                .on_chip(sim.chips()[1].dev_path())
+                .with_line(4)
+                .request()
+                .expect_err("request should fail"),
             gpiocdev::Error::InvalidArgument("Multiple chips requested.".into())
         );
     }
@@ -841,13 +875,13 @@ mod builder {
     #[test]
     fn request_chip_not_a_character_device() {
         let path = PathBuf::from("/tmp");
-        let res = Request::builder()
-            .on_chip(&path)
-            .with_line(5)
-            .as_input()
-            .request();
         assert_eq!(
-            res.unwrap_err(),
+            Request::builder()
+                .on_chip(&path)
+                .with_line(5)
+                .as_input()
+                .request()
+                .expect_err("request should fail"),
             ChipError(path, ErrorKind::NotCharacterDevice)
         );
     }
@@ -855,12 +889,15 @@ mod builder {
     #[test]
     fn request_chip_not_a_gpio_device() {
         let path = PathBuf::from("/dev/zero");
-        let res = Request::builder()
-            .on_chip(&path)
-            .with_line(5)
-            .as_input()
-            .request();
-        assert_eq!(res.unwrap_err(), ChipError(path, ErrorKind::NotGpioDevice));
+        assert_eq!(
+            Request::builder()
+                .on_chip(&path)
+                .with_line(5)
+                .as_input()
+                .request()
+                .expect_err("request should fail"),
+            ChipError(path, ErrorKind::NotGpioDevice)
+        );
     }
 }
 
@@ -899,7 +936,7 @@ mod request {
                 .on_chip(s.dev_path())
                 .with_line(offset)
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             assert_eq!(req.chip_path().as_os_str(), s.dev_path());
         }
@@ -917,13 +954,14 @@ mod request {
                 .with_lines(&offsets)
                 .as_input()
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             let mut cfg = req.config();
             cfg.with_edge_detection(EdgeDetection::BothEdges);
-            let res = req.reconfigure(&cfg);
             assert_eq!(
-                res.unwrap_err().to_string(),
+                req.reconfigure(&cfg)
+                    .expect_err("reconfigure should fail")
+                    .to_string(),
                 "uAPI ABI v1 cannot reconfigure edge detection."
             );
         }
@@ -941,43 +979,60 @@ mod request {
                 .with_edge_detection(EdgeDetection::BothEdges);
             #[cfg(feature = "uapi_v2")]
             builder.using_abi_version(V1);
-            let req = builder.request().unwrap();
+            let req = builder.request().expect("request should succeed");
 
             // create four events
-            s.toggle(offset).unwrap();
+            s.toggle(offset).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(offset).unwrap();
+            s.toggle(offset).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(offset).unwrap();
+            s.toggle(offset).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(offset).unwrap();
+            s.toggle(offset).expect("toggle should succeed");
             wait_propagation_delay();
 
             let mut iter = req.edge_events();
 
-            let evt = iter.next().unwrap().unwrap();
+            let evt = iter
+                .next()
+                .expect("next should return Some")
+                .expect("event should exist");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Rising);
             assert_eq!(evt.line_seqno, 0);
             assert_eq!(evt.seqno, 0);
 
-            let evt = iter.next().unwrap().unwrap();
+            let evt = iter
+                .next()
+                .expect("next should return Some")
+                .expect("event should exist");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 0);
             assert_eq!(evt.seqno, 0);
 
-            let evt = iter.next().unwrap().unwrap();
+            let evt = iter
+                .next()
+                .expect("next should return Some")
+                .expect("event should exist");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Rising);
             assert_eq!(evt.line_seqno, 0);
             assert_eq!(evt.seqno, 0);
 
-            let evt = iter.next().unwrap().unwrap();
+            let evt = iter
+                .next()
+                .expect("next should return Some")
+                .expect("event should exist");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 0);
             assert_eq!(evt.seqno, 0);
+
+            assert!(
+                !iter.has_event().expect("has_event should not error"),
+                "spurious events in buffer"
+            );
         }
 
         #[test]
@@ -994,26 +1049,30 @@ mod request {
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             let evt_size64 = req.edge_event_size() / 8;
             let mut buf = vec![0_u64; evt_size64 * 3];
 
             // create four events
-            s.toggle(offset).unwrap();
+            s.toggle(offset).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(offset).unwrap();
+            s.toggle(offset).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(offset).unwrap();
+            s.toggle(offset).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(offset).unwrap();
+            s.toggle(offset).expect("toggle should succeed");
             wait_propagation_delay();
 
             // read a buffer full
-            let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
+            let wlen = req
+                .read_edge_events_into_slice(buf.as_mut_slice())
+                .expect("read_edge_events_into_slice should succeed");
             assert_eq!(wlen, buf.capacity());
 
-            let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
+            let evt = req
+                .edge_event_from_slice(buf.as_slice())
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Rising);
             assert_eq!(evt.line_seqno, 0);
@@ -1021,7 +1080,7 @@ mod request {
 
             let evt = req
                 .edge_event_from_slice(&buf.as_slice()[evt_size64..])
-                .unwrap();
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 0);
@@ -1029,17 +1088,21 @@ mod request {
 
             let evt = req
                 .edge_event_from_slice(&buf.as_slice()[evt_size64 * 2..])
-                .unwrap();
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Rising);
             assert_eq!(evt.line_seqno, 0);
             assert_eq!(evt.seqno, 0);
 
             // read remaining event
-            let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
+            let wlen = req
+                .read_edge_events_into_slice(buf.as_mut_slice())
+                .expect("read_edge_events_into_slice should succeed");
             assert_eq!(wlen, req.edge_event_u64_size());
 
-            let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
+            let evt = req
+                .edge_event_from_slice(buf.as_slice())
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, offset);
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 0);
@@ -1056,7 +1119,7 @@ mod request {
             #[cfg(feature = "uapi_v2")]
             builder.using_abi_version(V1);
 
-            let req = builder.request().unwrap();
+            let req = builder.request().expect("request should succeed");
             let ees = req.edge_event_size();
             assert_eq!(ees, 16);
         }
@@ -1096,16 +1159,17 @@ mod request {
                 .with_lines(&offsets)
                 .as_input()
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             let mut cfg = req.config();
             for offset in 1..15 {
                 cfg.with_line(offset)
                     .with_debounce_period(Duration::from_millis(offset as u64));
             }
-            let res = req.reconfigure(&cfg);
             assert_eq!(
-                res.unwrap_err().to_string(),
+                req.reconfigure(&cfg)
+                    .expect_err("reconfigure should fail")
+                    .to_string(),
                 "uAPI ABI v2 supports 10 attrs, configuration requires 14."
             );
         }
@@ -1120,7 +1184,7 @@ mod request {
                 .with_lines(&offsets)
                 .as_input()
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             let mut cfg = req.config();
             for offset in 1..15 {
@@ -1141,42 +1205,59 @@ mod request {
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             // create four events
-            s.toggle(1).unwrap();
+            s.toggle(1).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(2).unwrap();
+            s.toggle(2).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(1).unwrap();
+            s.toggle(1).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(2).unwrap();
+            s.toggle(2).expect("toggle should succeed");
             wait_propagation_delay();
 
             let mut iter = req.edge_events();
-            let evt = iter.next().unwrap().unwrap();
+            let evt = iter
+                .next()
+                .expect("next should return Some")
+                .expect("event should exist");
             assert_eq!(evt.offset, 1);
             assert_eq!(evt.kind, EdgeKind::Rising);
             assert_eq!(evt.line_seqno, 1);
             assert_eq!(evt.seqno, 1);
 
-            let evt = iter.next().unwrap().unwrap();
+            let evt = iter
+                .next()
+                .expect("next should return Some")
+                .expect("event should exist");
             assert_eq!(evt.offset, 2);
             assert_eq!(evt.kind, EdgeKind::Rising);
             assert_eq!(evt.line_seqno, 1);
             assert_eq!(evt.seqno, 2);
 
-            let evt = iter.next().unwrap().unwrap();
+            let evt = iter
+                .next()
+                .expect("next should return Some")
+                .expect("event should exist");
             assert_eq!(evt.offset, 1);
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 2);
             assert_eq!(evt.seqno, 3);
 
-            let evt = iter.next().unwrap().unwrap();
+            let evt = iter
+                .next()
+                .expect("next should return Some")
+                .expect("event should exist");
             assert_eq!(evt.offset, 2);
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 2);
             assert_eq!(evt.seqno, 4);
+
+            assert!(
+                !iter.has_event().expect("has_event should not error"),
+                "spurious events in buffer"
+            );
         }
 
         #[test]
@@ -1190,26 +1271,30 @@ mod request {
                 .as_input()
                 .with_edge_detection(EdgeDetection::BothEdges)
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             let evt_size64 = req.edge_event_size() / 8;
             let mut buf = vec![0_u64; evt_size64 * 3];
 
             // create four events
-            s.toggle(1).unwrap();
+            s.toggle(1).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(2).unwrap();
+            s.toggle(2).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(1).unwrap();
+            s.toggle(1).expect("toggle should succeed");
             wait_propagation_delay();
-            s.toggle(2).unwrap();
+            s.toggle(2).expect("toggle should succeed");
             wait_propagation_delay();
 
             // read a buffer full
-            let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
+            let wlen = req
+                .read_edge_events_into_slice(buf.as_mut_slice())
+                .expect("read_edge_events_into_slice should succeed");
             assert_eq!(wlen, buf.capacity());
 
-            let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
+            let evt = req
+                .edge_event_from_slice(buf.as_slice())
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, 1);
             assert_eq!(evt.kind, EdgeKind::Rising);
             assert_eq!(evt.line_seqno, 1);
@@ -1217,7 +1302,7 @@ mod request {
 
             let evt = req
                 .edge_event_from_slice(&buf.as_slice()[evt_size64..])
-                .unwrap();
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, 2);
             assert_eq!(evt.kind, EdgeKind::Rising);
             assert_eq!(evt.line_seqno, 1);
@@ -1225,17 +1310,21 @@ mod request {
 
             let evt = req
                 .edge_event_from_slice(&buf.as_slice()[evt_size64 * 2..])
-                .unwrap();
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, 1);
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 2);
             assert_eq!(evt.seqno, 3);
 
             // read remaining event
-            let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
+            let wlen = req
+                .read_edge_events_into_slice(buf.as_mut_slice())
+                .expect("read_edge_events_into_slice should succeed");
             assert_eq!(wlen, req.edge_event_u64_size());
 
-            let evt = req.edge_event_from_slice(buf.as_slice()).unwrap();
+            let evt = req
+                .edge_event_from_slice(buf.as_slice())
+                .expect("edge_event_from_slice should succeed");
             assert_eq!(evt.offset, 2);
             assert_eq!(evt.kind, EdgeKind::Falling);
             assert_eq!(evt.line_seqno, 2);
@@ -1253,7 +1342,7 @@ mod request {
                 .with_line(offset)
                 .as_input()
                 .request()
-                .unwrap();
+                .expect("request should succeed");
 
             let ees_v2 = req.edge_event_size();
             assert_eq!(ees_v2, 48);
@@ -1274,28 +1363,29 @@ mod request {
             .with_lines(offsets)
             .as_input()
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         for offset in offsets {
-            let v = req.value(*offset).unwrap();
+            let v = req.value(*offset).expect("value should succeed");
             assert_eq!(v, Value::Inactive);
 
-            s.pullup(*offset).unwrap();
+            s.pullup(*offset).expect("pulup should succeed");
             wait_propagation_delay();
-            let v = req.value(*offset).unwrap();
+            let v = req.value(*offset).expect("value should succeed");
             assert_eq!(v, Value::Active);
 
-            s.pulldown(*offset).unwrap();
+            s.pulldown(*offset).expect("pulldown should succeed");
             wait_propagation_delay();
-            let v = req.value(*offset).unwrap();
+            let v = req.value(*offset).expect("value should succeed");
             assert_eq!(v, Value::Inactive);
         }
 
         // invalid offset
-        let res = req.value(3);
         assert_eq!(
-            res.unwrap_err(),
-            gpiocdev::Error::InvalidArgument("offset is not a requested line.".into())
+            req.value(3),
+            Err(gpiocdev::Error::InvalidArgument(
+                "offset is not a requested line.".into()
+            ))
         );
     }
 
@@ -1313,19 +1403,19 @@ mod request {
             .with_line(offset)
             .as_input()
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let v = req.lone_value().unwrap();
+        let v = req.lone_value().expect("lone_value should succeed");
         assert_eq!(v, Value::Inactive);
 
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
-        let v = req.lone_value().unwrap();
+        let v = req.lone_value().expect("lone_value should succeed");
         assert_eq!(v, Value::Active);
 
-        s.pulldown(offset).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
         wait_propagation_delay();
-        let v = req.lone_value().unwrap();
+        let v = req.lone_value().expect("lone_value should succeed");
         assert_eq!(v, Value::Inactive);
 
         drop(req);
@@ -1336,12 +1426,13 @@ mod request {
             .with_lines(&[1, 2])
             .as_input()
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let res = req.lone_value();
         assert_eq!(
-            res.unwrap_err(),
-            gpiocdev::Error::InvalidArgument("request contains multiple lines.".into())
+            req.lone_value(),
+            Err(gpiocdev::Error::InvalidArgument(
+                "request contains multiple lines.".into()
+            ))
         );
     }
 
@@ -1359,7 +1450,7 @@ mod request {
             .with_lines(offsets)
             .as_input()
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         let mut vals = Values::default();
 
@@ -1369,16 +1460,16 @@ mod request {
         assert_eq!(vals.get(1), Some(Value::Inactive));
         assert_eq!(vals.get(3), Some(Value::Inactive));
 
-        s.pullup(1).unwrap();
-        s.pullup(3).unwrap();
+        s.pullup(1).expect("pullup should succeed");
+        s.pullup(3).expect("pullup should succeed");
         wait_propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Inactive));
         assert_eq!(vals.get(1), Some(Value::Active));
         assert_eq!(vals.get(3), Some(Value::Active));
 
-        s.pullup(0).unwrap();
-        s.pulldown(3).unwrap();
+        s.pullup(0).expect("pullup should succeed");
+        s.pulldown(3).expect("pulldown should succeed");
         wait_propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Active));
@@ -1387,8 +1478,8 @@ mod request {
 
         // explicit full set
         let mut vals = Values::from_offsets(offsets);
-        s.pulldown(0).unwrap();
-        s.pullup(3).unwrap();
+        s.pulldown(0).expect("pulldown should succeed");
+        s.pullup(3).expect("pullup should succeed");
         wait_propagation_delay();
         assert!(req.values(&mut vals).is_ok());
         assert_eq!(vals.get(0), Some(Value::Inactive));
@@ -1396,7 +1487,7 @@ mod request {
         assert_eq!(vals.get(3), Some(Value::Active));
 
         // subset
-        s.pulldown(0).unwrap();
+        s.pulldown(0).expect("pulldown should succeed");
         wait_propagation_delay();
         let mut vals = Values::from_offsets(&[0, 3]);
         assert!(req.values(&mut vals).is_ok());
@@ -1435,15 +1526,24 @@ mod request {
             .with_line(offset)
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::Low);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            gpiosim::Level::Low
+        );
 
         assert!(req.set_value(offset, Value::Active).is_ok());
-        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::High);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            gpiosim::Level::High
+        );
 
         assert!(req.set_value(offset, Value::Inactive).is_ok());
-        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::Low);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            gpiosim::Level::Low
+        );
 
         drop(req);
 
@@ -1453,35 +1553,45 @@ mod request {
             .with_lines(offsets)
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         if abiv == AbiVersion::V2 {
             for offset in offsets {
-                assert_eq!(s.get_level(*offset).unwrap(), gpiosim::Level::Low);
+                assert_eq!(
+                    s.get_level(*offset).expect("get_level should succeed"),
+                    gpiosim::Level::Low
+                );
 
                 assert!(req.set_value(*offset, Value::Active).is_ok());
-                assert_eq!(s.get_level(*offset).unwrap(), gpiosim::Level::High);
+                assert_eq!(
+                    s.get_level(*offset).expect("get_level should succeed"),
+                    gpiosim::Level::High
+                );
 
                 assert!(req.set_value(*offset, Value::Inactive).is_ok());
-                assert_eq!(s.get_level(*offset).unwrap(), gpiosim::Level::Low);
+                assert_eq!(
+                    s.get_level(*offset).expect("get_level should succeed"),
+                    gpiosim::Level::Low
+                );
             }
         } else {
             for offset in offsets {
                 assert_eq!(
-                    req.set_value(*offset, Value::Active).unwrap_err(),
-                    gpiocdev::Error::AbiLimitation(
+                    req.set_value(*offset, Value::Active),
+                    Err(gpiocdev::Error::AbiLimitation(
                         AbiVersion::V1,
-                        "requires all requested lines".into(),
-                    )
+                        "requires all requested lines".into()
+                    ))
                 );
             }
         }
 
         // invalid offset
-        let res = req.set_value(3, Value::Active);
         assert_eq!(
-            res.unwrap_err(),
-            gpiocdev::Error::InvalidArgument("offset is not a requested line.".into())
+            req.set_value(3, Value::Active),
+            Err(gpiocdev::Error::InvalidArgument(
+                "offset is not a requested line.".into()
+            ))
         );
     }
 
@@ -1499,15 +1609,24 @@ mod request {
             .with_line(offset)
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::Low);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            gpiosim::Level::Low
+        );
 
         assert!(req.set_lone_value(Value::Active).is_ok());
-        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::High);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            gpiosim::Level::High
+        );
 
         assert!(req.set_lone_value(Value::Inactive).is_ok());
-        assert_eq!(s.get_level(offset).unwrap(), gpiosim::Level::Low);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            gpiosim::Level::Low
+        );
 
         drop(req);
 
@@ -1517,12 +1636,13 @@ mod request {
             .with_lines(&[1, 2])
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let res = req.set_lone_value(Value::Active);
         assert_eq!(
-            res.unwrap_err(),
-            gpiocdev::Error::InvalidArgument("request contains multiple lines.".into())
+            req.set_lone_value(Value::Active),
+            Err(gpiocdev::Error::InvalidArgument(
+                "request contains multiple lines.".into()
+            ))
         );
     }
 
@@ -1541,29 +1661,56 @@ mod request {
             .with_lines(offsets)
             .as_output(Value::Active)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         let mut vals = Values::from_offsets(offsets);
 
         // full set
         assert!(req.set_values(&vals).is_ok());
-        assert_eq!(s.get_level(0).unwrap(), Level::Low);
-        assert_eq!(s.get_level(1).unwrap(), Level::Low);
-        assert_eq!(s.get_level(3).unwrap(), Level::Low);
+        assert_eq!(
+            s.get_level(0).expect("get_level should succeed"),
+            Level::Low
+        );
+        assert_eq!(
+            s.get_level(1).expect("get_level should succeed"),
+            Level::Low
+        );
+        assert_eq!(
+            s.get_level(3).expect("get_level should succeed"),
+            Level::Low
+        );
 
         vals.set(1, Value::Active);
         vals.set(3, Value::Active);
         assert!(req.set_values(&vals).is_ok());
-        assert_eq!(s.get_level(0).unwrap(), Level::Low);
-        assert_eq!(s.get_level(1).unwrap(), Level::High);
-        assert_eq!(s.get_level(3).unwrap(), Level::High);
+        assert_eq!(
+            s.get_level(0).expect("get_level should succeed"),
+            Level::Low
+        );
+        assert_eq!(
+            s.get_level(1).expect("get_level should succeed"),
+            Level::High
+        );
+        assert_eq!(
+            s.get_level(3).expect("get_level should succeed"),
+            Level::High
+        );
 
         vals.set(0, Value::Active);
         vals.set(3, Value::Inactive);
         assert!(req.set_values(&vals).is_ok());
-        assert_eq!(s.get_level(0).unwrap(), Level::High);
-        assert_eq!(s.get_level(1).unwrap(), Level::High);
-        assert_eq!(s.get_level(3).unwrap(), Level::Low);
+        assert_eq!(
+            s.get_level(0).expect("get_level should succeed"),
+            Level::High
+        );
+        assert_eq!(
+            s.get_level(1).expect("get_level should succeed"),
+            Level::High
+        );
+        assert_eq!(
+            s.get_level(3).expect("get_level should succeed"),
+            Level::Low
+        );
 
         if abiv == AbiVersion::V2 {
             // subset
@@ -1571,46 +1718,73 @@ mod request {
             vals.set(1, Value::Inactive);
             vals.set(3, Value::Active);
             assert!(req.set_values(&vals).is_ok());
-            assert_eq!(s.get_level(0).unwrap(), Level::High);
-            assert_eq!(s.get_level(1).unwrap(), Level::Low);
-            assert_eq!(s.get_level(3).unwrap(), Level::High);
+            assert_eq!(
+                s.get_level(0).expect("get_level should succeed"),
+                Level::High
+            );
+            assert_eq!(
+                s.get_level(1).expect("get_level should succeed"),
+                Level::Low
+            );
+            assert_eq!(
+                s.get_level(3).expect("get_level should succeed"),
+                Level::High
+            );
 
             // singular
             let mut vals = Values::default();
             vals.set(3, Value::Inactive);
             assert!(req.set_values(&vals).is_ok());
-            assert_eq!(s.get_level(0).unwrap(), Level::High);
-            assert_eq!(s.get_level(1).unwrap(), Level::Low);
-            assert_eq!(s.get_level(3).unwrap(), Level::Low);
+            assert_eq!(
+                s.get_level(0).expect("get_level should succeed"),
+                Level::High
+            );
+            assert_eq!(
+                s.get_level(1).expect("get_level should succeed"),
+                Level::Low
+            );
+            assert_eq!(
+                s.get_level(3).expect("get_level should succeed"),
+                Level::Low
+            );
 
             // empty set
             let vals = Values::default();
             assert!(req.set_values(&vals).is_ok());
-            assert_eq!(s.get_level(0).unwrap(), Level::Low);
-            assert_eq!(s.get_level(1).unwrap(), Level::Low);
-            assert_eq!(s.get_level(3).unwrap(), Level::Low);
+            assert_eq!(
+                s.get_level(0).expect("get_level should succeed"),
+                Level::Low
+            );
+            assert_eq!(
+                s.get_level(1).expect("get_level should succeed"),
+                Level::Low
+            );
+            assert_eq!(
+                s.get_level(3).expect("get_level should succeed"),
+                Level::Low
+            );
         } else {
             // subset
             let mut vals = Values::default();
             vals.set(1, Value::Inactive);
             vals.set(3, Value::Active);
             assert_eq!(
-                req.set_values(&vals).unwrap_err(),
-                gpiocdev::Error::AbiLimitation(
+                req.set_values(&vals),
+                Err(gpiocdev::Error::AbiLimitation(
                     AbiVersion::V1,
                     "requires all requested lines".into(),
-                )
+                ))
             );
 
             // singular
             let mut vals = Values::default();
             vals.set(3, Value::Inactive);
             assert_eq!(
-                req.set_values(&vals).unwrap_err(),
-                gpiocdev::Error::AbiLimitation(
+                req.set_values(&vals),
+                Err(gpiocdev::Error::AbiLimitation(
                     AbiVersion::V1,
                     "requires all requested lines".into(),
-                )
+                ))
             );
 
             // empty set
@@ -1629,9 +1803,18 @@ mod request {
         vals.set(0, Value::Active);
         vals.set(1, Value::Active);
         assert!(req.set_values(&vals).is_ok());
-        assert_eq!(s.get_level(0).unwrap(), Level::High);
-        assert_eq!(s.get_level(1).unwrap(), Level::High);
-        assert_eq!(s.get_level(3).unwrap(), Level::Low);
+        assert_eq!(
+            s.get_level(0).expect("get_level should succeed"),
+            Level::High
+        );
+        assert_eq!(
+            s.get_level(1).expect("get_level should succeed"),
+            Level::High
+        );
+        assert_eq!(
+            s.get_level(3).expect("get_level should succeed"),
+            Level::Low
+        );
     }
 
     #[allow(unused_variables)]
@@ -1640,7 +1823,7 @@ mod request {
         use gpiosim::Level;
 
         let s = Simpleton::new(5);
-        let c = gpiocdev::chip::Chip::from_path(s.dev_path()).unwrap();
+        let c = gpiocdev::chip::Chip::from_path(s.dev_path()).expect("gpiosim chip should exist");
         let offset = 1;
 
         let mut builder = Request::builder();
@@ -1654,16 +1837,19 @@ mod request {
             .with_bias(gpiocdev::line::Bias::PullDown)
             .with_drive(gpiocdev::line::Drive::OpenDrain)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::PullDown));
         assert_eq!(info.drive, Some(Drive::OpenDrain));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(s.get_level(offset).unwrap(), Level::Low);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            Level::Low
+        );
 
         let mut cfg = req.config();
         cfg.with_bias(gpiocdev::line::Bias::PullUp)
@@ -1671,14 +1857,17 @@ mod request {
             .as_active_high();
         assert!(req.reconfigure(&cfg).is_ok());
 
-        let info = c.line_info(offset).unwrap();
+        let info = c.line_info(offset).expect("line_info should exist");
         assert!(!info.active_low);
         assert_eq!(info.direction, Direction::Output);
         assert_eq!(info.bias, Some(Bias::PullUp));
         assert_eq!(info.drive, Some(Drive::OpenSource));
         assert_eq!(info.edge_detection, None);
         assert_eq!(info.debounce_period, None);
-        assert_eq!(s.get_level(offset).unwrap(), Level::High);
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            Level::High
+        );
     }
 
     #[allow(unused_variables)]
@@ -1696,10 +1885,10 @@ mod request {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         assert_eq!(req.has_edge_event(), Ok(false));
 
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
         assert_eq!(req.has_edge_event(), Ok(true));
     }
@@ -1719,11 +1908,11 @@ mod request {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         assert_eq!(req.wait_edge_event(EVENT_WAIT_TIMEOUT), Ok(false));
 
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         assert_eq!(req.wait_edge_event(EVENT_WAIT_TIMEOUT), Ok(true));
     }
 
@@ -1742,11 +1931,13 @@ mod request {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         assert_eq!(req.wait_edge_event(EVENT_WAIT_TIMEOUT), Ok(true));
-        let evt = req.read_edge_event().unwrap();
+        let evt = req
+            .read_edge_event()
+            .expect("read_edge_event should succeed");
         assert_eq!(evt.kind, EdgeKind::Rising);
         assert_eq!(evt.offset, offset);
         if abiv == AbiVersion::V2 {
@@ -1757,9 +1948,11 @@ mod request {
             assert_eq!(evt.seqno, 0);
         }
 
-        s.pulldown(offset).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
         assert_eq!(req.wait_edge_event(EVENT_WAIT_TIMEOUT), Ok(true));
-        let evt = req.read_edge_event().unwrap();
+        let evt = req
+            .read_edge_event()
+            .expect("read_edge_event should succeed");
         assert_eq!(evt.kind, EdgeKind::Falling);
         if abiv == AbiVersion::V2 {
             assert_eq!(evt.line_seqno, 2);
@@ -1784,27 +1977,31 @@ mod request {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         let evt_size64 = req.edge_event_size() / 8;
         let mut buf = vec![0_u64; evt_size64 * 3];
 
         // create four events
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
 
         // read a buffer full
-        let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
+        let wlen = req
+            .read_edge_events_into_slice(buf.as_mut_slice())
+            .expect("read_edge_events_into_slice should succeed");
         assert_eq!(wlen, buf.capacity());
 
         // read remaining event
-        let wlen = req.read_edge_events_into_slice(buf.as_mut_slice()).unwrap();
+        let wlen = req
+            .read_edge_events_into_slice(buf.as_mut_slice())
+            .expect("read_edge_events_into_slice should succeed");
         assert_eq!(wlen, req.edge_event_u64_size());
     }
 
@@ -1823,7 +2020,7 @@ mod request {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         let mut buf = req.new_edge_event_buffer(4);
         assert_eq!(buf.has_event(), Ok(false));
         assert_eq!(buf.capacity(), 4);
@@ -1843,7 +2040,7 @@ mod edge_event_buffer {
             .with_line(offset)
             .as_input()
             .request()
-            .unwrap();
+            .expect("request should succeed");
         let buf = req.new_edge_event_buffer(4);
         assert_eq!(buf.capacity(), 4);
         let buf = req.new_edge_event_buffer(1);
@@ -1864,37 +2061,37 @@ mod edge_event_buffer {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         let mut buf = req.new_edge_event_buffer(2);
         assert!(buf.is_empty());
 
         // create four events
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
         assert_eq!(buf.len(), 0);
 
         // read one (copy two to buffer and return the first)
-        _ = buf.read_event().unwrap();
+        _ = buf.read_event().expect("read_event should succeed");
         // should still be one buffered
         assert_eq!(buf.len(), 1);
 
         // read last one buffered
-        _ = buf.read_event().unwrap();
+        _ = buf.read_event().expect("read_event should succeed");
         assert!(buf.is_empty());
 
         // read one (copy remaining two to buffer from kernel and return the first)
-        _ = buf.read_event().unwrap();
+        _ = buf.read_event().expect("read_event should succeed");
         // should still be one buffered
         assert_eq!(buf.len(), 1);
 
         // read last one buffered
-        _ = buf.read_event().unwrap();
+        _ = buf.read_event().expect("read_event should succeed");
         assert_eq!(buf.len(), 0);
     }
 
@@ -1909,24 +2106,24 @@ mod edge_event_buffer {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         let mut buf = req.new_edge_event_buffer(4);
         assert!(buf.is_empty());
 
         // create two events
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
-        s.toggle(offset).unwrap();
+        s.toggle(offset).expect("toggle should succeed");
         wait_propagation_delay();
         assert!(buf.is_empty());
 
         // read one
-        _ = buf.read_event().unwrap();
+        _ = buf.read_event().expect("read_event should succeed");
         // should still be one buffered
         assert!(!buf.is_empty());
 
         // read last one
-        _ = buf.read_event().unwrap();
+        _ = buf.read_event().expect("read_event should succeed");
         assert!(buf.is_empty());
     }
 
@@ -1941,14 +2138,14 @@ mod edge_event_buffer {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         let mut buf = req.new_edge_event_buffer(4);
         assert_eq!(buf.has_event(), Ok(false));
 
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
-        _ = buf.read_event().unwrap();
+        _ = buf.read_event().expect("read_event should succeed");
         assert_eq!(buf.has_event(), Ok(false));
     }
 
@@ -1963,14 +2160,14 @@ mod edge_event_buffer {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         let mut buf = req.new_edge_event_buffer(4);
         assert_eq!(buf.has_event(), Ok(false));
 
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
-        let evt = buf.read_event().unwrap();
+        let evt = buf.read_event().expect("read_event should succeed");
         assert_eq!(evt.kind, EdgeKind::Rising);
         assert_eq!(evt.offset, offset);
         #[cfg(feature = "uapi_v2")]
@@ -1979,10 +2176,10 @@ mod edge_event_buffer {
             assert_eq!(evt.seqno, 1);
         }
 
-        s.pulldown(offset).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
         wait_propagation_delay();
         assert_eq!(buf.has_event(), Ok(true));
-        let evt = buf.read_event().unwrap();
+        let evt = buf.read_event().expect("read_event should succeed");
         assert_eq!(evt.kind, EdgeKind::Falling);
         #[cfg(feature = "uapi_v2")]
         {
@@ -2002,12 +2199,14 @@ mod edge_event_buffer {
             .as_input()
             .with_edge_detection(EdgeDetection::BothEdges)
             .request()
-            .unwrap();
+            .expect("request should succeed");
         let mut buf = req.new_edge_event_buffer(4);
         assert_eq!(buf.has_event(), Ok(false));
 
-        s.pullup(offset).unwrap();
-        let evt = buf.wait_event(EVENT_WAIT_TIMEOUT).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
+        let evt = buf
+            .wait_event(EVENT_WAIT_TIMEOUT)
+            .expect("wait_event should succeed");
         assert_eq!(evt.kind, EdgeKind::Rising);
         assert_eq!(evt.offset, offset);
         #[cfg(feature = "uapi_v2")]
@@ -2016,8 +2215,10 @@ mod edge_event_buffer {
             assert_eq!(evt.seqno, 1);
         }
 
-        s.pulldown(offset).unwrap();
-        let evt = buf.wait_event(EVENT_WAIT_TIMEOUT).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
+        let evt = buf
+            .wait_event(EVENT_WAIT_TIMEOUT)
+            .expect("wait_event should succeed");
         assert_eq!(evt.kind, EdgeKind::Falling);
         #[cfg(feature = "uapi_v2")]
         {

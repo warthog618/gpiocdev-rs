@@ -12,11 +12,17 @@ fn set_high() {
     let s = Simpleton::new(5);
 
     let offset = 3;
-    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::Low).unwrap();
+    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::Low).expect("pin should exist");
 
-    assert_eq!(s.get_level(offset).unwrap(), Level::Low);
-    pin.set_high().unwrap();
-    assert_eq!(s.get_level(offset).unwrap(), Level::High);
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::Low
+    );
+    pin.set_high().expect("set_high should succeed");
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::High
+    );
 }
 
 #[test]
@@ -24,11 +30,17 @@ fn set_low() {
     let s = Simpleton::new(5);
 
     let offset = 2;
-    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::High).unwrap();
+    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::High).expect("pin should exist");
 
-    assert_eq!(s.get_level(offset).unwrap(), Level::High);
-    pin.set_low().unwrap();
-    assert_eq!(s.get_level(offset).unwrap(), Level::Low);
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::High
+    );
+    pin.set_low().expect("set_low should succeed");
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::Low
+    );
 }
 
 #[test]
@@ -36,13 +48,13 @@ fn is_set_high() {
     let s = Simpleton::new(5);
 
     let offset = 3;
-    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::Low).unwrap();
+    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::Low).expect("pin should exist");
 
-    assert!(!pin.is_set_high().unwrap());
-    pin.set_high().unwrap();
-    assert!(pin.is_set_high().unwrap());
-    pin.set_low().unwrap();
-    assert!(!pin.is_set_high().unwrap());
+    assert!(!pin.is_set_high().expect("is_set_high should succeed"));
+    pin.set_high().expect("set_high should succeed");
+    assert!(pin.is_set_high().expect("is_set_high should succeed"));
+    pin.set_low().expect("set_low should succeed");
+    assert!(!pin.is_set_high().expect("is_set_high should succeed"));
 }
 
 #[test]
@@ -50,13 +62,13 @@ fn is_set_low() {
     let s = Simpleton::new(5);
 
     let offset = 3;
-    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::Low).unwrap();
+    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::Low).expect("pin should exist");
 
-    assert!(pin.is_set_low().unwrap());
-    pin.set_high().unwrap();
-    assert!(!pin.is_set_low().unwrap());
-    pin.set_low().unwrap();
-    assert!(pin.is_set_low().unwrap());
+    assert!(pin.is_set_low().expect("is_set_low should succeed"));
+    pin.set_high().expect("set_high should succeed");
+    assert!(!pin.is_set_low().expect("is_set_low should succeed"));
+    pin.set_low().expect("set_low should succeed");
+    assert!(pin.is_set_low().expect("is_set_low should succeed"));
 }
 
 #[test]
@@ -64,13 +76,22 @@ fn toggle() {
     let s = Simpleton::new(5);
 
     let offset = 2;
-    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::High).unwrap();
+    let mut pin = OutputPin::new(s.dev_path(), offset, PinState::High).expect("pin should exist");
 
-    assert_eq!(s.get_level(offset).unwrap(), Level::High);
-    pin.toggle().unwrap();
-    assert_eq!(s.get_level(offset).unwrap(), Level::Low);
-    pin.toggle().unwrap();
-    assert_eq!(s.get_level(offset).unwrap(), Level::High);
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::High
+    );
+    pin.toggle().expect("toggle should succeed");
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::Low
+    );
+    pin.toggle().expect("toggle should succeed");
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::High
+    );
 }
 
 #[test]
@@ -80,19 +101,25 @@ fn into_input_pin() {
     let s = Simpleton::new(5);
 
     let offset = 2;
-    let pin = OutputPin::new(s.dev_path(), offset, PinState::High).unwrap();
+    let pin = OutputPin::new(s.dev_path(), offset, PinState::High).expect("pin should exist");
 
-    assert_eq!(s.get_level(offset).unwrap(), Level::High);
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::High
+    );
 
     // convert to input
-    let mut pin = pin.into_input_pin().unwrap();
+    let mut pin = pin.into_input_pin().expect("into_input_pin should succeed");
 
     // line should be pulled high by sim
-    assert!(pin.is_high().unwrap());
-    assert_eq!(s.get_level(offset).unwrap(), Level::High);
+    assert!(pin.is_high().expect("is_high should succeed"));
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::High
+    );
 
-    s.pulldown(offset).unwrap();
-    assert!(pin.is_low().unwrap());
+    s.pulldown(offset).expect("pulldown should succeed");
+    assert!(pin.is_low().expect("is_low should succeed"));
 
     // check config
     let req = Request::from(pin);
@@ -100,7 +127,9 @@ fn into_input_pin() {
     let offsets = config.lines();
     assert_eq!(offsets.len(), 1);
     assert_eq!(offsets[0], offset);
-    let line_config = config.line_config(offset).unwrap();
+    let line_config = config
+        .line_config(offset)
+        .expect("line_config should succeed");
     assert_eq!(line_config.direction, Some(Direction::Input));
 }
 
@@ -120,15 +149,20 @@ mod try_from_request {
             .as_output(Value::Active);
 
         // create request
-        let req = Request::from_config(config).request().unwrap();
+        let req = Request::from_config(config)
+            .request()
+            .expect("request should succeed");
         let config = req.config();
 
         // convert to OutputPin
-        let mut pin = OutputPin::try_from(req).unwrap();
+        let mut pin = OutputPin::try_from(req).expect("try_from should succeed");
 
         // check setting follows
-        pin.set_low().unwrap();
-        assert_eq!(s.get_level(offset).unwrap(), Level::Low);
+        pin.set_low().expect("set_low should succeed");
+        assert_eq!(
+            s.get_level(offset).expect("get_level should succeed"),
+            Level::Low
+        );
 
         // check config
         let req = Request::from(pin);
@@ -145,10 +179,10 @@ mod try_from_request {
             .with_line(offset)
             .as_input()
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         assert_eq!(
-            OutputPin::try_from(req).unwrap_err(),
+            OutputPin::try_from(req).expect_err("try_from should fail"),
             gpiocdev_embedded_hal::Error::RequiresOutputMode
         );
     }
@@ -162,10 +196,10 @@ mod try_from_request {
             .on_chip(s.dev_path())
             .with_line(offset)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         assert_eq!(
-            OutputPin::try_from(req).unwrap_err(),
+            OutputPin::try_from(req).expect_err("try_from should fail"),
             gpiocdev_embedded_hal::Error::RequiresOutputMode
         );
     }
@@ -179,10 +213,10 @@ mod try_from_request {
             .with_lines(&[1, 2])
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         assert_eq!(
-            OutputPin::try_from(req).unwrap_err(),
+            OutputPin::try_from(req).expect_err("try_from should fail"),
             gpiocdev_embedded_hal::Error::MultipleLinesRequested
         );
     }
@@ -193,7 +227,7 @@ fn into_request() {
     let s = Simpleton::new(5);
 
     let offset = 2;
-    let pin = OutputPin::new(s.dev_path(), offset, PinState::High).unwrap();
+    let pin = OutputPin::new(s.dev_path(), offset, PinState::High).expect("pin should exist");
 
     let req = Request::from(pin);
     // check config
@@ -201,7 +235,9 @@ fn into_request() {
     let offsets = config.lines();
     assert_eq!(offsets.len(), 1);
     assert_eq!(offsets[0], offset);
-    let line_config = config.line_config(offset).unwrap();
+    let line_config = config
+        .line_config(offset)
+        .expect("line_config should succeed");
     assert_eq!(line_config.direction, Some(Direction::Output));
 }
 
@@ -217,7 +253,8 @@ fn from_found_line() {
             ..Default::default()
         },
     };
-    let pin = OutputPin::from_found_line(fl, PinState::High).unwrap();
+    let pin =
+        OutputPin::from_found_line(fl, PinState::High).expect("from_found_line should succeed");
 
     let req = Request::from(pin);
     // check config
@@ -225,7 +262,9 @@ fn from_found_line() {
     let offsets = config.lines();
     assert_eq!(offsets.len(), 1);
     assert_eq!(offsets[0], offset);
-    let line_config = config.line_config(offset).unwrap();
+    let line_config = config
+        .line_config(offset)
+        .expect("line_config should succeed");
     assert_eq!(line_config.direction, Some(Direction::Output));
 }
 
@@ -240,10 +279,10 @@ fn from_name() {
                 .name(6, "ofn apple"),
         )
         .live()
-        .unwrap();
+        .expect("gpiosim should go live");
 
     let offset = 6;
-    let pin = OutputPin::from_name("ofn apple", PinState::High).unwrap();
+    let pin = OutputPin::from_name("ofn apple", PinState::High).expect("pin should exist");
 
     let req = Request::from(pin);
     // check config
@@ -252,11 +291,13 @@ fn from_name() {
     let offsets = config.lines();
     assert_eq!(offsets.len(), 1);
     assert_eq!(offsets[0], offset);
-    let line_config = config.line_config(offset).unwrap();
+    let line_config = config
+        .line_config(offset)
+        .expect("line_config should succeed");
     assert_eq!(line_config.direction, Some(Direction::Output));
 
     assert_eq!(
-        OutputPin::from_name("ofn grape", PinState::High).unwrap_err(),
+        OutputPin::from_name("ofn grape", PinState::High).expect_err("from_name should fail"),
         gpiocdev_embedded_hal::Error::UnfoundLine("ofn grape".into())
     );
 }

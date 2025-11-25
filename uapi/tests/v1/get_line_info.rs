@@ -9,10 +9,10 @@ fn check_info() {
     let s = crate::common::detailed_sim();
 
     for sc in s.chips() {
-        let f = fs::File::open(sc.dev_path()).unwrap();
+        let f = fs::File::open(sc.dev_path()).expect("gpiosim chip should exist");
         // names, offsets and used
         for offset in 0..sc.config().num_lines {
-            let info = get_line_info(&f, offset).unwrap();
+            let info = get_line_info(&f, offset).expect("get_line_info should succeed");
             assert_eq!(info.offset, offset);
             if let Some(name) = sc.config().names.get(&offset) {
                 assert_eq!(info.name.as_os_str().to_string_lossy(), *name);
@@ -32,7 +32,7 @@ fn check_info() {
 
         // consumer, direction and used
         for (offset, hog) in &sc.config().hogs {
-            let info = get_line_info(&f, *offset).unwrap();
+            let info = get_line_info(&f, *offset).expect("get_line_info should succeed");
             assert_eq!(info.consumer.as_os_str().to_string_lossy(), hog.consumer);
             assert_eq!(info.offset, *offset);
             match &hog.direction {
@@ -46,7 +46,7 @@ fn check_info() {
         }
     }
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     let offset = 2;
     let mut hr_base = HandleRequest {
         num_lines: 1,
@@ -59,8 +59,8 @@ fn check_info() {
     // active low
     let mut hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::ACTIVE_LOW;
-    let mut h = get_line_handle(&f, hr).unwrap();
-    let mut info = get_line_info(&f, offset).unwrap();
+    let mut h = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    let mut info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     let mut xflags = LineInfoFlags::USED | LineInfoFlags::OUTPUT | LineInfoFlags::ACTIVE_LOW;
     assert_eq!(info.flags, xflags);
@@ -69,8 +69,8 @@ fn check_info() {
     // drive
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::OPEN_DRAIN;
-    h = get_line_handle(&f, hr).unwrap();
-    info = get_line_info(&f, offset).unwrap();
+    h = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     xflags = LineInfoFlags::USED | LineInfoFlags::OUTPUT | LineInfoFlags::OPEN_DRAIN;
     assert_eq!(info.flags, xflags);
@@ -78,8 +78,8 @@ fn check_info() {
 
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::OPEN_SOURCE;
-    h = get_line_handle(&f, hr).unwrap();
-    info = get_line_info(&f, offset).unwrap();
+    h = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     xflags = LineInfoFlags::USED | LineInfoFlags::OUTPUT | LineInfoFlags::OPEN_SOURCE;
     assert_eq!(info.flags, xflags);
@@ -88,8 +88,8 @@ fn check_info() {
     // bias
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::BIAS_PULL_UP;
-    h = get_line_handle(&f, hr).unwrap();
-    info = get_line_info(&f, offset).unwrap();
+    h = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     xflags = LineInfoFlags::USED | LineInfoFlags::OUTPUT | LineInfoFlags::BIAS_PULL_UP;
     assert_eq!(info.flags, xflags);
@@ -97,8 +97,8 @@ fn check_info() {
 
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::BIAS_PULL_DOWN;
-    h = get_line_handle(&f, hr).unwrap();
-    info = get_line_info(&f, offset).unwrap();
+    h = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     xflags = LineInfoFlags::USED | LineInfoFlags::OUTPUT | LineInfoFlags::BIAS_PULL_DOWN;
     assert_eq!(info.flags, xflags);
@@ -106,8 +106,8 @@ fn check_info() {
 
     hr = hr_base.clone();
     hr.flags |= HandleRequestFlags::BIAS_DISABLED;
-    h = get_line_handle(&f, hr).unwrap();
-    info = get_line_info(&f, offset).unwrap();
+    h = get_line_handle(&f, hr).expect("get_line_handle should succeed");
+    info = get_line_info(&f, offset).expect("get_line_info should succeed");
     assert_eq!(info.consumer.as_os_str().to_string_lossy(), "check_info");
     xflags = LineInfoFlags::USED | LineInfoFlags::OUTPUT | LineInfoFlags::BIAS_DISABLED;
     assert_eq!(info.flags, xflags);
@@ -119,6 +119,6 @@ fn check_info() {
 #[test]
 fn with_offset_out_of_range() {
     let s = Simpleton::new(4);
-    let f = fs::File::open(s.dev_path()).unwrap();
+    let f = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
     assert_eq!(get_line_info(&f, 4), Err(Error::Os(Errno(libc::EINVAL))));
 }

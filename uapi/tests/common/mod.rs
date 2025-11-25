@@ -34,5 +34,5 @@ pub fn detailed_sim() -> gpiosim::Sim {
                 .hog(3, "salad", Direction::OutputHigh),
         )
         .live()
-        .unwrap()
+        .expect("gpiosim should go live")
 }

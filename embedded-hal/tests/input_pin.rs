@@ -20,12 +20,12 @@ fn is_high() {
     let s = Simpleton::new(5);
 
     let offset = 3;
-    let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+    let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
-    assert!(!pin.is_high().unwrap());
-    s.pullup(offset).unwrap();
+    assert!(!pin.is_high().expect("is_high should succeed"));
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    assert!(pin.is_high().unwrap());
+    assert!(pin.is_high().expect("is_high should succeed"));
 }
 
 #[test]
@@ -33,12 +33,12 @@ fn is_low() {
     let s = Simpleton::new(5);
 
     let offset = 2;
-    let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+    let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
-    assert!(pin.is_low().unwrap());
-    s.pullup(offset).unwrap();
+    assert!(pin.is_low().expect("is_low should succeed"));
+    s.pullup(offset).expect("pullup should succeed");
     wait_propagation_delay();
-    assert!(!pin.is_low().unwrap());
+    assert!(!pin.is_low().expect("is_low should succeed"));
 }
 
 #[test]
@@ -49,14 +49,22 @@ fn into_output_pin() {
     let s = Simpleton::new(5);
 
     let offset = 2;
-    let pin = InputPin::new(s.dev_path(), offset).unwrap();
+    let pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
     // convert to output
-    let mut pin = pin.into_output_pin(PinState::Low).unwrap();
+    let mut pin = pin
+        .into_output_pin(PinState::Low)
+        .expect("into_output_pin should succeed");
 
-    assert_eq!(s.get_level(offset).unwrap(), Level::Low);
-    pin.set_high().unwrap();
-    assert_eq!(s.get_level(offset).unwrap(), Level::High);
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::Low
+    );
+    pin.set_high().expect("set_high should succeed");
+    assert_eq!(
+        s.get_level(offset).expect("get_level should succeed"),
+        Level::High
+    );
 
     // check config
     let req = Request::from(pin);
@@ -64,7 +72,9 @@ fn into_output_pin() {
     let offsets = config.lines();
     assert_eq!(offsets.len(), 1);
     assert_eq!(offsets[0], offset);
-    let line_config = config.line_config(offset).unwrap();
+    let line_config = config
+        .line_config(offset)
+        .expect("line_config should succeed");
     assert_eq!(line_config.direction, Some(Direction::Output));
 }
 
@@ -83,10 +93,12 @@ mod try_from_request {
             .with_line(offset)
             .as_output(Value::Active);
 
-        let req = Request::from_config(config).request().unwrap();
+        let req = Request::from_config(config)
+            .request()
+            .expect("request should succeed");
 
         assert_eq!(
-            InputPin::try_from(req).unwrap_err(),
+            InputPin::try_from(req).expect_err("try_from should fail"),
             gpiocdev_embedded_hal::Error::RequiresInputMode
         );
     }
@@ -101,17 +113,17 @@ mod try_from_request {
             .with_line(offset)
             .as_input()
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         let config = req.config();
 
         // convert to OutputPin
-        let mut pin = InputPin::try_from(req).unwrap();
+        let mut pin = InputPin::try_from(req).expect("try_from should succeed");
 
-        assert!(pin.is_low().unwrap());
-        s.pullup(offset).unwrap();
+        assert!(pin.is_low().expect("is_low should succeed"));
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
-        assert!(!pin.is_low().unwrap());
+        assert!(!pin.is_low().expect("is_low should succeed"));
 
         // check config
         let req = Request::from(pin);
@@ -127,10 +139,10 @@ mod try_from_request {
             .on_chip(s.dev_path())
             .with_line(offset)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         assert_eq!(
-            InputPin::try_from(req).unwrap_err(),
+            InputPin::try_from(req).expect_err("try_from should fail"),
             gpiocdev_embedded_hal::Error::RequiresInputMode
         );
     }
@@ -144,10 +156,10 @@ mod try_from_request {
             .with_lines(&[1, 2])
             .as_output(Value::Inactive)
             .request()
-            .unwrap();
+            .expect("request should succeed");
 
         assert_eq!(
-            InputPin::try_from(req).unwrap_err(),
+            InputPin::try_from(req).expect_err("try_from should fail"),
             gpiocdev_embedded_hal::Error::MultipleLinesRequested
         );
     }
@@ -158,7 +170,7 @@ fn into_request() {
     let s = Simpleton::new(5);
 
     let offset = 2;
-    let pin = InputPin::new(s.dev_path(), offset).unwrap();
+    let pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
     let req = Request::from(pin);
     // check config
@@ -166,7 +178,9 @@ fn into_request() {
     let offsets = config.lines();
     assert_eq!(offsets.len(), 1);
     assert_eq!(offsets[0], offset);
-    let line_config = config.line_config(offset).unwrap();
+    let line_config = config
+        .line_config(offset)
+        .expect("line_config should succeed");
     assert_eq!(line_config.direction, Some(Direction::Input));
 }
 
@@ -182,7 +196,7 @@ fn from_found_line() {
             ..Default::default()
         },
     };
-    let pin = InputPin::from_found_line(fl).unwrap();
+    let pin = InputPin::from_found_line(fl).expect("from_found_line should succeed");
 
     let req = Request::from(pin);
     // check config
@@ -190,7 +204,9 @@ fn from_found_line() {
     let offsets = config.lines();
     assert_eq!(offsets.len(), 1);
     assert_eq!(offsets[0], offset);
-    let line_config = config.line_config(offset).unwrap();
+    let line_config = config
+        .line_config(offset)
+        .expect("line_config should succeed");
     assert_eq!(line_config.direction, Some(Direction::Input));
 }
 
@@ -205,10 +221,10 @@ fn from_name() {
                 .name(6, "ifn apple"),
         )
         .live()
-        .unwrap();
+        .expect("gpiosim should go live");
 
     let offset = 6;
-    let pin = InputPin::from_name("ifn apple").unwrap();
+    let pin = InputPin::from_name("ifn apple").expect("from_name should succeed");
 
     let req = Request::from(pin);
     // check config
@@ -217,11 +233,13 @@ fn from_name() {
     let offsets = config.lines();
     assert_eq!(offsets.len(), 1);
     assert_eq!(offsets[0], offset);
-    let line_config = config.line_config(offset).unwrap();
+    let line_config = config
+        .line_config(offset)
+        .expect("line_config should succeed");
     assert_eq!(line_config.direction, Some(Direction::Input));
 
     assert_eq!(
-        InputPin::from_name("ifn grape").unwrap_err(),
+        InputPin::from_name("ifn grape").expect_err("from_name should fail"),
         gpiocdev_embedded_hal::Error::UnfoundLine("ifn grape".into())
     );
 }
@@ -247,20 +265,22 @@ mod async_tokio {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let pin = SyncInputPin::new(s.dev_path(), offset).unwrap();
+        let pin = SyncInputPin::new(s.dev_path(), offset).expect("pin should exist");
         let mut pin = InputPin::from(pin);
 
-        assert!(pin.is_low().unwrap());
-        s.pullup(offset).unwrap();
+        assert!(pin.is_low().expect("is_low should succeed"));
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
-        assert!(pin.is_high().unwrap());
+        assert!(pin.is_high().expect("is_high should succeed"));
 
         let req = gpiocdev::Request::from(pin);
         let config = req.config();
         let offsets = config.lines();
         assert_eq!(offsets.len(), 1);
         assert_eq!(offsets[0], offset);
-        let line_config = config.line_config(offset).unwrap();
+        let line_config = config
+            .line_config(offset)
+            .expect("line_config should succeed");
         assert_eq!(line_config.direction, Some(Direction::Input));
         assert_eq!(line_config.edge_detection, None);
     }
@@ -270,20 +290,22 @@ mod async_tokio {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
         let mut pin = SyncInputPin::from(pin);
 
-        assert!(pin.is_low().unwrap());
-        s.pullup(offset).unwrap();
+        assert!(pin.is_low().expect("is_low should succeed"));
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
-        assert!(pin.is_high().unwrap());
+        assert!(pin.is_high().expect("is_high should succeed"));
 
         let req = gpiocdev::Request::from(pin);
         let config = req.config();
         let offsets = config.lines();
         assert_eq!(offsets.len(), 1);
         assert_eq!(offsets[0], offset);
-        let line_config = config.line_config(offset).unwrap();
+        let line_config = config
+            .line_config(offset)
+            .expect("line_config should succeed");
         assert_eq!(line_config.direction, Some(Direction::Input));
         assert_eq!(line_config.edge_detection, None);
     }
@@ -293,18 +315,18 @@ mod async_tokio {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         // known low
         assert!(!will_resolve(pin.wait_for_high()).await);
         assert!(will_resolve(pin.wait_for_low()).await);
         // switched to high
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         assert!(will_resolve(pin.wait_for_high()).await);
         assert!(!will_resolve(pin.wait_for_low()).await);
         assert!(will_resolve(pin.wait_for_high()).await);
         // switched to low
-        s.pulldown(offset).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
         assert!(will_resolve(pin.wait_for_low()).await);
         assert!(!will_resolve(pin.wait_for_high()).await);
     }
@@ -314,12 +336,12 @@ mod async_tokio {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         // known low
         assert!(will_resolve(pin.wait_for_low()).await);
         // switched to high
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
         // Possible quirk - impl doesn't check for events if the last known level
         // is what you asked for - it does not check the hardware and so doesn't see
@@ -329,7 +351,7 @@ mod async_tokio {
         assert!(will_resolve(pin.wait_for_high()).await);
         assert!(!will_resolve(pin.wait_for_low()).await);
         // switched to low
-        s.pulldown(offset).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
         assert!(will_resolve(pin.wait_for_low()).await);
         assert!(!will_resolve(pin.wait_for_high()).await);
     }
@@ -339,19 +361,19 @@ mod async_tokio {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         // known low
         assert!(!will_resolve(pin.wait_for_rising_edge()).await);
         // switched to high
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         assert!(will_resolve(pin.wait_for_rising_edge()).await);
         assert!(!will_resolve(pin.wait_for_rising_edge()).await);
         // switched to low
-        s.pulldown(offset).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
         assert!(!will_resolve(pin.wait_for_rising_edge()).await);
         // switched to high
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         assert!(will_resolve(pin.wait_for_rising_edge()).await);
         assert!(!will_resolve(pin.wait_for_rising_edge()).await);
     }
@@ -361,20 +383,20 @@ mod async_tokio {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         // known low
         assert!(!will_resolve(pin.wait_for_falling_edge()).await);
         // switched to high
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
         assert!(!will_resolve(pin.wait_for_falling_edge()).await);
         // switched to low
-        s.pulldown(offset).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
         assert!(will_resolve(pin.wait_for_falling_edge()).await);
         assert!(!will_resolve(pin.wait_for_falling_edge()).await);
         // switched to high
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         assert!(!will_resolve(pin.wait_for_falling_edge()).await);
     }
 
@@ -383,19 +405,19 @@ mod async_tokio {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         // known low
         assert!(!will_resolve(pin.wait_for_any_edge()).await);
         // switched to high
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         assert!(will_resolve(pin.wait_for_any_edge()).await);
         // switched to low
-        s.pulldown(offset).unwrap();
+        s.pulldown(offset).expect("pulldown should succeed");
         assert!(will_resolve(pin.wait_for_any_edge()).await);
         assert!(!will_resolve(pin.wait_for_any_edge()).await);
         // switched to high
-        s.pullup(offset).unwrap();
+        s.pullup(offset).expect("pullup should succeed");
         assert!(will_resolve(pin.wait_for_any_edge()).await);
         assert!(!will_resolve(pin.wait_for_any_edge()).await);
     }
@@ -423,20 +445,22 @@ mod async_io {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let pin = SyncInputPin::new(s.dev_path(), offset).unwrap();
+        let pin = SyncInputPin::new(s.dev_path(), offset).expect("pin should exist");
         let mut pin = InputPin::from(pin);
 
-        assert!(pin.is_low().unwrap());
-        s.pullup(offset).unwrap();
+        assert!(pin.is_low().expect("is_low should succeed"));
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
-        assert!(pin.is_high().unwrap());
+        assert!(pin.is_high().expect("is_high should succeed"));
 
         let req = gpiocdev::Request::from(pin);
         let config = req.config();
         let offsets = config.lines();
         assert_eq!(offsets.len(), 1);
         assert_eq!(offsets[0], offset);
-        let line_config = config.line_config(offset).unwrap();
+        let line_config = config
+            .line_config(offset)
+            .expect("line_config should succeed");
         assert_eq!(line_config.direction, Some(Direction::Input));
         assert_eq!(line_config.edge_detection, None);
     }
@@ -446,20 +470,22 @@ mod async_io {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
         let mut pin = SyncInputPin::from(pin);
 
-        assert!(pin.is_low().unwrap());
-        s.pullup(offset).unwrap();
+        assert!(pin.is_low().expect("is_low should succeed"));
+        s.pullup(offset).expect("pullup should succeed");
         wait_propagation_delay();
-        assert!(pin.is_high().unwrap());
+        assert!(pin.is_high().expect("is_high should succeed"));
 
         let req = gpiocdev::Request::from(pin);
         let config = req.config();
         let offsets = config.lines();
         assert_eq!(offsets.len(), 1);
         assert_eq!(offsets[0], offset);
-        let line_config = config.line_config(offset).unwrap();
+        let line_config = config
+            .line_config(offset)
+            .expect("line_config should succeed");
         assert_eq!(line_config.direction, Some(Direction::Input));
         assert_eq!(line_config.edge_detection, None);
     }
@@ -469,19 +495,19 @@ mod async_io {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         block_on(async {
             // known low
             assert!(!will_resolve(pin.wait_for_high()).await);
             assert!(will_resolve(pin.wait_for_low()).await);
             // switched to high
-            s.pullup(offset).unwrap();
+            s.pullup(offset).expect("pullup should succeed");
             assert!(will_resolve(pin.wait_for_high()).await);
             assert!(!will_resolve(pin.wait_for_low()).await);
             assert!(will_resolve(pin.wait_for_high()).await);
             // switched to low
-            s.pulldown(offset).unwrap();
+            s.pulldown(offset).expect("pulldown should succeed");
             assert!(will_resolve(pin.wait_for_low()).await);
             assert!(!will_resolve(pin.wait_for_high()).await);
         })
@@ -492,13 +518,13 @@ mod async_io {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         block_on(async {
             // known low
             assert!(will_resolve(pin.wait_for_low()).await);
             // switched to high
-            s.pullup(offset).unwrap();
+            s.pullup(offset).expect("pullup should succeed");
             wait_propagation_delay();
             // Possible quirk - impl doesn't check for events if the last known level
             // is what you asked for - it does not check the hardware and so doesn't see
@@ -508,7 +534,7 @@ mod async_io {
             assert!(will_resolve(pin.wait_for_high()).await);
             assert!(!will_resolve(pin.wait_for_low()).await);
             // switched to low
-            s.pulldown(offset).unwrap();
+            s.pulldown(offset).expect("pulldown should succeed");
             assert!(will_resolve(pin.wait_for_low()).await);
             assert!(!will_resolve(pin.wait_for_high()).await);
         })
@@ -519,20 +545,20 @@ mod async_io {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         block_on(async {
             // known low
             assert!(!will_resolve(pin.wait_for_rising_edge()).await);
             // switched to high
-            s.pullup(offset).unwrap();
+            s.pullup(offset).expect("pullup should succeed");
             assert!(will_resolve(pin.wait_for_rising_edge()).await);
             assert!(!will_resolve(pin.wait_for_rising_edge()).await);
             // switched to low
-            s.pulldown(offset).unwrap();
+            s.pulldown(offset).expect("pulldown should succeed");
             assert!(!will_resolve(pin.wait_for_rising_edge()).await);
             // switched to high
-            s.pullup(offset).unwrap();
+            s.pullup(offset).expect("pullup should succeed");
             assert!(will_resolve(pin.wait_for_rising_edge()).await);
             assert!(!will_resolve(pin.wait_for_rising_edge()).await);
         })
@@ -543,21 +569,21 @@ mod async_io {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         block_on(async {
             // known low
             assert!(!will_resolve(pin.wait_for_falling_edge()).await);
             // switched to high
-            s.pullup(offset).unwrap();
+            s.pullup(offset).expect("pullup should succeed");
             wait_propagation_delay();
             assert!(!will_resolve(pin.wait_for_falling_edge()).await);
             // switched to low
-            s.pulldown(offset).unwrap();
+            s.pulldown(offset).expect("pulldown should succeed");
             assert!(will_resolve(pin.wait_for_falling_edge()).await);
             assert!(!will_resolve(pin.wait_for_falling_edge()).await);
             // switched to high
-            s.pullup(offset).unwrap();
+            s.pullup(offset).expect("pullup should succeed");
             assert!(!will_resolve(pin.wait_for_falling_edge()).await);
         })
     }
@@ -567,20 +593,20 @@ mod async_io {
         let s = Simpleton::new(5);
 
         let offset = 3;
-        let mut pin = InputPin::new(s.dev_path(), offset).unwrap();
+        let mut pin = InputPin::new(s.dev_path(), offset).expect("pin should exist");
 
         block_on(async {
             // known low
             assert!(!will_resolve(pin.wait_for_any_edge()).await);
             // switched to high
-            s.pullup(offset).unwrap();
+            s.pullup(offset).expect("pullup should succeed");
             assert!(will_resolve(pin.wait_for_any_edge()).await);
             // switched to low
-            s.pulldown(offset).unwrap();
+            s.pulldown(offset).expect("pulldown should succeed");
             assert!(will_resolve(pin.wait_for_any_edge()).await);
             assert!(!will_resolve(pin.wait_for_any_edge()).await);
             // switched to high
-            s.pullup(offset).unwrap();
+            s.pullup(offset).expect("pullup should succeed");
             assert!(will_resolve(pin.wait_for_any_edge()).await);
             assert!(!will_resolve(pin.wait_for_any_edge()).await);
         });
