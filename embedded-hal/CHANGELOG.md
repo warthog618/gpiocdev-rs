@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- replace panicky unwrap variants with expect variants.
+
 <a name="v0.1.3"></a>
 
 ## v0.1.3 - 2025-11-19

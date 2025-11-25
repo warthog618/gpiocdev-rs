@@ -7,6 +7,8 @@ Each crate has its own detailed CHANGELOG:
 
 ## [Unreleased](https://github.com/warthog618/gpiocdev-rs/compare/lib-v0.8.0...HEAD)
 
+- replace panicky unwrap variants with expect variants.
+
 ## 2025-11-19
 
 - fix #21 - release build incorrectly reporting debounce period (cli).
