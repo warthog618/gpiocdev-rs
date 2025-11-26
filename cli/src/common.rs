@@ -365,11 +365,8 @@ pub fn stringify_attrs(li: &gpiocdev::line::Info, quoted: bool) -> String {
         Some(EventClock::Hte) => attrs.push("event-clock=hte"),
     }
     let db;
-    if li.debounce_period.is_some() {
-        db = format!(
-            "debounce-period={:?}",
-            li.debounce_period.expect("debounce is_some")
-        );
+    if let Some(debounce_period) = li.debounce_period {
+        db = format!("debounce-period={:?}", debounce_period);
         attrs.push(&db);
     }
     let consumer;
