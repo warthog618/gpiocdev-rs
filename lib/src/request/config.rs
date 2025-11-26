@@ -1160,15 +1160,12 @@ mod tests {
         // from select
         cfg.with_line(2);
         let mut lc = cfg.line_config(2);
-        assert!(lc.is_some());
-        assert_eq!(lc.expect("checked is_some").bias, Some(PullDown));
+        assert_eq!(lc.expect("lc is_some").bias, Some(PullDown));
 
         // from unselected
         cfg.with_line(3);
         lc = cfg.line_config(2);
-        assert!(lc.is_some());
-        let lc = lc.expect("checked is_some");
-        assert_eq!(lc.bias, Some(PullDown));
+        assert_eq!(lc.expect("lc is_some").bias, Some(PullDown));
     }
 
     #[test]
