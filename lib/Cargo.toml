@@ -77,7 +77,7 @@ tokio-stream = { version = "0.1.11", optional = true }
 [dev-dependencies]
 anyhow = "1.0"
 async-std = "1"
-criterion = "0.7"
+criterion = "0.8"
 gpiosim = "0.4"
 tokio = { version = "1.21", features = ["macros", "rt", "time"] }
 
