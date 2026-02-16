@@ -11,7 +11,10 @@ criterion_main!(v1_benches, v2_benches);
 #[cfg(feature = "uapi_v1")]
 mod v1 {
     use criterion::{Bencher, Criterion};
-    use gpiocdev_uapi::v1::{get_line_handle, HandleRequest, HandleRequestFlags, Offset};
+    use gpiocdev_uapi::v1::{
+        get_line_event, get_line_handle, EventRequest, EventRequestFlags, HandleRequest,
+        HandleRequestFlags, Offset,
+    };
     use gpiosim::Simpleton;
     use std::fs;
 
@@ -21,6 +24,7 @@ mod v1 {
             open_chip_and_request_one,
         );
         c.bench_function("uapi_v1 request one", request_one);
+        c.bench_function("uapi_v1 request event", request_event);
         c.bench_function("uapi_v1 request ten", request_ten);
         c.bench_function("uapi_v1 request maxlen", request_maxlen);
     }
@@ -59,6 +63,22 @@ mod v1 {
             hr.offsets.copy_from_slice(&[1]);
 
             let l = get_line_handle(&cf, hr).expect("get_line_handle should succeed");
+            drop(l);
+        });
+    }
+    // determine time taken to request a line with edge detection
+    fn request_event(b: &mut Bencher) {
+        let s = Simpleton::new(10);
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
+        b.iter(|| {
+            let er = EventRequest {
+                offset: 1,
+                consumer: "request_event".into(),
+                eventflags: EventRequestFlags::BOTH_EDGES,
+                ..Default::default()
+            };
+
+            let l = get_line_event(&cf, er).expect("get_line_event should succeed");
             drop(l);
         });
     }
@@ -111,7 +131,7 @@ mod v1 {
 #[cfg(feature = "uapi_v2")]
 mod v2 {
     use criterion::{Bencher, Criterion};
-    use gpiocdev_uapi::v2::{get_line, LineConfig, LineFlags, LineRequest, Offset};
+    use gpiocdev_uapi::v2::{get_line, LineAttribute, LineConfig, LineFlags, LineRequest, Offset};
     use gpiosim::Simpleton;
     use std::fs;
 
@@ -121,6 +141,14 @@ mod v2 {
             open_chip_and_request_one,
         );
         c.bench_function("uapi_v2 request one", request_one);
+        c.bench_function(
+            "uapi_v2 request one with both edges",
+            request_one_with_both_edges,
+        );
+        c.bench_function(
+            "uapi_v2 request one with both edges debounced",
+            request_one_with_both_edges_debounced,
+        );
         c.bench_function("uapi_v2 request ten", request_ten);
         c.bench_function("uapi_v2 request maxlen", request_maxlen);
     }
@@ -165,6 +193,58 @@ mod v2 {
             };
             // doesn't have to be in order, but just keeping it simple...
             lr.offsets.copy_from_slice(&[offset]);
+
+            let l = get_line(&cf, lr).expect("get_line should succeed");
+            drop(l);
+        });
+    }
+
+    // determine time taken to request one line with edge detection
+    fn request_one_with_both_edges(b: &mut Bencher) {
+        let s = Simpleton::new(10);
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
+        let offset = 2;
+        b.iter(|| {
+            let mut lr = LineRequest {
+                num_lines: 1,
+                consumer: "request_one".into(),
+                config: LineConfig {
+                    flags: LineFlags::INPUT | LineFlags::EDGE_RISING | LineFlags::EDGE_FALLING,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            // doesn't have to be in order, but just keeping it simple...
+            lr.offsets.copy_from_slice(&[offset]);
+
+            let l = get_line(&cf, lr).expect("get_line should succeed");
+            drop(l);
+        });
+    }
+
+    // determine time taken to request one line with edge detection and debounce
+    fn request_one_with_both_edges_debounced(b: &mut Bencher) {
+        let s = Simpleton::new(10);
+        let cf = fs::File::open(s.dev_path()).expect("gpiosim chip should exist");
+        let offset = 2;
+        b.iter(|| {
+            let mut lr = LineRequest {
+                num_lines: 1,
+                consumer: "request_one".into(),
+                config: LineConfig {
+                    flags: LineFlags::INPUT | LineFlags::EDGE_RISING | LineFlags::EDGE_FALLING,
+                    num_attrs: 1,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            // doesn't have to be in order, but just keeping it simple...
+            lr.offsets.copy_from_slice(&[offset]);
+            let mut xattr = LineAttribute::default();
+            xattr.set_debounce_period_us(123);
+            let attr = lr.config.attr_mut(0);
+            attr.mask = 1;
+            attr.attr = xattr;
 
             let l = get_line(&cf, lr).expect("get_line should succeed");
             drop(l);
