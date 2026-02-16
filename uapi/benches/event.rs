@@ -16,6 +16,7 @@ mod v1 {
     };
     use gpiosim::{Level, Simpleton};
     use std::fs;
+    use std::hint::black_box;
 
     pub fn bench(c: &mut Criterion) {
         c.bench_function("uapi_v1 edge latency", edge_latency);
@@ -104,7 +105,9 @@ mod v1 {
         );
 
         b.iter(|| {
-            let _ = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
+            let _ = black_box(
+                LineEdgeEvent::from_slice(black_box(&buf)).expect("from_slice should succeed"),
+            );
         });
     }
 }
@@ -121,6 +124,7 @@ mod v2 {
     };
     use gpiosim::{Level, Simpleton};
     use std::fs;
+    use std::hint::black_box;
 
     pub fn bench(c: &mut Criterion) {
         c.bench_function("uapi_v2 edge latency", edge_latency);
@@ -221,7 +225,9 @@ mod v2 {
         );
 
         b.iter(|| {
-            let _ = LineEdgeEvent::from_slice(&buf).expect("from_slice should succeed");
+            let _ = black_box(
+                LineEdgeEvent::from_slice(black_box(&buf)).expect("from_slice should succeed"),
+            );
         });
     }
 }
