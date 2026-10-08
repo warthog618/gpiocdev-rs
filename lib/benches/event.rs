@@ -16,9 +16,11 @@ criterion_main!(v1_benches, v2_benches);
 #[cfg(feature = "uapi_v1")]
 fn v1_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V1;
-    c.bench_function("uapi_v1 edge latency", |b| edge_latency(b, V1));
-    c.bench_function("uapi_v1 ten edge events", |b| ten_edge_events(b, V1));
-    c.bench_function("uapi_v1 edge event object", |b| edge_event_object(b, V1));
+    c.bench_function("lib/uapi_v1 edge latency", |b| edge_latency(b, V1));
+    c.bench_function("lib/uapi_v1 ten edge events", |b| ten_edge_events(b, V1));
+    c.bench_function("lib/uapi_v1 read edge event object from kernel", |b| {
+        read_edge_event_object(b, V1)
+    });
 }
 #[cfg(not(feature = "uapi_v1"))]
 fn v1_benchmarks(_c: &mut Criterion) {}
@@ -26,9 +28,11 @@ fn v1_benchmarks(_c: &mut Criterion) {}
 #[cfg(feature = "uapi_v2")]
 fn v2_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V2;
-    c.bench_function("uapi_v2 edge latency", |b| edge_latency(b, V2));
-    c.bench_function("uapi_v2 ten edge events", |b| ten_edge_events(b, V2));
-    c.bench_function("uapi_v2 edge event object", |b| edge_event_object(b, V2));
+    c.bench_function("lib/uapi_v2 edge latency", |b| edge_latency(b, V2));
+    c.bench_function("lib/uapi_v2 ten edge events", |b| ten_edge_events(b, V2));
+    c.bench_function("lib/uapi_v2 read edge event object from kernel", |b| {
+        read_edge_event_object(b, V2)
+    });
 }
 #[cfg(not(feature = "uapi_v2"))]
 fn v2_benchmarks(_c: &mut Criterion) {}
@@ -54,7 +58,7 @@ fn edge_latency(b: &mut Bencher, abiv: AbiVersion) {
     let mut event = vec![0_u64; req.edge_event_u64_size()];
 
     b.iter(|| {
-        s.set_pull(offset, pull).expect("set_pull shgould succeed");
+        s.set_pull(offset, pull).expect("set_pull should succeed");
         pull = match pull {
             Level::High => Level::Low,
             Level::Low => Level::High,
@@ -102,7 +106,7 @@ fn ten_edge_events(b: &mut Bencher, abiv: AbiVersion) {
 // determine the interrupt latency when returning an event
 // overheads are toggle time and edge latency.
 #[allow(unused_variables)]
-fn edge_event_object(b: &mut Bencher, abiv: AbiVersion) {
+fn read_edge_event_object(b: &mut Bencher, abiv: AbiVersion) {
     let s = Simpleton::new(10);
     let offset = 1;
 

@@ -16,9 +16,13 @@ criterion_main!(v1_benches, v2_benches);
 #[cfg(feature = "uapi_v1")]
 fn v1_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V1;
-    c.bench_function("uapi_v1 reconfigure input", |b| reconfigure_input(b, V1));
-    c.bench_function("uapi_v1 reconfigure output", |b| reconfigure_output(b, V1));
-    c.bench_function("uapi_v1 reconfigure input and output", |b| {
+    c.bench_function("lib/uapi_v1 reconfigure input", |b| {
+        reconfigure_input(b, V1)
+    });
+    c.bench_function("lib/uapi_v1 reconfigure output", |b| {
+        reconfigure_output(b, V1)
+    });
+    c.bench_function("lib/uapi_v1 reconfigure input and output", |b| {
         reconfigure_input_output(b, V1)
     });
 }
@@ -28,9 +32,13 @@ fn v1_benchmarks(_c: &mut Criterion) {}
 #[cfg(feature = "uapi_v2")]
 fn v2_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V2;
-    c.bench_function("uapi_v2 reconfigure input", |b| reconfigure_input(b, V2));
-    c.bench_function("uapi_v2 reconfigure output", |b| reconfigure_output(b, V2));
-    c.bench_function("uapi_v2 reconfigure input and output", |b| {
+    c.bench_function("lib/uapi_v2 reconfigure input", |b| {
+        reconfigure_input(b, V2)
+    });
+    c.bench_function("lib/uapi_v2 reconfigure output", |b| {
+        reconfigure_output(b, V2)
+    });
+    c.bench_function("lib/uapi_v2 reconfigure input and output", |b| {
         reconfigure_input_output(b, V2)
     });
 }

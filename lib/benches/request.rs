@@ -16,10 +16,10 @@ criterion_main!(v1_benches, v2_benches);
 #[cfg(feature = "uapi_v1")]
 fn v1_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V1;
-    c.bench_function("uapi_v1 one input", |b| one_input(b, V1));
-    c.bench_function("uapi_v1 ten inputs", |b| ten_inputs(b, V1));
-    c.bench_function("uapi_v1 one output", |b| one_output(b, V1));
-    c.bench_function("uapi_v1 ten outputs", |b| ten_outputs(b, V1));
+    c.bench_function("lib/uapi_v1 request one input", |b| one_input(b, V1));
+    c.bench_function("lib/uapi_v1 trequest en inputs", |b| ten_inputs(b, V1));
+    c.bench_function("lib/uapi_v1 request one output", |b| one_output(b, V1));
+    c.bench_function("lib/uapi_v1 request ten outputs", |b| ten_outputs(b, V1));
 }
 #[cfg(not(feature = "uapi_v1"))]
 fn v1_benchmarks(_c: &mut Criterion) {}
@@ -27,10 +27,10 @@ fn v1_benchmarks(_c: &mut Criterion) {}
 #[cfg(feature = "uapi_v2")]
 fn v2_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V2;
-    c.bench_function("uapi_v2 one input", |b| one_input(b, V2));
-    c.bench_function("uapi_v2 ten inputs", |b| ten_inputs(b, V2));
-    c.bench_function("uapi_v2 one output", |b| one_output(b, V2));
-    c.bench_function("uapi_v2 ten outputs", |b| ten_outputs(b, V2));
+    c.bench_function("lib/uapi_v2 request one input", |b| one_input(b, V2));
+    c.bench_function("lib/uapi_v2 request ten inputs", |b| ten_inputs(b, V2));
+    c.bench_function("lib/uapi_v2 request one output", |b| one_output(b, V2));
+    c.bench_function("lib/uapi_v2 request ten outputs", |b| ten_outputs(b, V2));
 }
 #[cfg(not(feature = "uapi_v2"))]
 fn v2_benchmarks(_c: &mut Criterion) {}

@@ -16,12 +16,12 @@ criterion_main!(v1_benches, v2_benches);
 #[cfg(feature = "uapi_v1")]
 fn v1_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V1;
-    c.bench_function("uapi_v1 get one", |b| get_one(b, V1));
-    c.bench_function("uapi_v1 get ten", |b| get_ten(b, V1));
-    c.bench_function("uapi_v1 get maxlen", |b| get_maxlen(b, V1));
-    c.bench_function("uapi_v1 set one", |b| set_one(b, V1));
-    c.bench_function("uapi_v1 set ten", |b| set_ten(b, V1));
-    c.bench_function("uapi_v1 set maxlen", |b| set_maxlen(b, V1));
+    c.bench_function("lib/uapi_v1 get one", |b| get_one(b, V1));
+    c.bench_function("lib/uapi_v1 get ten", |b| get_ten(b, V1));
+    c.bench_function("lib/uapi_v1 get maxlen", |b| get_maxlen(b, V1));
+    c.bench_function("lib/uapi_v1 set one", |b| set_one(b, V1));
+    c.bench_function("lib/uapi_v1 set ten", |b| set_ten(b, V1));
+    c.bench_function("lib/uapi_v1 set maxlen", |b| set_maxlen(b, V1));
 }
 #[cfg(not(feature = "uapi_v1"))]
 fn v1_benchmarks(_c: &mut Criterion) {}
@@ -29,12 +29,12 @@ fn v1_benchmarks(_c: &mut Criterion) {}
 #[cfg(feature = "uapi_v2")]
 fn v2_benchmarks(c: &mut Criterion) {
     use gpiocdev::AbiVersion::V2;
-    c.bench_function("uapi_v2 get one", |b| get_one(b, V2));
-    c.bench_function("uapi_v2 get ten", |b| get_ten(b, V2));
-    c.bench_function("uapi_v2 get maxlen", |b| get_maxlen(b, V2));
-    c.bench_function("uapi_v2 set one", |b| set_one(b, V2));
-    c.bench_function("uapi_v2 set ten", |b| set_ten(b, V2));
-    c.bench_function("uapi_v2 set maxlen", |b| set_maxlen(b, V2));
+    c.bench_function("lib/uapi_v2 get one", |b| get_one(b, V2));
+    c.bench_function("lib/uapi_v2 get ten", |b| get_ten(b, V2));
+    c.bench_function("lib/uapi_v2 get maxlen", |b| get_maxlen(b, V2));
+    c.bench_function("lib/uapi_v2 set one", |b| set_one(b, V2));
+    c.bench_function("lib/uapi_v2 set ten", |b| set_ten(b, V2));
+    c.bench_function("lib/uapi_v2 set maxlen", |b| set_maxlen(b, V2));
 }
 #[cfg(not(feature = "uapi_v2"))]
 fn v2_benchmarks(_c: &mut Criterion) {}

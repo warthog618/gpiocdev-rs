@@ -21,7 +21,7 @@ mod v1 {
     pub fn bench(c: &mut Criterion) {
         c.bench_function("uapi_v1 edge latency", edge_latency);
         c.bench_function("uapi_v1 ten edge events", ten_edge_events);
-        c.bench_function("uapi_v1 edge event object", edge_event_object);
+        c.bench_function("uapi_v1 edge event object from buffer", edge_event_object);
     }
 
     // determine the interrupt latency.
@@ -104,10 +104,12 @@ mod v1 {
             LineEdgeEvent::u64_size()
         );
 
+        let mut i = 0;
         b.iter(|| {
-            let _ = black_box(
-                LineEdgeEvent::from_slice(black_box(&buf)).expect("from_slice should succeed"),
-            );
+            i = black_box(i) + 1;
+            let data = black_box(buf.as_slice());
+            let res = LineEdgeEvent::from_slice(data).expect("from_slice should succeed");
+            black_box((res, i));
         });
     }
 }
@@ -129,7 +131,7 @@ mod v2 {
     pub fn bench(c: &mut Criterion) {
         c.bench_function("uapi_v2 edge latency", edge_latency);
         c.bench_function("uapi_v2 ten edge events", ten_edge_events);
-        c.bench_function("uapi_v2 edge event object", edge_event_object);
+        c.bench_function("uapi_v2 edge event object from buffer", edge_event_object);
     }
 
     // determine the interrupt latency.
@@ -224,10 +226,12 @@ mod v2 {
             LineEdgeEvent::u64_size()
         );
 
+        let mut i = 0;
         b.iter(|| {
-            let _ = black_box(
-                LineEdgeEvent::from_slice(black_box(&buf)).expect("from_slice should succeed"),
-            );
+            i = black_box(i) + 1;
+            let data = black_box(buf.as_slice());
+            let res = LineEdgeEvent::from_slice(data).expect("from_slice should succeed");
+            black_box((res, i));
         });
     }
 }
